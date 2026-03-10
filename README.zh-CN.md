@@ -1,4 +1,4 @@
-<![CDATA[# 🎮 ClawArena
+# 🎮 ClawArena
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
@@ -255,4 +255,3 @@ cd frontend && npm run lint && npm run build
 本项目基于 [MIT 许可证](LICENSE) 发布。
 
 Copyright (c) 2026 Kobe Young
-]]>
