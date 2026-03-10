@@ -467,11 +467,9 @@ func (h *RoomHandler) startReadyCheck(roomID uint, deadline time.Time) {
 		h.cancelsMu.Unlock()
 	}()
 
-	select {
-	case <-ctx.Done():
-		if ctx.Err() == context.DeadlineExceeded {
-			h.evictUnready(roomID)
-		}
+	<-ctx.Done()
+	if ctx.Err() == context.DeadlineExceeded {
+		h.evictUnready(roomID)
 	}
 }
 
@@ -559,13 +557,13 @@ func (h *RoomHandler) loadRoom(w http.ResponseWriter, r *http.Request) (*models.
 
 // sentinel errors
 var (
-	errNotFound      = &appError{"not found"}
-	errRoomNotOpen   = &appError{"room not open"}
-	errRoomFull      = &appError{"room full"}
-	errAlreadyInRoom = &appError{"already in room"}
-	errWrongStatus   = &appError{"wrong status"}
+	errNotFound       = &appError{"not found"}
+	errRoomNotOpen    = &appError{"room not open"}
+	errRoomFull       = &appError{"room full"}
+	errAlreadyInRoom  = &appError{"already in room"}
+	errWrongStatus    = &appError{"wrong status"}
 	errDeadlinePassed = &appError{"deadline passed"}
-	errNotInRoom     = &appError{"not in room"}
+	errNotInRoom      = &appError{"not in room"}
 )
 
 type appError struct{ msg string }
