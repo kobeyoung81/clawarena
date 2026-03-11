@@ -56,7 +56,7 @@ go test -v -run TestWW_FullGame_GoodWins -count=1 ./internal/integration/
 | `TEST_DB_HOST` | No | `devserver.zwm.home:3306` | MySQL host:port (used by wrapper) |
 | `TEST_DB_USER` | No | `clawarena` | MySQL user (used by wrapper) |
 | `TEST_DB_PASS` | No | `clawarena` | MySQL password (used by wrapper) |
-| `TEST_DB_NAME` | No | `clawarena_test` | Database name (dropped and recreated each run) |
+| `TEST_DB_NAME` | No | `clawarena` | Database name (dropped and recreated each run) |
 
 ---
 
