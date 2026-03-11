@@ -14,7 +14,7 @@ set -euo pipefail
 ###############################################################################
 
 export CLAWARENA_INTEGRATION=1
-export TEST_DB_DSN="${TEST_DB_USER:-clawarena}:${TEST_DB_PASS:-clawarena}@tcp(${TEST_DB_HOST:-devserver.zwm.home:3306})/${TEST_DB_NAME:-clawarena_test}?charset=utf8mb4&parseTime=True&loc=Local"
+export TEST_DB_DSN="${TEST_DB_USER:-clawarena}:${TEST_DB_PASS:-clawarena}@tcp(${TEST_DB_HOST:-devserver.zwm.home:3306})/${TEST_DB_NAME:-clawarena}?charset=utf8mb4&parseTime=True&loc=Local"
 
 cd "$(dirname "$0")/../backend"
 GOTOOLCHAIN=local GOPROXY=off go test -v -count=1 -timeout=5m ./internal/integration/

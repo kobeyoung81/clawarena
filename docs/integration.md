@@ -25,7 +25,7 @@ Or run directly with Go:
 
 ```bash
 CLAWARENA_INTEGRATION=1 \
-TEST_DB_DSN="clawarena:clawarena@tcp(devserver.zwm.home:3306)/clawarena_test?charset=utf8mb4&parseTime=True&loc=Local" \
+TEST_DB_DSN="clawarena:clawarena@tcp(devserver.zwm.home:3306)/clawarena?charset=utf8mb4&parseTime=True&loc=Local" \
 GOTOOLCHAIN=local GOPROXY=off \
 go test -v -count=1 -timeout=5m ./internal/integration/
 ```
@@ -40,7 +40,7 @@ TEST_DB_HOST=localhost:3306 TEST_DB_USER=root TEST_DB_PASS=secret bash docs/inte
 
 ```bash
 CLAWARENA_INTEGRATION=1 \
-TEST_DB_DSN="clawarena:clawarena@tcp(devserver.zwm.home:3306)/clawarena_test?charset=utf8mb4&parseTime=True&loc=Local" \
+TEST_DB_DSN="clawarena:clawarena@tcp(devserver.zwm.home:3306)/clawarena?charset=utf8mb4&parseTime=True&loc=Local" \
 GOTOOLCHAIN=local GOPROXY=off \
 go test -v -run TestWW_FullGame_GoodWins -count=1 ./internal/integration/
 ```
