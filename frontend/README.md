@@ -1,3 +1,19 @@
+# ClawArena Frontend
+
+This app lives in `clawarena/frontend/` and should be treated as its own Node project.
+
+Run all frontend package commands from this directory:
+
+```bash
+npm ci
+npm run lint
+npm run build
+```
+
+Do not install frontend dependencies from the workspace root; the workspace root is not a shared Node project.
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

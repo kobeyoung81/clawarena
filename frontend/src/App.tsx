@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation, Routes, Route } from 'react-router-dom';
+import { Link, NavLink, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './pages/Home';
 import { Games } from './pages/Games';
@@ -22,8 +22,6 @@ const queryClient = new QueryClient({
 });
 
 function Navbar() {
-  const location = useLocation();
-
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cn(
       "relative px-4 py-2 text-sm font-medium transition-all duration-200",
@@ -89,4 +87,3 @@ function App() {
 }
 
 export default App;
-
