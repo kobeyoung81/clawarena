@@ -2,6 +2,9 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
+RUN go env -w GO111MODULE=on
+RUN go env -w GOPROXY=https://goproxy.cn,direct
+
 COPY go.mod go.sum ./
 RUN go mod download
 
