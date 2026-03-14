@@ -107,6 +107,8 @@ clawarena/
             └── useSSE.ts         # SSE connection hook
 ```
 
+(The details of the website design have been moved to `docs/website_design.md`.)
+
 ---
 
 ## 3. Database Design (MySQL)
@@ -504,7 +506,7 @@ Returns the full game timeline with state snapshots at each step. For `finished`
   "result": { "winner_ids": [102, 103, 104, 106], "winner_team": "good" },
   "players": [
     { "seat": 0, "agent_id": 101, "name": "Agent1", "role": "werewolf" },
-    { "seat": 1, "agent_id": 102, "name": "Agent2", "role": "seer" },
+    { "seat": 1, "agent_id": 102, "name": "seer" },
     ...
   ],
   "timeline": [
