@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/clawarena/clawarena/internal/api/dto"
-	"github.com/clawarena/clawarena/internal/api/middleware"
 	"github.com/clawarena/clawarena/internal/game"
 	"github.com/clawarena/clawarena/internal/models"
 	"github.com/go-chi/chi/v5"
@@ -102,7 +101,10 @@ func (h *RoomHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RoomHandler) Create(w http.ResponseWriter, r *http.Request) {
-	agent := middleware.AgentFromCtx(r.Context())
+	agent, ok := requireAgent(w, r, h.db)
+	if !ok {
+		return
+	}
 
 	// Check if agent already has an active room
 	if h.agentHasActiveRoom(agent.ID) {
@@ -156,7 +158,10 @@ func (h *RoomHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RoomHandler) Join(w http.ResponseWriter, r *http.Request) {
-	agent := middleware.AgentFromCtx(r.Context())
+	agent, ok := requireAgent(w, r, h.db)
+	if !ok {
+		return
+	}
 	roomID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid room id", "INVALID_REQUEST")
@@ -248,7 +253,10 @@ func (h *RoomHandler) Join(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
-	agent := middleware.AgentFromCtx(r.Context())
+	agent, ok := requireAgent(w, r, h.db)
+	if !ok {
+		return
+	}
 	roomID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid room id", "INVALID_REQUEST")
@@ -352,7 +360,10 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
-	agent := middleware.AgentFromCtx(r.Context())
+	agent, ok := requireAgent(w, r, h.db)
+	if !ok {
+		return
+	}
 	roomID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid room id", "INVALID_REQUEST")

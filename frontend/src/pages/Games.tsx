@@ -1,14 +1,64 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getGameTypes } from '../api/client';
+import { GlassPanel } from '../components/effects/GlassPanel';
+import { RevealOnScroll } from '../components/effects/RevealOnScroll';
+import { getGameLore } from '../data/gameLore';
 import type { GameType } from '../types';
 
 function formatGameName(name: string): string {
-  return name
-    .split('_')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join('-');
+  return name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
 }
+
+function MoonIllustration() {
+  return (
+    <svg viewBox="0 0 80 80" className="w-16 h-16 opacity-60" fill="none">
+      <circle cx="40" cy="40" r="28" fill="rgba(0,229,255,0.05)" stroke="rgba(0,229,255,0.3)" strokeWidth="1" />
+      <path d="M40 12 C26 12 16 22 16 36 C16 50 26 60 40 60 C28 56 22 47 22 36 C22 25 28 16 40 12Z" fill="rgba(0,229,255,0.15)" />
+      <circle cx="40" cy="40" r="28" stroke="rgba(0,229,255,0.15)" strokeWidth="8" />
+      {[0, 60, 120, 180, 240, 300].map((deg, i) => (
+        <line
+          key={i}
+          x1={40 + 32 * Math.cos(deg * Math.PI / 180)}
+          y1={40 + 32 * Math.sin(deg * Math.PI / 180)}
+          x2={40 + 38 * Math.cos(deg * Math.PI / 180)}
+          y2={40 + 38 * Math.sin(deg * Math.PI / 180)}
+          stroke="rgba(0,229,255,0.25)"
+          strokeWidth="1"
+        />
+      ))}
+    </svg>
+  );
+}
+
+function GridIllustration() {
+  return (
+    <svg viewBox="0 0 80 80" className="w-16 h-16 opacity-60" fill="none">
+      {[0, 1, 2].map(row =>
+        [0, 1, 2].map(col => (
+          <rect
+            key={`${row}-${col}`}
+            x={8 + col * 22}
+            y={8 + row * 22}
+            width={18}
+            height={18}
+            rx={2}
+            fill="rgba(179,136,255,0.08)"
+            stroke="rgba(179,136,255,0.4)"
+            strokeWidth="1"
+          />
+        ))
+      )}
+      {/* X mark */}
+      <line x1="30" y1="30" x2="50" y2="50" stroke="rgba(179,136,255,0.7)" strokeWidth="2" />
+      <line x1="50" y1="30" x2="30" y2="50" stroke="rgba(179,136,255,0.7)" strokeWidth="2" />
+      {/* O mark */}
+      <circle cx="19" cy="19" r="5" stroke="rgba(0,229,255,0.6)" strokeWidth="1.5" fill="none" />
+    </svg>
+  );
+}
+
+const ILLUSTRATIONS = { moon: MoonIllustration, grid: GridIllustration, battle: GridIllustration };
 
 export function Games() {
   const { data: games, isLoading, error } = useQuery<GameType[]>({
@@ -18,31 +68,100 @@ export function Games() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold text-white mb-8">Available Games</h1>
+      <RevealOnScroll>
+        <div className="mb-10">
+          <div className="font-mono text-xs text-accent-cyan/60 tracking-[0.3em] uppercase mb-2">GAME CATALOG</div>
+          <h1 className="font-display text-4xl font-bold text-white mb-3">Available Games</h1>
+          <p className="text-text-muted text-sm max-w-xl">
+            Each game is a battlefield of logic, deception, or pure strategy. Choose your arena.
+          </p>
+        </div>
+      </RevealOnScroll>
 
-      {isLoading && <div className="text-gray-400">Loading games...</div>}
-      {error && <div className="text-red-400">Failed to load games</div>}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {[0, 1].map(i => (
+            <div key={i} className="glass rounded-xl h-60 shimmer-bg" />
+          ))}
+        </div>
+      )}
+      {error && <div className="text-accent-mag text-sm">Failed to load games</div>}
 
       {games && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {games.map(game => (
-            <div
-              key={game.id}
-              className="bg-gray-800 rounded-xl p-5 border border-gray-700 hover:border-gray-500 transition-colors flex flex-col gap-3"
-            >
-              <h2 className="text-xl font-bold text-white">{formatGameName(game.name)}</h2>
-              <p className="text-gray-400 text-sm flex-1">{game.description}</p>
-              <div className="text-xs text-gray-500">
-                Players: {game.min_players}–{game.max_players}
-              </div>
-              <Link
-                to={`/rooms?game_type=${game.id}`}
-                className="mt-auto text-sm bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-center transition-colors"
-              >
-                View Rooms
-              </Link>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {games.map((game, idx) => {
+            const lore = getGameLore(game.name);
+            const IllustrationComp = lore ? ILLUSTRATIONS[lore.illustration] : GridIllustration;
+            return (
+              <RevealOnScroll key={game.id} delay={idx * 120}>
+                <GlassPanel
+                  accentColor="cyan"
+                  className={`overflow-hidden transition-all duration-300 hover:-translate-y-1`}
+                >
+                  {/* Header band */}
+                  <div
+                    className="h-2 w-full"
+                    style={{
+                      background: lore
+                        ? `linear-gradient(90deg, ${lore.accentColor}40, transparent)`
+                        : 'linear-gradient(90deg, rgba(0,229,255,0.3), transparent)',
+                    }}
+                  />
+
+                  <div className="p-6 flex flex-col gap-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 className="font-display text-2xl font-bold text-white mb-1">
+                          {formatGameName(game.name)}
+                        </h2>
+                        {lore && (
+                          <p className="text-xs font-mono text-accent-cyan/70 tracking-wide">
+                            {lore.tagline}
+                          </p>
+                        )}
+                      </div>
+                      <IllustrationComp />
+                    </div>
+
+                    <p className="text-text-muted text-sm leading-relaxed flex-1">
+                      {lore?.lore ?? game.description}
+                    </p>
+
+                    {/* Role chips for werewolf */}
+                    {lore?.roles && (
+                      <div className="flex flex-wrap gap-2">
+                        {lore.roles.map(role => (
+                          <span
+                            key={role.name}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono"
+                            style={{
+                              background: role.alignment === 'wolf' ? 'rgba(255,45,107,0.12)' : 'rgba(0,229,255,0.08)',
+                              border: `1px solid ${role.alignment === 'wolf' ? 'rgba(255,45,107,0.3)' : 'rgba(0,229,255,0.2)'}`,
+                              color: role.alignment === 'wolf' ? '#ff2d6b' : '#00e5ff',
+                            }}
+                          >
+                            {role.icon} {role.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                      <span className="text-xs text-text-muted font-mono">
+                        {game.min_players}–{game.max_players} players
+                      </span>
+                      <Link
+                        to={`/rooms?game_type=${game.id}`}
+                        className="btn-cyber text-xs"
+                      >
+                        View Rooms →
+                      </Link>
+                    </div>
+                  </div>
+                </GlassPanel>
+              </RevealOnScroll>
+            );
+          })}
         </div>
       )}
     </div>

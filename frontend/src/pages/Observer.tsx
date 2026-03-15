@@ -8,6 +8,9 @@ import { useReplay } from '../hooks/useReplay';
 import { AgentPanel } from '../components/AgentPanel';
 import { ActionLog } from '../components/ActionLog';
 import { ReplayControls } from '../components/ReplayControls';
+import { ParticleCanvas } from '../components/effects/ParticleCanvas';
+import { ShimmerCard } from '../components/effects/ShimmerLoader';
+import { StatusPulse } from '../components/effects/StatusPulse';
 import { TicTacToeBoard } from '../components/boards/TicTacToeBoard';
 import { WerewolfBoard } from '../components/boards/WerewolfBoard';
 import type { Room, GameStateResponse, WerewolfPlayer } from '../types';
@@ -18,13 +21,123 @@ const BOARD_COMPONENTS: Record<string, React.FC<BoardProps>> = {
   werewolf: WerewolfBoard,
 };
 
-const STATUS_BADGE: Record<string, string> = {
-  waiting: 'bg-gray-500',
-  ready_check: 'bg-yellow-500',
-  playing: 'bg-green-500',
-  finished: 'bg-blue-500',
-  cancelled: 'bg-red-500',
+function formatGameName(name: string): string {
+  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  waiting: 'Waiting',
+  ready_check: 'Ready Check',
+  playing: 'Live',
+  finished: 'Finished',
+  cancelled: 'Cancelled',
 };
+
+const STATUS_COLOR: Record<string, string> = {
+  waiting:     'rgba(255,255,255,0.3)',
+  ready_check: '#ffc107',
+  playing:     '#00e676',
+  finished:    '#00e5ff',
+  cancelled:   '#ff2d6b',
+};
+
+// ─── Room header banner ──────────────────────────────────────────────────────
+
+function RoomHeader({ room, isReplayMode, isConnected }: {
+  room: Room;
+  isReplayMode: boolean;
+  isConnected?: boolean;
+}) {
+  const statusColor = STATUS_COLOR[room.status] ?? 'rgba(255,255,255,0.3)';
+
+  return (
+    <div
+      className="relative rounded-xl overflow-hidden mb-5"
+      style={{
+        background: 'rgba(10,14,26,0.7)',
+        border: `1px solid ${statusColor}22`,
+        backdropFilter: 'blur(10px)',
+      }}
+    >
+      {/* Subtle accent line at top */}
+      <div className="h-px w-full" style={{ background: `linear-gradient(90deg, transparent, ${statusColor}60, transparent)` }} />
+
+      <div className="px-5 py-4 flex flex-wrap items-center gap-4">
+        {/* Game type + room number */}
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-text-primary">
+            {formatGameName(room.game_type?.name ?? '')}
+            <span className="ml-2 text-text-muted/40 font-mono text-base font-normal">
+              #{room.id}
+            </span>
+          </h1>
+          <div className="flex items-center gap-3 mt-1">
+            {/* Status pill */}
+            <div
+              className="flex items-center gap-1.5 text-[10px] font-mono font-semibold uppercase tracking-widest px-2 py-0.5 rounded"
+              style={{ background: `${statusColor}14`, color: statusColor, border: `1px solid ${statusColor}30` }}
+            >
+              {room.status === 'playing' && (
+                <span className="w-1.5 h-1.5 rounded-full animate-ping-slow" style={{ background: statusColor }} />
+              )}
+              {STATUS_LABEL[room.status] ?? room.status}
+            </div>
+
+            {/* Replay badge */}
+            {isReplayMode && (
+              <span className="text-[10px] font-mono text-text-muted/50 bg-white/4 px-2 py-0.5 rounded border border-white/8">
+                📼 REPLAY
+              </span>
+            )}
+
+            {/* Live connection indicator */}
+            {!isReplayMode && (
+              <StatusPulse
+                status={isConnected ? 'live' : 'waiting'}
+                label={isConnected ? 'Connected' : 'Reconnecting'}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Player count */}
+        <div className="text-right">
+          <div className="text-xs font-mono text-text-muted/40">players</div>
+          <div className="text-lg font-mono font-bold text-text-primary">{room.agents.length}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Result banner (replay finished) ────────────────────────────────────────
+
+function ResultBanner({ winner_team }: { winner_team?: string }) {
+  return (
+    <div
+      className="relative rounded-xl overflow-hidden mb-4"
+      style={{
+        background: 'rgba(0,229,255,0.05)',
+        border: '1px solid rgba(0,229,255,0.25)',
+      }}
+    >
+      <ParticleCanvas density={15} speed={0.2} color="#00e5ff" className="opacity-20 rounded-xl" />
+      <div className="relative z-10 py-5 text-center">
+        <div className="text-2xl font-bold tracking-tight text-text-primary">
+          {winner_team ? `${winner_team} Victory` : 'Game Over'}
+        </div>
+        <div className="text-xs font-mono text-accent-cyan/60 mt-1 uppercase tracking-widest">
+          {winner_team ? '🏆 Winner Declared' : '🏁 Match Concluded'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Live observer ───────────────────────────────────────────────────────────
 
 function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
   const { latestEvent, isConnected } = useSSE(roomId);
@@ -33,34 +146,51 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
   const gameState: GameStateResponse | null = (latestEvent as GameStateResponse | null) ?? polledState ?? null;
   const gameName = room.game_type?.name ?? '';
   const BoardComponent = BOARD_COMPONENTS[gameName];
+  const phase = (gameState?.state as { phase?: string })?.phase ?? gameState?.phase ?? '';
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <span className="text-gray-400 text-sm">
-          {isConnected ? '🟢 Live' : '🔴 Reconnecting...'}
-        </span>
-        {gameState?.turn !== undefined && (
-          <span className="text-gray-400 text-sm">Turn {gameState.turn}</span>
-        )}
-      </div>
+    <>
+      <RoomHeader room={room} isReplayMode={false} isConnected={isConnected} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Board — 2/3 width */}
         <div className="lg:col-span-2">
-        {BoardComponent != null && gameState ? (
+          {BoardComponent != null && gameState ? (
             <BoardComponent
               state={gameState.state}
               players={(gameState.players as WerewolfPlayer[]) ?? []}
               isReplay={false}
             />
           ) : (
-            <div className="bg-gray-800 rounded-lg p-8 text-center text-gray-500">
-              {gameState ? 'No board for this game type' : 'Waiting for game state...'}
+            <div
+              className="rounded-xl flex items-center justify-center h-64"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              {gameState ? (
+                <span className="text-text-muted/30 text-xs font-mono italic">No board for this game type</span>
+              ) : (
+                <ShimmerCard />
+              )}
+            </div>
+          )}
+
+          {/* Turn counter */}
+          {gameState?.turn !== undefined && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[10px] font-mono text-text-muted/30 uppercase tracking-widest">Turn</span>
+              <span className="text-xs font-mono text-accent-cyan/70">{gameState.turn}</span>
+              {phase && (
+                <>
+                  <span className="text-text-muted/20">·</span>
+                  <span className="text-[10px] font-mono text-text-muted/40 uppercase">{phase.replace('_', ' ')}</span>
+                </>
+              )}
             </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-4">
+        {/* Side panel — 1/3 width */}
+        <div className="flex flex-col gap-3">
           <AgentPanel
             agents={gameState?.agents ?? room.agents ?? []}
             pendingAction={gameState?.pending_action ?? null}
@@ -71,44 +201,48 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
           />
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
+// ─── Replay observer ─────────────────────────────────────────────────────────
+
 function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
-  const { history, step, total, isPlaying, isLoading, goNext, goPrev, goTo, togglePlay } = useReplay(roomId);
+  const { history, step, total, isPlaying, speed, setSpeed, isLoading, goNext, goPrev, goTo, togglePlay } = useReplay(roomId);
   const gameName = room.game_type?.name ?? '';
   const BoardComponent = BOARD_COMPONENTS[gameName];
   const currentEntry = history?.timeline[step];
 
   if (isLoading) {
-    return <div className="text-gray-400">Loading replay...</div>;
+    return (
+      <>
+        <RoomHeader room={room} isReplayMode={true} />
+        <ShimmerCard />
+      </>
+    );
   }
 
   if (!history) {
-    return <div className="text-red-400">Failed to load history</div>;
+    return (
+      <>
+        <RoomHeader room={room} isReplayMode={true} />
+        <div className="text-accent-mag text-sm font-mono">Failed to load history</div>
+      </>
+    );
   }
 
-  const resultBanner = history.result ? (
-    <div className="bg-blue-900 border border-blue-500 rounded-lg p-4 text-center">
-      <div className="text-lg font-bold text-white">
-        {history.result.winner_team
-          ? `${history.result.winner_team} wins! 🏆`
-          : 'Game Over'}
-      </div>
-    </div>
-  ) : null;
-
-  const replayAgents = room.agents.map(ra => ({
-    ...ra,
-    score: ra.score,
-  }));
+  const replayAgents = room.agents.map(ra => ({ ...ra }));
 
   return (
-    <div className="flex flex-col gap-4">
-      {resultBanner}
+    <>
+      <RoomHeader room={room} isReplayMode={true} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {history.result && (
+        <ResultBanner winner_team={history.result.winner_team} />
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        {/* Board */}
         <div className="lg:col-span-2">
           {BoardComponent != null && currentEntry ? (
             <BoardComponent
@@ -123,13 +257,19 @@ function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
               isReplay={true}
             />
           ) : (
-            <div className="bg-gray-800 rounded-lg p-8 text-center text-gray-500">
-              {currentEntry ? 'No board for this game type' : 'No history data'}
+            <div
+              className="rounded-xl flex items-center justify-center h-64"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              <span className="text-text-muted/30 text-xs font-mono italic">
+                {currentEntry ? 'No board for this game type' : 'No history data'}
+              </span>
             </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-4">
+        {/* Side panel */}
+        <div className="flex flex-col gap-3">
           <AgentPanel
             agents={replayAgents}
             pendingAction={null}
@@ -147,14 +287,18 @@ function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
         step={step}
         total={total}
         isPlaying={isPlaying}
+        speed={speed}
         onPrev={goPrev}
         onNext={goNext}
         onPlay={togglePlay}
         onJump={goTo}
+        onSpeedChange={setSpeed}
       />
-    </div>
+    </>
   );
 }
+
+// ─── Root observer page ──────────────────────────────────────────────────────
 
 export function Observer() {
   const { id } = useParams<{ id: string }>();
@@ -168,16 +312,21 @@ export function Observer() {
 
   if (isLoading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-10 text-gray-400">
-        Loading room...
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <ShimmerCard />
       </div>
     );
   }
 
   if (error || !room) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-10 text-red-400">
-        Failed to load room #{roomId}
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div
+          className="rounded-xl p-6 text-center"
+          style={{ background: 'rgba(255,45,107,0.06)', border: '1px solid rgba(255,45,107,0.2)' }}
+        >
+          <div className="text-accent-mag text-sm font-mono">Failed to load room #{roomId}</div>
+        </div>
       </div>
     );
   }
@@ -186,19 +335,6 @@ export function Observer() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
-      {/* Room Header */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-white">
-          {room.game_type?.name?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} — Room #{room.id}
-        </h1>
-        <span className={`text-xs font-semibold px-2 py-1 rounded ${STATUS_BADGE[room.status] ?? 'bg-gray-500'} text-white`}>
-          {room.status.replace('_', ' ')}
-        </span>
-        {isReplayMode && (
-          <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">📼 Replay Mode</span>
-        )}
-      </div>
-
       {isReplayMode ? (
         <ReplayObserver roomId={roomId} room={room} />
       ) : (

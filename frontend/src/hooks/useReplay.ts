@@ -6,6 +6,7 @@ import type { HistoryResponse } from '../types';
 export function useReplay(roomId: number) {
   const [step, setStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
   const playTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: history, isLoading, error } = useQuery<HistoryResponse>({
@@ -41,14 +42,14 @@ export function useReplay(roomId: number) {
           }
           return s + 1;
         });
-      }, 1000);
+      }, Math.round(1000 / speed));
     } else {
       if (playTimer.current) clearInterval(playTimer.current);
     }
     return () => {
       if (playTimer.current) clearInterval(playTimer.current);
     };
-  }, [isPlaying, total]);
+  }, [isPlaying, total, speed]);
 
-  return { history, step, total, isPlaying, isLoading, error, goNext, goPrev, goTo, togglePlay };
+  return { history, step, total, isPlaying, speed, setSpeed, isLoading, error, goNext, goPrev, goTo, togglePlay };
 }

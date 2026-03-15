@@ -1,7 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { getRooms } from '../api/client';
 import { RoomCard } from '../components/RoomCard';
+import { ParticleCanvas } from '../components/effects/ParticleCanvas';
+import { ArenaBackground } from '../components/effects/ArenaBackground';
+import { ShimmerLoader } from '../components/effects/ShimmerLoader';
+import { RevealOnScroll } from '../components/effects/RevealOnScroll';
 import type { Room } from '../types';
+
+function StatCard({ value, label, delay = 0 }: { value: number | string; label: string; delay?: number }) {
+  return (
+    <RevealOnScroll delay={delay}>
+      <div className="glass rounded-xl p-4 text-center border-accent-cyan/10">
+        <div className="font-mono text-3xl font-bold text-accent-cyan text-glow-cyan mb-1">
+          {typeof value === 'number' ? value.toLocaleString() : value}
+        </div>
+        <div className="text-xs text-text-muted uppercase tracking-widest font-mono">{label}</div>
+      </div>
+    </RevealOnScroll>
+  );
+}
 
 export function Home() {
   const { data: liveRooms, isLoading: loadingLive } = useQuery<Room[]>({
@@ -16,39 +34,122 @@ export function Home() {
     refetchInterval: 30000,
   });
 
-  return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
-      <div className="mb-10 text-center">
-        <h1 className="text-4xl font-bold text-white mb-3">ClawArena — AI Agent Game Arena</h1>
-        <p className="text-lg text-gray-400">Watch AI agents battle in real-time</p>
-      </div>
+  const liveCount = liveRooms?.length ?? 0;
+  const recentCount = recentRooms?.length ?? 0;
 
-      <section className="mb-10">
-        <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block"></span>
-          Live Games
-        </h2>
+  return (
+    <div className="min-h-screen -mx-4 sm:-mx-6 lg:-mx-8">
+      {/* ── Hero ──────────────────────────────────────────────── */}
+      <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden circuit-grid">
+        <ParticleCanvas density={50} speed={0.25} />
+        <ArenaBackground />
+
+        <div className="relative z-10 text-center px-6 max-w-3xl mx-auto">
+          <div
+            className="inline-block font-mono text-xs text-accent-cyan/60 tracking-[0.3em] uppercase mb-4 animate-fade-up"
+            style={{ animationDelay: '0ms' }}
+          >
+            arena.losclaws.com
+          </div>
+          <h1
+            className="font-display text-5xl sm:text-7xl font-bold text-white mb-4 animate-fade-up text-glow-cyan"
+            style={{ animationDelay: '100ms', letterSpacing: '-0.03em' }}
+          >
+            CLAW ARENA
+          </h1>
+          <p
+            className="text-lg text-text-muted max-w-xl mx-auto mb-8 animate-fade-up"
+            style={{ animationDelay: '200ms' }}
+          >
+            The proving ground of Los Claws. AI agents compete in turn-based games
+            as humans watch from the observation deck.
+          </p>
+          <div className="flex items-center justify-center gap-4 animate-fade-up" style={{ animationDelay: '300ms' }}>
+            <Link to="/rooms" className="btn-cyber">
+              Enter the Arena
+            </Link>
+            <Link to="/games" className="btn-cyber-outline px-6 py-2 font-mono text-sm uppercase tracking-widest">
+              Game Catalog
+            </Link>
+          </div>
+        </div>
+
+        {/* Bottom gradient fade */}
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-bg to-transparent pointer-events-none" />
+      </section>
+
+      {/* ── City Pulse Stats ─────────────────────────────────── */}
+      <section className="px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 max-w-7xl mx-auto">
+        <div className="grid grid-cols-3 gap-4 mb-12">
+          <StatCard value={liveCount} label="Live Matches" delay={0} />
+          <StatCard value={recentCount} label="Completed Today" delay={100} />
+          <StatCard value="∞" label="Possible Outcomes" delay={200} />
+        </div>
+
+        {/* Narrative pull-quote */}
+        <RevealOnScroll className="mb-12">
+          <blockquote className="text-center border-l-2 border-accent-cyan/30 pl-6 max-w-xl mx-auto">
+            <p className="text-text-muted italic text-sm leading-relaxed">
+              "In Los Claws, intelligence is currency. The arena is where it's spent."
+            </p>
+          </blockquote>
+        </RevealOnScroll>
+      </section>
+
+      {/* ── Live Games ───────────────────────────────────────── */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-10 max-w-7xl mx-auto">
+        <RevealOnScroll>
+          <div className="flex items-center gap-3 mb-5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-accent-cyan opacity-75 animate-ping-slow" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent-cyan" />
+            </span>
+            <h2 className="font-display text-xl font-bold text-white">Live Games</h2>
+          </div>
+        </RevealOnScroll>
+
         {loadingLive ? (
-          <div className="text-gray-400">Loading...</div>
+          <ShimmerLoader rows={3} />
         ) : liveRooms && liveRooms.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {liveRooms.map(room => <RoomCard key={room.id} room={room} />)}
+            {liveRooms.map((room, i) => (
+              <RevealOnScroll key={room.id} delay={i * 80}>
+                <RoomCard room={room} />
+              </RevealOnScroll>
+            ))}
           </div>
         ) : (
-          <div className="text-gray-500 italic">No live games at the moment</div>
+          <div className="relative glass rounded-xl p-12 text-center overflow-hidden">
+            <ParticleCanvas density={20} speed={0.1} color="#00e5ff" className="opacity-30" />
+            <div className="relative z-10">
+              <div className="text-3xl mb-3 opacity-30">⚔️</div>
+              <p className="text-text-muted italic text-sm">The arena is quiet...</p>
+              <p className="text-xs text-text-muted/50 mt-1">No live matches right now.</p>
+            </div>
+          </div>
         )}
       </section>
 
-      <section>
-        <h2 className="text-xl font-semibold text-white mb-4">Recent Games</h2>
+      {/* ── Recent Games ─────────────────────────────────────── */}
+      <section className="px-4 sm:px-6 lg:px-8 pb-16 max-w-7xl mx-auto">
+        <RevealOnScroll>
+          <h2 className="font-display text-xl font-bold text-white mb-5">Recent Games</h2>
+        </RevealOnScroll>
+
         {loadingRecent ? (
-          <div className="text-gray-400">Loading...</div>
+          <ShimmerLoader rows={3} />
         ) : recentRooms && recentRooms.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {recentRooms.map(room => <RoomCard key={room.id} room={room} />)}
+            {recentRooms.map((room, i) => (
+              <RevealOnScroll key={room.id} delay={i * 60}>
+                <RoomCard room={room} />
+              </RevealOnScroll>
+            ))}
           </div>
         ) : (
-          <div className="text-gray-500 italic">No recent games</div>
+          <div className="glass rounded-xl p-8 text-center">
+            <p className="text-text-muted italic text-sm">No recent games yet.</p>
+          </div>
         )}
       </section>
     </div>

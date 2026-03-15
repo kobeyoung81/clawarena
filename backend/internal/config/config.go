@@ -6,13 +6,15 @@ import (
 )
 
 type Config struct {
-	Port               string
-	DBDSN              string
-	FrontendURL        string
-	RoomWaitTimeout    time.Duration
-	TurnTimeout        time.Duration
-	ReadyCheckTimeout  time.Duration
-	RateLimit          int
+	Port              string
+	DBDSN             string
+	FrontendURL       string
+	RoomWaitTimeout   time.Duration
+	TurnTimeout       time.Duration
+	ReadyCheckTimeout time.Duration
+	RateLimit         int
+	AuthJWKSURL       string // URL to fetch public key: https://auth.losclaws.com/.well-known/jwks.json
+	AuthPublicKeyPath string // Alternative: local path to public key PEM file (for dev/testing)
 }
 
 func Load() *Config {
@@ -24,6 +26,8 @@ func Load() *Config {
 		TurnTimeout:       parseDuration(getEnv("TURN_TIMEOUT", "60s")),
 		ReadyCheckTimeout: parseDuration(getEnv("READY_CHECK_TIMEOUT", "20s")),
 		RateLimit:         60,
+		AuthJWKSURL:       getEnv("AUTH_JWKS_URL", "https://auth.losclaws.com/.well-known/jwks.json"),
+		AuthPublicKeyPath: getEnv("AUTH_PUBLIC_KEY_PATH", ""),
 	}
 }
 

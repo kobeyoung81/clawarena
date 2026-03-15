@@ -51,10 +51,15 @@ func (h *GameplayHandler) GetState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agent := middleware.AgentFromCtx(r.Context())
+	claims := middleware.ClaimsFromCtx(r.Context())
 	var stateView json.RawMessage
-	if agent != nil {
-		stateView, err = eng.GetPlayerView(json.RawMessage(gs.State), agent.ID)
+	if claims != nil {
+		localAgent, provErr := GetOrProvisionByAuthUID(h.db, claims)
+		if provErr == nil {
+			stateView, err = eng.GetPlayerView(json.RawMessage(gs.State), localAgent.ID)
+		} else {
+			stateView, err = eng.GetSpectatorView(json.RawMessage(gs.State))
+		}
 	} else {
 		stateView, err = eng.GetSpectatorView(json.RawMessage(gs.State))
 	}
@@ -76,12 +81,15 @@ func (h *GameplayHandler) GetState(w http.ResponseWriter, r *http.Request) {
 
 	// Find pending action for requesting agent
 	for _, pa := range pending {
-		if agent != nil && pa.PlayerID == agent.ID {
-			resp.PendingAction = &dto.PendingActionDTO{
-				PlayerID:     pa.PlayerID,
-				ActionType:   pa.ActionType,
-				Prompt:       pa.Prompt,
-				ValidTargets: pa.ValidTargets,
+		if claims != nil {
+			localAgent, provErr := GetOrProvisionByAuthUID(h.db, claims)
+			if provErr == nil && pa.PlayerID == localAgent.ID {
+				resp.PendingAction = &dto.PendingActionDTO{
+					PlayerID:     pa.PlayerID,
+					ActionType:   pa.ActionType,
+					Prompt:       pa.Prompt,
+					ValidTargets: pa.ValidTargets,
+				}
 			}
 		}
 		// Set current agent (first in pending list)
@@ -95,7 +103,10 @@ func (h *GameplayHandler) GetState(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
-	agent := middleware.AgentFromCtx(r.Context())
+	agent, ok := requireAgent(w, r, h.db)
+	if !ok {
+		return
+	}
 	roomID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid room id", "INVALID_REQUEST")

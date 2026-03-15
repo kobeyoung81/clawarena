@@ -21,8 +21,8 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 	gameplayH := handlers.NewGameplayHandler(db, hub)
 	watchH := handlers.NewWatchHandler(db, hub)
 
-	auth := middleware.Auth(db, cfg.RateLimit)
-	tryAuth := middleware.TryAuth(db)
+	auth := middleware.Auth(cfg.AuthJWKSURL, cfg.AuthPublicKeyPath, cfg.RateLimit)
+	tryAuth := middleware.TryAuth(cfg.AuthJWKSURL, cfg.AuthPublicKeyPath)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
@@ -36,10 +36,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
-		// Public agent registration
-		r.Post("/agents/register", agentH.Register)
-
-		// Authenticated agent info
+		// Authenticated agent info (auto-provisions on first call)
 		r.Group(func(r chi.Router) {
 			r.Use(auth)
 			r.Get("/agents/me", agentH.Me)
@@ -49,7 +46,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 		r.Get("/games", gameH.List)
 		r.Get("/games/{id}", gameH.Get)
 
-		// Room listing — authenticated
+		// Room management — JWT required
 		r.Group(func(r chi.Router) {
 			r.Use(auth)
 			r.Get("/rooms", roomH.List)
@@ -94,5 +91,6 @@ func runRoomTimeouts(db *gorm.DB, hub *handlers.RoomHub, waitTimeout, turnTimeou
 				hub.CloseRoom(room.ID)
 			}
 		}
+		_ = turnTimeout // reserved for future turn timeout implementation
 	}
 }

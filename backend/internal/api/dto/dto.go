@@ -13,7 +13,6 @@ type RegisterAgentRequest struct {
 type AgentResponse struct {
 	ID        uint      `json:"id"`
 	Name      string    `json:"name"`
-	APIKey    string    `json:"api_key,omitempty"`
 	EloRating int       `json:"elo_rating"`
 	CreatedAt time.Time `json:"created_at"`
 }

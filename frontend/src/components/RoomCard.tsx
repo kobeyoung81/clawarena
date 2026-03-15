@@ -1,17 +1,19 @@
 import { Link } from 'react-router-dom';
+import { StatusPulse } from './effects/StatusPulse';
+import { GlassPanel } from './effects/GlassPanel';
 import type { Room, RoomStatus } from '../types';
 
-const STATUS_COLORS: Record<RoomStatus, string> = {
-  waiting: 'bg-gray-500',
-  ready_check: 'bg-yellow-500',
-  playing: 'bg-green-500',
-  finished: 'bg-blue-500',
-  cancelled: 'bg-red-500',
+const GAME_ACCENT: Record<string, string> = {
+  werewolf:    '#00e5ff',
+  tic_tac_toe: '#b388ff',
 };
 
-const GAME_BADGE_COLORS: Record<string, string> = {
-  tic_tac_toe: 'bg-purple-700',
-  werewolf: 'bg-indigo-700',
+const STATUS_PULSE_MAP: Record<RoomStatus, 'live' | 'idle' | 'error' | 'waiting'> = {
+  playing:    'live',
+  waiting:    'waiting',
+  ready_check:'waiting',
+  finished:   'idle',
+  cancelled:  'error',
 };
 
 function formatRelativeTime(dateStr: string): string {
@@ -28,59 +30,76 @@ function formatGameName(name: string): string {
   return name.replace(/_/g, '-').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-interface RoomCardProps {
-  room: Room;
-}
+interface RoomCardProps { room: Room; }
 
 export function RoomCard({ room }: RoomCardProps) {
-  const gameName = room.game_type?.name ?? 'Unknown';
-  const badgeColor = GAME_BADGE_COLORS[gameName] ?? 'bg-gray-700';
+  const gameName = room.game_type?.name ?? 'unknown';
+  const accent = GAME_ACCENT[gameName] ?? '#00e5ff';
+  const pulseStatus = STATUS_PULSE_MAP[room.status] ?? 'idle';
 
   return (
-    <div className="bg-gray-800 rounded-lg p-4 flex flex-col gap-3 border border-gray-700 hover:border-gray-500 transition-colors">
-      <div className="flex items-center justify-between">
-        <span className={`text-xs font-semibold px-2 py-1 rounded ${badgeColor} text-white`}>
-          {formatGameName(gameName)}
-        </span>
-        <span className={`text-xs font-semibold px-2 py-1 rounded ${STATUS_COLORS[room.status]} text-white`}>
-          {room.status.replace('_', ' ')}
-        </span>
-      </div>
+    <GlassPanel
+      className="flex flex-col gap-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5"
+    >
+      {/* Accent bar */}
+      <div
+        className="h-0.5 w-full"
+        style={{ background: `linear-gradient(90deg, ${accent}80, transparent)` }}
+      />
 
-      <div className="flex items-center gap-2">
-        <span className="text-gray-400 text-sm">Room</span>
-        <span className="text-white font-bold">#{room.id}</span>
-      </div>
-
-      <div className="text-sm text-gray-300">
-        {room.agents && room.agents.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {room.agents.map(ra => (
-              <span key={ra.id} className="bg-gray-700 px-2 py-0.5 rounded text-xs">
-                {ra.agent?.name ?? `Agent ${ra.agent?.id}`}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <span className="text-gray-500 italic">Waiting for players</span>
-        )}
-      </div>
-
-      {(room.status === 'playing' || room.status === 'finished') && (
-        <div className="text-xs text-gray-400">
-          Turn: <span className="text-white font-semibold">—</span>
+      <div className="p-4 flex flex-col gap-3">
+        {/* Header row */}
+        <div className="flex items-center justify-between">
+          <span
+            className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full"
+            style={{
+              background: `${accent}15`,
+              border: `1px solid ${accent}30`,
+              color: accent,
+            }}
+          >
+            {formatGameName(gameName)}
+          </span>
+          <StatusPulse status={pulseStatus} />
         </div>
-      )}
 
-      <div className="flex items-center justify-between mt-auto">
-        <span className="text-xs text-gray-500">{formatRelativeTime(room.created_at)}</span>
-        <Link
-          to={`/rooms/${room.id}`}
-          className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded transition-colors"
-        >
-          Watch →
-        </Link>
+        {/* Room ID */}
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted text-xs font-mono">ROOM</span>
+          <span className="text-white font-mono font-bold text-lg">#{room.id}</span>
+        </div>
+
+        {/* Players */}
+        <div className="text-sm">
+          {room.agents && room.agents.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {room.agents.map(ra => (
+                <span
+                  key={ra.id}
+                  className="text-xs font-mono px-2 py-0.5 rounded"
+                  style={{ background: 'rgba(255,255,255,0.05)', color: '#7a8ba8', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  {ra.agent?.name ?? `Agent ${ra.agent?.id}`}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-text-muted/50 text-xs italic">Waiting for players...</span>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between mt-auto pt-1 border-t border-white/5">
+          <span className="text-xs text-text-muted/60 font-mono">{formatRelativeTime(room.created_at)}</span>
+          <Link
+            to={`/rooms/${room.id}`}
+            className="text-xs font-mono font-semibold transition-colors"
+            style={{ color: accent }}
+          >
+            Watch →
+          </Link>
+        </div>
       </div>
-    </div>
+    </GlassPanel>
   );
 }
