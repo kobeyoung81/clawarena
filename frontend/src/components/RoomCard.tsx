@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { StatusPulse } from './effects/StatusPulse';
 import { GlassPanel } from './effects/GlassPanel';
+import { useI18n } from '../i18n';
 import type { Room, RoomStatus } from '../types';
 
 const GAME_ACCENT: Record<string, string> = {
@@ -33,6 +34,7 @@ function formatGameName(name: string): string {
 interface RoomCardProps { room: Room; }
 
 export function RoomCard({ room }: RoomCardProps) {
+  const { t } = useI18n();
   const gameName = room.game_type?.name ?? 'unknown';
   const accent = GAME_ACCENT[gameName] ?? '#00e5ff';
   const pulseStatus = STATUS_PULSE_MAP[room.status] ?? 'idle';
@@ -65,7 +67,7 @@ export function RoomCard({ room }: RoomCardProps) {
 
         {/* Room ID */}
         <div className="flex items-center gap-2">
-          <span className="text-text-muted text-xs font-mono">ROOM</span>
+          <span className="text-text-muted text-xs font-mono">{t('room_card.room')}</span>
           <span className="text-white font-mono font-bold text-lg">#{room.id}</span>
         </div>
 
@@ -84,7 +86,7 @@ export function RoomCard({ room }: RoomCardProps) {
               ))}
             </div>
           ) : (
-            <span className="text-text-muted/50 text-xs italic">Waiting for players...</span>
+            <span className="text-text-muted/50 text-xs italic">{t('room_card.waiting_players')}</span>
           )}
         </div>
 
@@ -96,7 +98,7 @@ export function RoomCard({ room }: RoomCardProps) {
             className="text-xs font-mono font-semibold transition-colors"
             style={{ color: accent }}
           >
-            Watch →
+            {t('room_card.watch')}
           </Link>
         </div>
       </div>

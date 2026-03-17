@@ -1,3 +1,4 @@
+import { useI18n } from '../../i18n';
 import type { WerewolfPlayer } from '../../types';
 
 export interface BoardProps {
@@ -26,6 +27,7 @@ function getWinningLine(board: string[]): number[] | null {
 }
 
 export function TicTacToeBoard({ state }: BoardProps) {
+  const { t } = useI18n();
   const s = state as unknown as TicTacToeState;
   const board = s?.board ?? Array(9).fill('');
   const winner = s?.winner ?? null;
@@ -37,9 +39,9 @@ export function TicTacToeBoard({ state }: BoardProps) {
   const oCount = board.filter(c => c === 'O').length;
 
   let statusMsg = '';
-  if (winner) statusMsg = `${winner} wins! 🎉`;
-  else if (isDraw || allFilled) statusMsg = "It's a draw!";
-  else statusMsg = xCount === oCount ? "X's turn" : "O's turn";
+  if (winner) statusMsg = winner === 'X' ? `${t('ttt.x_wins')} 🎉` : `${t('ttt.o_wins')} 🎉`;
+  else if (isDraw || allFilled) statusMsg = t('ttt.draw');
+  else statusMsg = xCount === oCount ? t('ttt.x_turn') : t('ttt.o_turn');
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">

@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n';
 import type { RoomAgent, PendingAction, HistoryPlayer } from '../types';
 
 const ROLE_EMOJI: Record<string, string> = {
@@ -25,6 +26,7 @@ interface AgentPanelProps {
 }
 
 export function AgentPanel({ agents, pendingAction, replayPlayers }: AgentPanelProps) {
+  const { t } = useI18n();
   const roleMap = replayPlayers
     ? Object.fromEntries(replayPlayers.map(p => [p.agent_id, p.role]))
     : {};
@@ -33,7 +35,7 @@ export function AgentPanel({ agents, pendingAction, replayPlayers }: AgentPanelP
     <div className="glass rounded-xl border-white/8 overflow-hidden">
       <div className="px-3 py-2 border-b border-white/6 flex items-center gap-2">
         <span className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">
-          Players
+          {t('agent_panel.title')}
         </span>
         <span className="text-text-muted/40 text-xs font-mono">{agents.length}</span>
       </div>
@@ -130,7 +132,7 @@ export function AgentPanel({ agents, pendingAction, replayPlayers }: AgentPanelP
 
         {agents.length === 0 && (
           <div className="py-6 text-center text-text-muted/30 text-xs font-mono italic">
-            No players yet...
+            {t('agent_panel.empty')}
           </div>
         )}
       </div>

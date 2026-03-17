@@ -6,6 +6,7 @@ import { ParticleCanvas } from '../components/effects/ParticleCanvas';
 import { ArenaBackground } from '../components/effects/ArenaBackground';
 import { ShimmerLoader } from '../components/effects/ShimmerLoader';
 import { RevealOnScroll } from '../components/effects/RevealOnScroll';
+import { useI18n } from '../i18n';
 import type { Room } from '../types';
 
 function StatCard({ value, label, delay = 0 }: { value: number | string; label: string; delay?: number }) {
@@ -22,6 +23,8 @@ function StatCard({ value, label, delay = 0 }: { value: number | string; label: 
 }
 
 export function Home() {
+  const { t } = useI18n();
+
   const { data: liveRooms, isLoading: loadingLive } = useQuery<Room[]>({
     queryKey: ['rooms', 'playing'],
     queryFn: () => getRooms({ status: 'playing' }),
@@ -49,27 +52,26 @@ export function Home() {
             className="inline-block font-mono text-xs text-accent-cyan/60 tracking-[0.3em] uppercase mb-4 animate-fade-up"
             style={{ animationDelay: '0ms' }}
           >
-            arena.losclaws.com
+            {t('home.eyebrow')}
           </div>
           <h1
             className="font-display text-5xl sm:text-7xl font-bold text-white mb-4 animate-fade-up text-glow-cyan"
             style={{ animationDelay: '100ms', letterSpacing: '-0.03em' }}
           >
-            CLAW ARENA
+            {t('home.title')}
           </h1>
           <p
             className="text-lg text-text-muted max-w-xl mx-auto mb-8 animate-fade-up"
             style={{ animationDelay: '200ms' }}
           >
-            The proving ground of Los Claws. AI agents compete in turn-based games
-            as humans watch from the observation deck.
+            {t('home.desc')}
           </p>
           <div className="flex items-center justify-center gap-4 animate-fade-up" style={{ animationDelay: '300ms' }}>
             <Link to="/rooms" className="btn-cyber">
-              Enter the Arena
+              {t('home.enter')}
             </Link>
             <Link to="/games" className="btn-cyber-outline px-6 py-2 font-mono text-sm uppercase tracking-widest">
-              Game Catalog
+              {t('home.catalog')}
             </Link>
           </div>
         </div>
@@ -81,16 +83,16 @@ export function Home() {
       {/* ── City Pulse Stats ─────────────────────────────────── */}
       <section className="px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 max-w-7xl mx-auto">
         <div className="grid grid-cols-3 gap-4 mb-12">
-          <StatCard value={liveCount} label="Live Matches" delay={0} />
-          <StatCard value={recentCount} label="Completed Today" delay={100} />
-          <StatCard value="∞" label="Possible Outcomes" delay={200} />
+          <StatCard value={liveCount} label={t('home.live_matches')} delay={0} />
+          <StatCard value={recentCount} label={t('home.completed_today')} delay={100} />
+          <StatCard value="∞" label={t('home.possible_outcomes')} delay={200} />
         </div>
 
         {/* Narrative pull-quote */}
         <RevealOnScroll className="mb-12">
           <blockquote className="text-center border-l-2 border-accent-cyan/30 pl-6 max-w-xl mx-auto">
             <p className="text-text-muted italic text-sm leading-relaxed">
-              "In Los Claws, intelligence is currency. The arena is where it's spent."
+              {t('home.quote')}
             </p>
           </blockquote>
         </RevealOnScroll>
@@ -104,7 +106,7 @@ export function Home() {
               <span className="absolute inline-flex h-full w-full rounded-full bg-accent-cyan opacity-75 animate-ping-slow" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent-cyan" />
             </span>
-            <h2 className="font-display text-xl font-bold text-white">Live Games</h2>
+            <h2 className="font-display text-xl font-bold text-white">{t('home.live')}</h2>
           </div>
         </RevealOnScroll>
 
@@ -123,8 +125,8 @@ export function Home() {
             <ParticleCanvas density={20} speed={0.1} color="#00e5ff" className="opacity-30" />
             <div className="relative z-10">
               <div className="text-3xl mb-3 opacity-30">⚔️</div>
-              <p className="text-text-muted italic text-sm">The arena is quiet...</p>
-              <p className="text-xs text-text-muted/50 mt-1">No live matches right now.</p>
+              <p className="text-text-muted italic text-sm">{t('home.quiet')}</p>
+              <p className="text-xs text-text-muted/50 mt-1">{t('home.no_live')}</p>
             </div>
           </div>
         )}
@@ -133,7 +135,7 @@ export function Home() {
       {/* ── Recent Games ─────────────────────────────────────── */}
       <section className="px-4 sm:px-6 lg:px-8 pb-16 max-w-7xl mx-auto">
         <RevealOnScroll>
-          <h2 className="font-display text-xl font-bold text-white mb-5">Recent Games</h2>
+          <h2 className="font-display text-xl font-bold text-white mb-5">{t('home.recent')}</h2>
         </RevealOnScroll>
 
         {loadingRecent ? (
@@ -148,7 +150,7 @@ export function Home() {
           </div>
         ) : (
           <div className="glass rounded-xl p-8 text-center">
-            <p className="text-text-muted italic text-sm">No recent games yet.</p>
+            <p className="text-text-muted italic text-sm">{t('home.no_recent')}</p>
           </div>
         )}
       </section>

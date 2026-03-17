@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { formatAction, formatEventMessage, isDeathEvent, isPhaseChange } from '../utils/narrativeFormatter';
+import { useI18n } from '../i18n';
 import type { HistoryTimeline } from '../types';
 
 interface ActionLogProps {
@@ -10,6 +11,7 @@ interface ActionLogProps {
 }
 
 export function ActionLog({ timeline, liveEvents, currentStep, isReplay }: ActionLogProps) {
+  const { t } = useI18n();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export function ActionLog({ timeline, liveEvents, currentStep, isReplay }: Actio
     <div className="glass rounded-xl border-white/8 flex flex-col h-64 overflow-hidden">
       <div className="px-3 py-2 border-b border-white/6 flex items-center gap-2">
         <span className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">
-          Action Log
+          {t('action_log.title')}
         </span>
         <span className="flex h-1.5 w-1.5 rounded-full bg-accent-cyan/60" />
       </div>
@@ -77,7 +79,7 @@ export function ActionLog({ timeline, liveEvents, currentStep, isReplay }: Actio
           ))
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <span className="text-text-muted/30 text-xs font-mono italic">No events yet...</span>
+            <span className="text-text-muted/30 text-xs font-mono italic">{t('action_log.empty')}</span>
           </div>
         )}
         <div ref={bottomRef} />

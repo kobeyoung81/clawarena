@@ -1,3 +1,5 @@
+import { useI18n } from '../../i18n';
+
 interface StatusPulseProps {
   status: 'live' | 'idle' | 'error' | 'waiting';
   label?: string;
@@ -5,14 +7,16 @@ interface StatusPulseProps {
 }
 
 const STATUS_CONFIG = {
-  live:    { dot: 'bg-accent-cyan', label: 'LIVE',        glow: 'rgba(0, 229, 255, 0.5)' },
-  idle:    { dot: 'bg-text-muted',  label: 'IDLE',        glow: 'rgba(122, 139, 168, 0.3)' },
-  error:   { dot: 'bg-accent-mag',  label: 'ERROR',       glow: 'rgba(255, 45, 107, 0.5)' },
-  waiting: { dot: 'bg-accent-amber',label: 'WAITING',     glow: 'rgba(255, 193, 7, 0.5)' },
+  live:    { dot: 'bg-accent-cyan', glow: 'rgba(0, 229, 255, 0.5)' },
+  idle:    { dot: 'bg-text-muted',  glow: 'rgba(122, 139, 168, 0.3)' },
+  error:   { dot: 'bg-accent-mag',  glow: 'rgba(255, 45, 107, 0.5)' },
+  waiting: { dot: 'bg-accent-amber',glow: 'rgba(255, 193, 7, 0.5)' },
 };
 
 export function StatusPulse({ status, label, className = '' }: StatusPulseProps) {
+  const { t } = useI18n();
   const cfg = STATUS_CONFIG[status];
+  const displayLabel = label ?? t(`status_pulse.${status}`);
 
   return (
     <div className={`inline-flex items-center gap-1.5 ${className}`}>
@@ -24,7 +28,7 @@ export function StatusPulse({ status, label, className = '' }: StatusPulseProps)
         <span className={`relative inline-flex h-2 w-2 rounded-full ${cfg.dot}`} />
       </span>
       <span className="text-xs font-mono font-semibold tracking-widest" style={{ color: cfg.glow }}>
-        {label ?? cfg.label}
+        {displayLabel}
       </span>
     </div>
   );

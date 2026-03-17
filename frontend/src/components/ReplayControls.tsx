@@ -1,3 +1,5 @@
+import { useI18n } from '../i18n';
+
 interface ReplayControlsProps {
   step: number;
   total: number;
@@ -13,6 +15,7 @@ interface ReplayControlsProps {
 const SPEEDS = [0.5, 1, 2, 4];
 
 export function ReplayControls({ step, total, isPlaying, speed, onPrev, onNext, onPlay, onJump, onSpeedChange }: ReplayControlsProps) {
+  const { t } = useI18n();
   const progress = total > 1 ? (step / (total - 1)) * 100 : 0;
   const speedIdx = SPEEDS.indexOf(speed) === -1 ? 1 : SPEEDS.indexOf(speed);
 
@@ -29,7 +32,7 @@ export function ReplayControls({ step, total, isPlaying, speed, onPrev, onNext, 
       {/* Header row */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">
-          Replay
+          {t('replay.title')}
         </span>
         <span className="text-xs font-mono text-text-muted/60">
           <span className="text-accent-cyan">{step + 1}</span>
@@ -87,7 +90,7 @@ export function ReplayControls({ step, total, isPlaying, speed, onPrev, onNext, 
             border: '1px solid rgba(255,255,255,0.08)',
             color: 'rgba(255,255,255,0.7)',
           }}
-          title="Previous step"
+          title={t('replay.prev')}
         >
           ◀
         </button>
@@ -108,9 +111,9 @@ export function ReplayControls({ step, total, isPlaying, speed, onPrev, onNext, 
               ? '0 0 10px rgba(255,193,7,0.15)'
               : '0 0 10px rgba(0,229,255,0.15)',
           }}
-          title={isPlaying ? 'Pause' : 'Auto-play'}
+          title={isPlaying ? t('replay.pause') : t('replay.play')}
         >
-          {isPlaying ? '⏸ PAUSE' : '⏯ PLAY'}
+          {isPlaying ? `⏸ ${t('replay.pause')}` : `⏯ ${t('replay.play')}`}
         </button>
 
         {/* Next */}
@@ -123,7 +126,7 @@ export function ReplayControls({ step, total, isPlaying, speed, onPrev, onNext, 
             border: '1px solid rgba(255,255,255,0.08)',
             color: 'rgba(255,255,255,0.7)',
           }}
-          title="Next step"
+          title={t('replay.next')}
         >
           ▶
         </button>
@@ -137,7 +140,7 @@ export function ReplayControls({ step, total, isPlaying, speed, onPrev, onNext, 
             border: '1px solid rgba(255,255,255,0.08)',
             color: speedIdx !== 1 ? '#ffc107' : 'rgba(255,255,255,0.4)',
           }}
-          title="Playback speed"
+          title={t('replay.speed')}
         >
           {SPEEDS[speedIdx]}×
         </button>

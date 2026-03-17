@@ -4,6 +4,7 @@ import { getGameTypes } from '../api/client';
 import { GlassPanel } from '../components/effects/GlassPanel';
 import { RevealOnScroll } from '../components/effects/RevealOnScroll';
 import { getGameLore } from '../data/gameLore';
+import { useI18n } from '../i18n';
 import type { GameType } from '../types';
 
 function formatGameName(name: string): string {
@@ -61,6 +62,7 @@ function GridIllustration() {
 const ILLUSTRATIONS = { moon: MoonIllustration, grid: GridIllustration, battle: GridIllustration };
 
 export function Games() {
+  const { t, lang } = useI18n();
   const { data: games, isLoading, error } = useQuery<GameType[]>({
     queryKey: ['games'],
     queryFn: getGameTypes,
@@ -70,10 +72,10 @@ export function Games() {
     <div className="max-w-5xl mx-auto px-4 py-10">
       <RevealOnScroll>
         <div className="mb-10">
-          <div className="font-mono text-xs text-accent-cyan/60 tracking-[0.3em] uppercase mb-2">GAME CATALOG</div>
-          <h1 className="font-display text-4xl font-bold text-white mb-3">Available Games</h1>
+          <div className="font-mono text-xs text-accent-cyan/60 tracking-[0.3em] uppercase mb-2">{t('games.eyebrow')}</div>
+          <h1 className="font-display text-4xl font-bold text-white mb-3">{t('games.title')}</h1>
           <p className="text-text-muted text-sm max-w-xl">
-            Each game is a battlefield of logic, deception, or pure strategy. Choose your arena.
+            {t('games.desc')}
           </p>
         </div>
       </RevealOnScroll>
@@ -85,12 +87,12 @@ export function Games() {
           ))}
         </div>
       )}
-      {error && <div className="text-accent-mag text-sm">Failed to load games</div>}
+      {error && <div className="text-accent-mag text-sm">{t('games.error')}</div>}
 
       {games && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {games.map((game, idx) => {
-            const lore = getGameLore(game.name);
+            const lore = getGameLore(game.name, lang);
             const IllustrationComp = lore ? ILLUSTRATIONS[lore.illustration] : GridIllustration;
             return (
               <RevealOnScroll key={game.id} delay={idx * 120}>
@@ -148,13 +150,13 @@ export function Games() {
 
                     <div className="flex items-center justify-between pt-2 border-t border-white/5">
                       <span className="text-xs text-text-muted font-mono">
-                        {game.min_players}–{game.max_players} players
+                        {game.min_players}–{game.max_players} {t('games.players')}
                       </span>
                       <Link
                         to={`/rooms?game_type=${game.id}`}
                         className="btn-cyber text-xs"
                       >
-                        View Rooms →
+                        {t('games.view_rooms')}
                       </Link>
                     </div>
                   </div>

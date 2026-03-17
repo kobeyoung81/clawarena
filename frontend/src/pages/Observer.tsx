@@ -13,6 +13,7 @@ import { ShimmerCard } from '../components/effects/ShimmerLoader';
 import { StatusPulse } from '../components/effects/StatusPulse';
 import { TicTacToeBoard } from '../components/boards/TicTacToeBoard';
 import { WerewolfBoard } from '../components/boards/WerewolfBoard';
+import { useI18n } from '../i18n';
 import type { Room, GameStateResponse, WerewolfPlayer } from '../types';
 import type { BoardProps } from '../components/boards/TicTacToeBoard';
 
@@ -24,14 +25,6 @@ const BOARD_COMPONENTS: Record<string, React.FC<BoardProps>> = {
 function formatGameName(name: string): string {
   return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  waiting: 'Waiting',
-  ready_check: 'Ready Check',
-  playing: 'Live',
-  finished: 'Finished',
-  cancelled: 'Cancelled',
-};
 
 const STATUS_COLOR: Record<string, string> = {
   waiting:     'rgba(255,255,255,0.3)',
@@ -48,7 +41,11 @@ function RoomHeader({ room, isReplayMode, isConnected }: {
   isReplayMode: boolean;
   isConnected?: boolean;
 }) {
+  const { t } = useI18n();
   const statusColor = STATUS_COLOR[room.status] ?? 'rgba(255,255,255,0.3)';
+  const statusLabel = t(`status.${room.status}`) !== `status.${room.status}`
+    ? t(`status.${room.status}`)
+    : room.status;
 
   return (
     <div
@@ -80,13 +77,13 @@ function RoomHeader({ room, isReplayMode, isConnected }: {
               {room.status === 'playing' && (
                 <span className="w-1.5 h-1.5 rounded-full animate-ping-slow" style={{ background: statusColor }} />
               )}
-              {STATUS_LABEL[room.status] ?? room.status}
+              {statusLabel}
             </div>
 
             {/* Replay badge */}
             {isReplayMode && (
               <span className="text-[10px] font-mono text-text-muted/50 bg-white/4 px-2 py-0.5 rounded border border-white/8">
-                📼 REPLAY
+                📼 {t('observer.replay_badge')}
               </span>
             )}
 
@@ -94,7 +91,7 @@ function RoomHeader({ room, isReplayMode, isConnected }: {
             {!isReplayMode && (
               <StatusPulse
                 status={isConnected ? 'live' : 'waiting'}
-                label={isConnected ? 'Connected' : 'Reconnecting'}
+                label={isConnected ? t('observer.connected') : t('observer.reconnecting')}
               />
             )}
           </div>
@@ -105,7 +102,7 @@ function RoomHeader({ room, isReplayMode, isConnected }: {
 
         {/* Player count */}
         <div className="text-right">
-          <div className="text-xs font-mono text-text-muted/40">players</div>
+          <div className="text-xs font-mono text-text-muted/40">{t('observer.players_label')}</div>
           <div className="text-lg font-mono font-bold text-text-primary">{room.agents.length}</div>
         </div>
       </div>
@@ -116,6 +113,7 @@ function RoomHeader({ room, isReplayMode, isConnected }: {
 // ─── Result banner (replay finished) ────────────────────────────────────────
 
 function ResultBanner({ winner_team }: { winner_team?: string }) {
+  const { t } = useI18n();
   return (
     <div
       className="relative rounded-xl overflow-hidden mb-4"
@@ -127,10 +125,10 @@ function ResultBanner({ winner_team }: { winner_team?: string }) {
       <ParticleCanvas density={15} speed={0.2} color="#00e5ff" className="opacity-20 rounded-xl" />
       <div className="relative z-10 py-5 text-center">
         <div className="text-2xl font-bold tracking-tight text-text-primary">
-          {winner_team ? `${winner_team} Victory` : 'Game Over'}
+          {winner_team ? t('observer.victory', { team: winner_team }) : t('observer.game_over')}
         </div>
         <div className="text-xs font-mono text-accent-cyan/60 mt-1 uppercase tracking-widest">
-          {winner_team ? '🏆 Winner Declared' : '🏁 Match Concluded'}
+          {winner_team ? `🏆 ${t('observer.winner_declared')}` : `🏁 ${t('observer.match_concluded')}`}
         </div>
       </div>
     </div>
@@ -140,6 +138,7 @@ function ResultBanner({ winner_team }: { winner_team?: string }) {
 // ─── Live observer ───────────────────────────────────────────────────────────
 
 function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
+  const { t } = useI18n();
   const { latestEvent, isConnected } = useSSE(roomId);
   const { data: polledState } = useGameState(roomId);
 
@@ -167,7 +166,7 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               {gameState ? (
-                <span className="text-text-muted/30 text-xs font-mono italic">No board for this game type</span>
+                <span className="text-text-muted/30 text-xs font-mono italic">{t('observer.no_board')}</span>
               ) : (
                 <ShimmerCard />
               )}
@@ -177,7 +176,7 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
           {/* Turn counter */}
           {gameState?.turn !== undefined && (
             <div className="mt-2 flex items-center gap-2">
-              <span className="text-[10px] font-mono text-text-muted/30 uppercase tracking-widest">Turn</span>
+              <span className="text-[10px] font-mono text-text-muted/30 uppercase tracking-widest">{t('observer.turn')}</span>
               <span className="text-xs font-mono text-accent-cyan/70">{gameState.turn}</span>
               {phase && (
                 <>
@@ -208,6 +207,7 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
 // ─── Replay observer ─────────────────────────────────────────────────────────
 
 function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
+  const { t } = useI18n();
   const { history, step, total, isPlaying, speed, setSpeed, isLoading, goNext, goPrev, goTo, togglePlay } = useReplay(roomId);
   const gameName = room.game_type?.name ?? '';
   const BoardComponent = BOARD_COMPONENTS[gameName];
@@ -226,7 +226,7 @@ function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
     return (
       <>
         <RoomHeader room={room} isReplayMode={true} />
-        <div className="text-accent-mag text-sm font-mono">Failed to load history</div>
+        <div className="text-accent-mag text-sm font-mono">{t('observer.error_history')}</div>
       </>
     );
   }
@@ -262,7 +262,7 @@ function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               <span className="text-text-muted/30 text-xs font-mono italic">
-                {currentEntry ? 'No board for this game type' : 'No history data'}
+                {currentEntry ? t('observer.no_board') : t('observer.no_history')}
               </span>
             </div>
           )}
@@ -301,6 +301,7 @@ function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
 // ─── Root observer page ──────────────────────────────────────────────────────
 
 export function Observer() {
+  const { t } = useI18n();
   const { id } = useParams<{ id: string }>();
   const roomId = Number(id);
 
@@ -325,7 +326,7 @@ export function Observer() {
           className="rounded-xl p-6 text-center"
           style={{ background: 'rgba(255,45,107,0.06)', border: '1px solid rgba(255,45,107,0.2)' }}
         >
-          <div className="text-accent-mag text-sm font-mono">Failed to load room #{roomId}</div>
+          <div className="text-accent-mag text-sm font-mono">{t('observer.error', { id: String(roomId) })}</div>
         </div>
       </div>
     );

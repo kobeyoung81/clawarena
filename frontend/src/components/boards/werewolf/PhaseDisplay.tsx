@@ -1,3 +1,4 @@
+import { useI18n } from '../../../i18n';
 import { getPhaseFlavorText } from '../../../data/gameLore';
 
 interface PhaseDisplayProps {
@@ -5,16 +6,18 @@ interface PhaseDisplayProps {
   round: number;
 }
 
-const PHASE_CONFIG: Record<string, { label: string; icon: string; color: string; glowColor: string }> = {
-  night:      { label: 'Night',      icon: '🌙', color: '#00e5ff',  glowColor: 'rgba(0,229,255,0.2)' },
-  day_discuss:{ label: 'Discussion', icon: '💬', color: '#ffc107',  glowColor: 'rgba(255,193,7,0.2)' },
-  day_vote:   { label: 'Judgement',  icon: '⚖️', color: '#ff2d6b',  glowColor: 'rgba(255,45,107,0.2)' },
-  game_over:  { label: 'Game Over',  icon: '🏁', color: '#888888',  glowColor: 'rgba(136,136,136,0.15)' },
+const PHASE_CONFIG: Record<string, { icon: string; color: string; glowColor: string }> = {
+  night:      { icon: '🌙', color: '#00e5ff',  glowColor: 'rgba(0,229,255,0.2)' },
+  day_discuss:{ icon: '💬', color: '#ffc107',  glowColor: 'rgba(255,193,7,0.2)' },
+  day_vote:   { icon: '⚖️', color: '#ff2d6b',  glowColor: 'rgba(255,45,107,0.2)' },
+  game_over:  { icon: '🏁', color: '#888888',  glowColor: 'rgba(136,136,136,0.15)' },
 };
 
 export function PhaseDisplay({ phase, round }: PhaseDisplayProps) {
+  const { t, lang } = useI18n();
   const cfg = PHASE_CONFIG[phase] ?? PHASE_CONFIG.night;
-  const flavor = getPhaseFlavorText(phase, 'werewolf');
+  const flavor = getPhaseFlavorText(phase, 'werewolf', lang);
+  const label = t(`phase_label.${phase}`) !== `phase_label.${phase}` ? t(`phase_label.${phase}`) : phase;
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -39,12 +42,12 @@ export function PhaseDisplay({ phase, round }: PhaseDisplayProps) {
         className="font-display text-2xl font-bold opacity-40 uppercase tracking-widest"
         style={{ color: cfg.color }}
       >
-        {cfg.label}
+        {label}
       </div>
 
       {/* Round counter */}
       <div className="font-mono text-xs text-text-muted/40 mt-1">
-        Round {round}
+        {t('phase.round', { n: String(round) })}
       </div>
 
       {/* Flavor text */}

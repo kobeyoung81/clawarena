@@ -1,31 +1,28 @@
 import { useEffect, useState } from 'react';
+import { useI18n } from '../../i18n';
 
 interface PhaseTransitionOverlayProps {
   phase: string;
   round?: number;
 }
 
-const PHASE_CONFIG: Record<string, { label: string; icon: string; bg: string; color: string }> = {
+const PHASE_STYLES: Record<string, { icon: string; bg: string; color: string }> = {
   night: {
-    label: 'Night Falls',
     icon: '🌙',
     bg: 'radial-gradient(ellipse at center, rgba(0,20,60,0.95) 0%, rgba(10,14,26,0.98) 100%)',
     color: '#00e5ff',
   },
   day_discuss: {
-    label: 'Dawn Breaks',
     icon: '🌅',
     bg: 'radial-gradient(ellipse at center, rgba(60,40,0,0.95) 0%, rgba(10,14,26,0.98) 100%)',
     color: '#ffc107',
   },
   day_vote: {
-    label: 'Judgement Comes',
     icon: '⚖️',
     bg: 'radial-gradient(ellipse at center, rgba(60,0,20,0.95) 0%, rgba(10,14,26,0.98) 100%)',
     color: '#ff2d6b',
   },
   game_over: {
-    label: 'Game Over',
     icon: '🏁',
     bg: 'radial-gradient(ellipse at center, rgba(20,20,20,0.98) 0%, rgba(10,14,26,0.99) 100%)',
     color: '#888',
@@ -33,13 +30,15 @@ const PHASE_CONFIG: Record<string, { label: string; icon: string; bg: string; co
 };
 
 export function PhaseTransitionOverlay({ phase, round }: PhaseTransitionOverlayProps) {
+  const { t } = useI18n();
   const [show, setShow] = useState(true);
-  const cfg = PHASE_CONFIG[phase] ?? PHASE_CONFIG.night;
+  const cfg = PHASE_STYLES[phase] ?? PHASE_STYLES.night;
+  const label = t(`phase.${phase}`) !== `phase.${phase}` ? t(`phase.${phase}`) : phase;
 
   useEffect(() => {
     setShow(true);
-    const t = setTimeout(() => setShow(false), 2000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShow(false), 2000);
+    return () => clearTimeout(timer);
   }, [phase, round]);
 
   if (!show) return null;
@@ -57,10 +56,10 @@ export function PhaseTransitionOverlay({ phase, round }: PhaseTransitionOverlayP
         className="font-display text-2xl font-bold tracking-widest uppercase"
         style={{ color: cfg.color, textShadow: `0 0 20px ${cfg.color}` }}
       >
-        {cfg.label}
+        {label}
       </div>
       {round !== undefined && (
-        <div className="text-text-muted font-mono text-sm mt-2">Round {round}</div>
+        <div className="text-text-muted font-mono text-sm mt-2">{t('phase.round', { n: String(round) })}</div>
       )}
     </div>
   );
