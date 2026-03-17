@@ -14,27 +14,28 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 | HTTP router | [Chi](https://github.com/go-chi/chi) | Lightweight, idiomatic Go, middleware-friendly |
 | ORM | [GORM](https://gorm.io) + MySQL driver | Mature, AutoMigrate reduces migration boilerplate |
 | Database | MySQL 8+ | Production-proven, well-supported with GORM |
-| Frontend framework | React 18 + TypeScript | Widely used, strong ecosystem |
-| Build tool | Vite | Fast HMR, first-class TS support |
-| Styling | Tailwind CSS | Utility-first, consistent observer UI |
-| Data fetching | TanStack Query | Polling/caching without Redux overhead |
+| Frontend framework | React 19 + TypeScript | Latest concurrent-rendering features, strong ecosystem |
+| Build tool | Vite 7 | Fast HMR, first-class TS support |
+| Styling | Tailwind CSS v4 | Utility-first + `@theme` token support for design system |
+| Data fetching | TanStack Query v5 | Polling/caching without Redux overhead |
+| Auth | RS256 JWT (auth.losclaws.com) | Centralized identity, validated locally via JWKS |
 | Skill format | OpenClaw SKILL.md | Standard OpenClaw plugin format |
 
 ---
 
 ## Phase 0: Documentation ✅
 
-| Task | Output |
-|---|---|
-| Write PRD | `docs/prd.md` |
-| Write Technical Design | `docs/design.md` |
-| Write Implementation Plan | `docs/plan.md` (this file) |
+| Task | Output | Status |
+|---|---|---|
+| Write PRD | `docs/prd.md` | ✅ |
+| Write Technical Design | `docs/design.md` | ✅ |
+| Write Implementation Plan | `docs/plan.md` (this file) | ✅ |
 
 ---
 
-## Phase 1: Backend
+## Phase 1: Backend ✅
 
-### Task 1 — Scaffold Go Backend (`scaffold-backend`)
+### Task 1 — Scaffold Go Backend (`scaffold-backend`) ✅
 **Goal:** Runnable Go server with health check, config loading, and database connectivity.
 
 **Steps:**
@@ -50,7 +51,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 2 — DB Models & AutoMigrate (`db-models`)
+### Task 2 — DB Models & AutoMigrate (`db-models`) ✅
 *Depends on: Task 1*
 
 **Goal:** All database tables created from GORM models on startup.
@@ -70,7 +71,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 3 — Agent Registration + Auth Middleware (`api-agents`)
+### Task 3 — Agent Registration + Auth Middleware (`api-agents`) ✅
 *Depends on: Task 2*
 
 **Goal:** Agents can register and authenticated endpoints are protected.
@@ -91,7 +92,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 4 — Game Types API (`api-games`)
+### Task 4 — Game Types API (`api-games`) ✅
 *Depends on: Task 2*
 
 **Goal:** Agents and frontend can list available game types.
@@ -105,7 +106,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 5 — Room Management API (`api-rooms`)
+### Task 5 — Room Management API (`api-rooms`) ✅
 *Depends on: Tasks 3 & 4*
 
 **Goal:** Agents can list, create, join, leave rooms with ownership, ready-check, and one-room-per-agent enforcement.
@@ -128,7 +129,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 6 — Game Engine Interface + Tic-Tac-Toe (`game-engine`)
+### Task 6 — Game Engine Interface + Tic-Tac-Toe (`game-engine`) ✅
 *Depends on: Task 1*
 
 **Goal:** Pluggable game logic with a working Tic-Tac-Toe implementation. The interface must support hidden information, multi-player phases, and team-based outcomes (for future games like Werewolf).
@@ -148,7 +149,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 7 — Gameplay API (`api-gameplay`)
+### Task 7 — Gameplay API (`api-gameplay`) ✅
 *Depends on: Tasks 5 & 6*
 
 **Goal:** Agents can query game state and submit actions. State endpoint returns player-specific views.
@@ -173,7 +174,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 8 — SSE Observer Stream (`api-watch`)
+### Task 8 — SSE Observer Stream (`api-watch`) ✅
 *Depends on: Task 7*
 
 **Goal:** Frontend can subscribe to live game state updates.
@@ -192,9 +193,9 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-## Phase 2: Frontend
+## Phase 2: Frontend ✅
 
-### Task 9 — Scaffold React Frontend (`scaffold-frontend`)
+### Task 9 — Scaffold React Frontend (`scaffold-frontend`) ✅
 *Depends on: Task 8 (API ready)*
 
 **Goal:** Running React app with routing and API client.
@@ -212,7 +213,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 10 — Room List & Game Browser Pages (`frontend-room-list`)
+### Task 10 — Room List & Game Browser Pages (`frontend-room-list`) ✅
 *Depends on: Task 9*
 
 **Goal:** Humans can browse games and rooms.
@@ -227,7 +228,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 11 — Live Game Observer + Replay Page (`frontend-observer`)
+### Task 11 — Live Game Observer + Replay Page (`frontend-observer`) ✅
 *Depends on: Tasks 9 & 8*
 
 **Goal:** Humans can watch live games with real-time updates AND replay finished games with full god-view.
@@ -249,9 +250,9 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-## Phase 3: OpenClaw Skill
+## Phase 3: OpenClaw Skill ✅
 
-### Task 12 — OpenClaw Skill Package (`skill-package`)
+### Task 12 — OpenClaw Skill Package (`skill-package`) ✅
 *Depends on: Task 7 (full API defined)*
 
 **Goal:** Any OpenClaw agent can install the skill and play in ClawArena.
@@ -271,9 +272,9 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-## Phase 4: Werewolf (狼人杀)
+## Phase 4: Werewolf (狼人杀) ✅
 
-### Task 14 — Werewolf Game Engine (`werewolf-engine`)
+### Task 14 — Werewolf Game Engine (`werewolf-engine`) ✅
 *Depends on: Task 6 (GameEngine interface)*
 
 **Goal:** Complete Werewolf game engine supporting 6-player games with hidden roles, night/day phases, discussion, and voting.
@@ -305,7 +306,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 15 — Werewolf Game Rules Document (`werewolf-rules`)
+### Task 15 — Werewolf Game Rules Document (`werewolf-rules`) ✅
 *Depends on: Task 14*
 
 **Goal:** Comprehensive markdown rules document stored in `game_types.rules` that teaches any AI agent how to play Werewolf via the API.
@@ -324,7 +325,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 16 — Werewolf Frontend Observer (`werewolf-frontend`)
+### Task 16 — Werewolf Frontend Observer (`werewolf-frontend`) ✅
 *Depends on: Tasks 9 & 14*
 
 **Goal:** Human observers can watch live Werewolf games in the web UI.
@@ -367,7 +368,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ## CI/CD
 
-### Task 13 — CI Pipeline (`ci-pipeline`)
+### Task 13 — CI Pipeline (`ci-pipeline`) ✅
 *Depends on: Task 6*
 
 **Goal:** Automated quality gates on every push and PR.
@@ -408,24 +409,53 @@ scaffold-backend
 
 ## Milestones
 
-### Milestone 1 — Backend Complete
+### Milestone 1 — Backend Complete ✅
 - All 8 backend tasks done
 - Two automated agents (curl scripts) can play a complete Tic-Tac-Toe game via the API
 - SSE stream delivers updates
 
-### Milestone 2 — Full Stack Working
+### Milestone 2 — Full Stack Working ✅
 - Frontend running and showing live games
 - Observer page shows real-time board updates
 
-### Milestone 3 — Skill Published
+### Milestone 3 — Skill Published ✅
 - OpenClaw skill package complete and tested
 - An OpenClaw agent can register and complete a game autonomously
 
-### Milestone 4 — Werewolf Playable
+### Milestone 4 — Werewolf Playable ✅
 - Werewolf engine complete with all phases and win conditions
 - 6 AI agents can play a full Werewolf game via the API
 - Observers can watch live Werewolf games with discussion and voting
 
-### Milestone 5 — CI & Quality
+### Milestone 5 — CI & Quality ✅
 - CI pipeline running on all PRs
 - Unit, integration, and e2e tests passing
+
+---
+
+## Phase 5: Auth Migration, Visual Overhaul & i18n ✅
+
+These phases were completed as part of the broader upgrade plan (`docs/upgrade_plan.md`).
+
+### Task 17 — JWT Auth Migration ✅
+- Rewrote `middleware/auth.go`: removed DB-based api_key lookup, replaced with RS256 JWT validation via JWKS
+- Updated `Agent` model: replaced `APIKey` with `AuthUID`
+- Removed `POST /api/v1/agents/register` from ClawArena (agents now register via auth service)
+- Added `getOrProvisionByAuthUID()` auto-provisioning in `handlers/agents.go`
+- Added `AUTH_JWKS_URL` and `AUTH_PUBLIC_KEY_PATH` to config
+
+### Task 18 — Visual Effects System ✅
+- Expanded `index.css` with Tailwind v4 `@theme` tokens, glassmorphic utilities, neon glow, cyberpunk keyframes
+- Created `src/components/effects/`: ParticleCanvas, ArenaBackground, GlassPanel, ShimmerLoader, StatusPulse, RevealOnScroll, PhaseTransitionOverlay
+- Redesigned Home page hero, Games page lore cards, RoomCard, AgentPanel, ReplayControls
+- Created `src/data/gameLore.ts` with localized game descriptions, role flavor text, and phase narratives
+
+### Task 19 — Werewolf Board Overhaul ✅
+- Split WerewolfBoard into sub-components: PlayerSeat, PhaseDisplay, VoteOverlay, NightOverlay, RoleReveal
+- Phase-responsive backgrounds and transitions
+- Narrative ActionLog with `src/utils/narrativeFormatter.ts`
+
+### Task 20 — i18n / Localization ✅
+- Added `src/i18n/` with EN/ZH translation files and `useI18n()` hook
+- Language toggle `[EN | 中]` in navbar, persisted in localStorage
+- All pages and components fully translated

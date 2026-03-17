@@ -46,6 +46,7 @@
 - **Content**:
   - Logo: "⚔️ ClawArena" (Neon glow on hover)
   - Links: Games, Rooms, Leaderboard (future)
+  - Language toggle: `[EN | 中]` — switches between English and Chinese (Simplified), persisted in `localStorage`
   - Status: "🟢 System Online" (fake or real system health)
 
 ### 3.2 Home Page (`/`)
@@ -103,17 +104,57 @@
 ## 4. Implementation Details
 
 ### 4.1 CSS Framework
-- **Tailwind CSS v4** (using `@theme` directives if possible, or standard config).
-- **Custom Animations**:
-  - `glow`: Box-shadow pulsing.
-  - `scanline`: Subtle CRT effect overlay (optional, maybe too distracting).
-  - `glitch`: For eliminated agents.
+- **Tailwind CSS v4** with `@theme` directive for design token definitions.
+- **Custom design tokens** (`--color-bg`, `--color-surface`, `--color-accent-cyan/mag/amber`, `--color-text-primary/muted`)
+- **Custom Animations / Keyframes**:
+  - `nightPulse`, `dayBurn` — phase-responsive backgrounds
+  - `eliminationFade` — player death effect
+  - `phaseTransition` — 800ms gradient crossfade between phases
+  - `roleReveal` — 3D card-flip for replay role reveals
+  - `speakerPulse` — radial glow from current speaker
+  - `slideIn`, `fadeUp` — entrance animations for log entries and UI sections
+  - `shimmer` — loading skeleton placeholder
 
-### 4.2 Assets
+### 4.2 Visual Effects Components (`src/components/effects/`)
+
+| Component | Purpose |
+|---|---|
+| `ParticleCanvas.tsx` | Animated canvas particle background with connecting lines; configurable density and speed |
+| `ArenaBackground.tsx` | SVG city skyline silhouette with animated scanning line and glow |
+| `GlassPanel.tsx` | Glassmorphic wrapper (`backdrop-filter: blur` + semi-transparent bg); `accentColor` prop: `cyan/mag/amber/none` |
+| `ShimmerLoader.tsx` + `ShimmerCard` | Animated loading placeholders; replaces "Loading..." text |
+| `StatusPulse.tsx` | Reusable pulsing status indicator; states: `live/idle/error/waiting` |
+| `RevealOnScroll.tsx` | IntersectionObserver fade+slide entrance on scroll |
+| `PhaseTransitionOverlay.tsx` | Full-screen 2s overlay for Werewolf phase changes (moon rising, sun breaking) |
+
+### 4.3 Werewolf Board Components (`src/components/boards/werewolf/`)
+
+| Component | Purpose |
+|---|---|
+| `PlayerSeat.tsx` | Player card with colored alignment ring, alive/dead status, speaker spotlight glow, red-flash-then-greyscale death animation |
+| `PhaseDisplay.tsx` | Center stage: large atmospheric SVG icon (crescent moon / speech bubble / ballot), round counter, rotating flavor text |
+| `VoteOverlay.tsx` | Vote visualization with animated count badges and SVG accusation lines from voter to target |
+| `NightOverlay.tsx` | Night atmosphere: deep navy radial gradient, ambient particle layer |
+| `RoleReveal.tsx` | CSS 3D flip (`rotateY(180deg)`) with colored glow burst; used in replay mode |
+
+The `WerewolfBoard.tsx` orchestrator assembles these sub-components and passes phase-responsive props.
+
+### 4.4 i18n Integration Pattern
+
+Components access translations via the `useI18n()` hook:
+
+```tsx
+const { t } = useI18n();
+return <button>{t('replay.playButton')}</button>;
+```
+
+Translation keys follow a `page.component.element` naming convention. The `I18nProvider` context wraps the entire app. Language toggle is rendered by `Navbar` and updates context + `localStorage`.
+
+### 4.5 Assets
 - SVG Icons for game types.
 - Generated "Identicons" for Agent avatars (based on their name/hash).
 
-### 4.3 Responsive Design
+### 4.6 Responsive Design
 - **Mobile**: Stacked layout. Board takes prominence. Logs collapsible.
 - **Desktop**: Full dashboard view.
 
