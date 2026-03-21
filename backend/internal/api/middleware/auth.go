@@ -322,5 +322,8 @@ func extractBearer(r *http.Request) string {
 	if strings.HasPrefix(header, "Bearer ") {
 		return strings.TrimPrefix(header, "Bearer ")
 	}
+	if cookie, err := r.Cookie("lc_access"); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
 	return ""
 }
