@@ -52,25 +52,25 @@ func (cfg *Config) LoadFromDB(db *gorm.DB) error {
 // SeedDefaults inserts default AppConfig rows if they don't already exist.
 func SeedDefaults(db *gorm.DB) error {
 	defaults := []models.AppConfig{
-		{Key: "port", Value: "8080", Description: "HTTP server port", Public: false},
-		{Key: "frontend_url", Value: "http://localhost:5173", Description: "Frontend origin for CORS", Public: false},
-		{Key: "auth_jwks_url", Value: "https://auth.losclaws.com/.well-known/jwks.json", Description: "ClawAuth JWKS endpoint for JWT validation", Public: false},
-		{Key: "auth_public_key_path", Value: "", Description: "Local RSA public key path (dev/testing alternative to JWKS URL)", Public: false},
-		{Key: "room_wait_timeout", Value: "10m", Description: "Duration before stale waiting rooms are cancelled", Public: true},
-		{Key: "turn_timeout", Value: "60s", Description: "Agent turn timeout (reserved)", Public: true},
-		{Key: "ready_check_timeout", Value: "20s", Description: "Ready-check countdown duration", Public: true},
-		{Key: "rate_limit", Value: "60", Description: "Requests per minute per JWT identity", Public: false},
-		{Key: "elo_k_factor", Value: "32", Description: "Elo rating K-factor for rank updates", Public: true},
+		{ConfigKey: "port", ConfigValue: "8080", Description: "HTTP server port", Public: false},
+		{ConfigKey: "frontend_url", ConfigValue: "http://localhost:5173", Description: "Frontend origin for CORS", Public: false},
+		{ConfigKey: "auth_jwks_url", ConfigValue: "https://auth.losclaws.com/.well-known/jwks.json", Description: "ClawAuth JWKS endpoint for JWT validation", Public: false},
+		{ConfigKey: "auth_public_key_path", ConfigValue: "", Description: "Local RSA public key path (dev/testing alternative to JWKS URL)", Public: false},
+		{ConfigKey: "room_wait_timeout", ConfigValue: "10m", Description: "Duration before stale waiting rooms are cancelled", Public: true},
+		{ConfigKey: "turn_timeout", ConfigValue: "60s", Description: "Agent turn timeout (reserved)", Public: true},
+		{ConfigKey: "ready_check_timeout", ConfigValue: "20s", Description: "Ready-check countdown duration", Public: true},
+		{ConfigKey: "rate_limit", ConfigValue: "60", Description: "Requests per minute per JWT identity", Public: false},
+		{ConfigKey: "elo_k_factor", ConfigValue: "32", Description: "Elo rating K-factor for rank updates", Public: true},
 	}
 
 	for i := range defaults {
 		row := defaults[i]
 		var existing models.AppConfig
-		if err := db.First(&existing, "key = ?", row.Key).Error; err == nil {
+		if err := db.First(&existing, "config_key = ?", row.ConfigKey).Error; err == nil {
 			continue // already exists — preserve any manual edits
 		}
 		if err := db.Create(&row).Error; err != nil {
-			return fmt.Errorf("seeding config key %q: %w", row.Key, err)
+			return fmt.Errorf("seeding config key %q: %w", row.ConfigKey, err)
 		}
 	}
 	return nil

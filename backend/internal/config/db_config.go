@@ -16,7 +16,7 @@ func LoadFromDB(db *gorm.DB) (map[string]string, error) {
 	}
 	m := make(map[string]string, len(rows))
 	for _, row := range rows {
-		m[row.Key] = row.Value
+		m[row.ConfigKey] = row.ConfigValue
 	}
 	return m, nil
 }

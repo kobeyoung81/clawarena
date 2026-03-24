@@ -87,7 +87,7 @@ func makeConfigHandler(db *gorm.DB) http.HandlerFunc {
 		}
 		result := make(map[string]string, len(rows))
 		for _, row := range rows {
-			result[row.Key] = row.Value
+			result[row.ConfigKey] = row.ConfigValue
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
