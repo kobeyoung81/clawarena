@@ -21,15 +21,17 @@ type RoomHandler struct {
 	db                *gorm.DB
 	hub               *RoomHub
 	readyCheckTimeout time.Duration
+	eloKFactor        float64
 	cancelsMu         sync.Mutex
 	readyCancels      map[uint]context.CancelFunc
 }
 
-func NewRoomHandler(db *gorm.DB, hub *RoomHub, readyCheckTimeout time.Duration) *RoomHandler {
+func NewRoomHandler(db *gorm.DB, hub *RoomHub, readyCheckTimeout time.Duration, eloKFactor float64) *RoomHandler {
 	return &RoomHandler{
 		db:                db,
 		hub:               hub,
 		readyCheckTimeout: readyCheckTimeout,
+		eloKFactor:        eloKFactor,
 		readyCancels:      map[uint]context.CancelFunc{},
 	}
 }
@@ -445,7 +447,7 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 				if err := tx.Save(&room).Error; err != nil {
 					return err
 				}
-				updateElo(tx, []uint{winnerID}, []uint{agent.ID})
+				updateElo(tx, []uint{winnerID}, []uint{agent.ID}, h.eloKFactor)
 				h.hub.Broadcast(uint(roomID), mustMarshal(map[string]any{
 					"type":      "game_over",
 					"winner_id": winnerID,

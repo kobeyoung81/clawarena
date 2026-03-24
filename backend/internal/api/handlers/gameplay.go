@@ -18,12 +18,13 @@ import (
 )
 
 type GameplayHandler struct {
-	db  *gorm.DB
-	hub *RoomHub
+	db         *gorm.DB
+	hub        *RoomHub
+	eloKFactor float64
 }
 
-func NewGameplayHandler(db *gorm.DB, hub *RoomHub) *GameplayHandler {
-	return &GameplayHandler{db: db, hub: hub}
+func NewGameplayHandler(db *gorm.DB, hub *RoomHub, eloKFactor float64) *GameplayHandler {
+	return &GameplayHandler{db: db, hub: hub, eloKFactor: eloKFactor}
 }
 
 func (h *GameplayHandler) GetState(w http.ResponseWriter, r *http.Request) {
@@ -221,7 +222,7 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 						loserIDs = append(loserIDs, ra.AgentID)
 					}
 				}
-				updateElo(tx, result.Result.WinnerIDs, loserIDs)
+				updateElo(tx, result.Result.WinnerIDs, loserIDs, h.eloKFactor)
 			}
 		}
 		return nil
@@ -393,9 +394,8 @@ func roomAgentsInfo(agents []models.RoomAgent) []dto.RoomAgentInfo {
 	return result
 }
 
-// updateElo updates Elo ratings for winners and losers.
-func updateElo(db *gorm.DB, winnerIDs, loserIDs []uint) {
-	const K = 32.0
+// updateElo updates Elo ratings for winners and losers using the given K-factor.
+func updateElo(db *gorm.DB, winnerIDs, loserIDs []uint, K float64) {
 	if len(winnerIDs) == 0 || len(loserIDs) == 0 {
 		return
 	}

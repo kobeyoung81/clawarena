@@ -1,8 +1,12 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"time"
+
+	"github.com/clawarena/clawarena/internal/models"
+	"gorm.io/gorm"
 )
 
 type Config struct {
@@ -13,35 +17,62 @@ type Config struct {
 	TurnTimeout       time.Duration
 	ReadyCheckTimeout time.Duration
 	RateLimit         int
-	AuthJWKSURL       string // URL to fetch public key: https://auth.losclaws.com/.well-known/jwks.json
-	AuthPublicKeyPath string // Alternative: local path to public key PEM file (for dev/testing)
+	EloKFactor        float64
+	AuthJWKSURL       string
+	AuthPublicKeyPath string
 }
 
-func Load() *Config {
+// LoadInitial reads only DB_DSN from env (needed to connect to DB).
+func LoadInitial() *Config {
 	return &Config{
-		Port:              getEnv("PORT", "8080"),
-		DBDSN:             getEnv("DB_DSN", ""),
-		FrontendURL:       getEnv("FRONTEND_URL", "http://localhost:5173"),
-		RoomWaitTimeout:   parseDuration(getEnv("ROOM_WAIT_TIMEOUT", "10m")),
-		TurnTimeout:       parseDuration(getEnv("TURN_TIMEOUT", "60s")),
-		ReadyCheckTimeout: parseDuration(getEnv("READY_CHECK_TIMEOUT", "20s")),
-		RateLimit:         60,
-		AuthJWKSURL:       getEnv("AUTH_JWKS_URL", "https://auth.losclaws.com/.well-known/jwks.json"),
-		AuthPublicKeyPath: getEnv("AUTH_PUBLIC_KEY_PATH", ""),
+		DBDSN: os.Getenv("DB_DSN"),
 	}
 }
 
-func getEnv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
-}
-
-func parseDuration(s string) time.Duration {
-	d, err := time.ParseDuration(s)
+// LoadFromDB populates the config from the AppConfig table, falling back to defaults.
+func (cfg *Config) LoadFromDB(db *gorm.DB) error {
+	m, err := LoadFromDB(db)
 	if err != nil {
-		return 0
+		return fmt.Errorf("loading config from db: %w", err)
 	}
-	return d
+
+	cfg.Port = dbGet(m, "port", "8080")
+	cfg.FrontendURL = dbGet(m, "frontend_url", "http://localhost:5173")
+	cfg.RoomWaitTimeout = dbGetDuration(m, "room_wait_timeout", 10*time.Minute)
+	cfg.TurnTimeout = dbGetDuration(m, "turn_timeout", 60*time.Second)
+	cfg.ReadyCheckTimeout = dbGetDuration(m, "ready_check_timeout", 20*time.Second)
+	cfg.RateLimit = dbGetInt(m, "rate_limit", 60)
+	cfg.EloKFactor = float64(dbGetInt(m, "elo_k_factor", 32))
+	cfg.AuthJWKSURL = dbGet(m, "auth_jwks_url", "https://auth.losclaws.com/.well-known/jwks.json")
+	cfg.AuthPublicKeyPath = dbGet(m, "auth_public_key_path", "")
+
+	return nil
 }
+
+// SeedDefaults inserts default AppConfig rows if they don't already exist.
+func SeedDefaults(db *gorm.DB) error {
+	defaults := []models.AppConfig{
+		{Key: "port", Value: "8080", Description: "HTTP server port", Public: false},
+		{Key: "frontend_url", Value: "http://localhost:5173", Description: "Frontend origin for CORS", Public: false},
+		{Key: "auth_jwks_url", Value: "https://auth.losclaws.com/.well-known/jwks.json", Description: "ClawAuth JWKS endpoint for JWT validation", Public: false},
+		{Key: "auth_public_key_path", Value: "", Description: "Local RSA public key path (dev/testing alternative to JWKS URL)", Public: false},
+		{Key: "room_wait_timeout", Value: "10m", Description: "Duration before stale waiting rooms are cancelled", Public: true},
+		{Key: "turn_timeout", Value: "60s", Description: "Agent turn timeout (reserved)", Public: true},
+		{Key: "ready_check_timeout", Value: "20s", Description: "Ready-check countdown duration", Public: true},
+		{Key: "rate_limit", Value: "60", Description: "Requests per minute per JWT identity", Public: false},
+		{Key: "elo_k_factor", Value: "32", Description: "Elo rating K-factor for rank updates", Public: true},
+	}
+
+	for i := range defaults {
+		row := defaults[i]
+		var existing models.AppConfig
+		if err := db.First(&existing, "key = ?", row.Key).Error; err == nil {
+			continue // already exists — preserve any manual edits
+		}
+		if err := db.Create(&row).Error; err != nil {
+			return fmt.Errorf("seeding config key %q: %w", row.Key, err)
+		}
+	}
+	return nil
+}
+

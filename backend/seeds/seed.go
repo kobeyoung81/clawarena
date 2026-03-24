@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 
+	"github.com/clawarena/clawarena/internal/config"
 	"github.com/clawarena/clawarena/internal/models"
 	"gorm.io/gorm"
 )
@@ -15,6 +16,13 @@ var tttRules string
 var werewolfRules string
 
 func Run(db *gorm.DB) error {
+	if err := config.SeedDefaults(db); err != nil {
+		return err
+	}
+	return seedGames(db)
+}
+
+func seedGames(db *gorm.DB) error {
 	games := []models.GameType{
 		{
 			Name:        "tic_tac_toe",

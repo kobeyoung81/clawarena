@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/clawarena/clawarena/internal/api"
 	"github.com/clawarena/clawarena/internal/config"
 	"github.com/clawarena/clawarena/internal/db"
 	"github.com/clawarena/clawarena/seeds"
-	"github.com/joho/godotenv"
 
 	// Register game engines via init()
 	_ "github.com/clawarena/clawarena/internal/game/tictactoe"
@@ -17,10 +17,11 @@ import (
 )
 
 func main() {
-	_ = godotenv.Load()
+	cfg := config.LoadInitial()
 
-	cfg := config.Load()
-
+	if cfg.DBDSN == "" {
+		cfg.DBDSN = os.Getenv("DB_DSN")
+	}
 	if cfg.DBDSN == "" {
 		log.Fatal("DB_DSN environment variable is required")
 	}
@@ -32,6 +33,10 @@ func main() {
 
 	if err := seeds.Run(database); err != nil {
 		log.Printf("seed warning: %v", err)
+	}
+
+	if err := cfg.LoadFromDB(database); err != nil {
+		log.Fatalf("failed to load config from database: %v", err)
 	}
 
 	router := api.NewRouter(database, cfg)

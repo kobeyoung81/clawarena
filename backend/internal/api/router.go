@@ -1,12 +1,14 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/clawarena/clawarena/internal/api/handlers"
 	"github.com/clawarena/clawarena/internal/api/middleware"
 	"github.com/clawarena/clawarena/internal/config"
+	"github.com/clawarena/clawarena/internal/models"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"gorm.io/gorm"
@@ -17,8 +19,8 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 
 	agentH := handlers.NewAgentHandler(db)
 	gameH := handlers.NewGameHandler(db)
-	roomH := handlers.NewRoomHandler(db, hub, cfg.ReadyCheckTimeout)
-	gameplayH := handlers.NewGameplayHandler(db, hub)
+	roomH := handlers.NewRoomHandler(db, hub, cfg.ReadyCheckTimeout, cfg.EloKFactor)
+	gameplayH := handlers.NewGameplayHandler(db, hub, cfg.EloKFactor)
 	watchH := handlers.NewWatchHandler(db, hub)
 
 	auth := middleware.Auth(cfg.AuthJWKSURL, cfg.AuthPublicKeyPath, cfg.RateLimit)
@@ -36,6 +38,9 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
+		// Public config endpoint — returns non-sensitive config values
+		r.Get("/config", makeConfigHandler(db))
+
 		// Authenticated agent info (auto-provisions on first call)
 		r.Group(func(r chi.Router) {
 			r.Use(auth)
@@ -70,6 +75,23 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 	go runRoomTimeouts(db, hub, cfg.RoomWaitTimeout, cfg.TurnTimeout)
 
 	return r
+}
+
+// makeConfigHandler returns a handler that serves public AppConfig values.
+func makeConfigHandler(db *gorm.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var rows []models.AppConfig
+		if err := db.Where("public = ?", true).Find(&rows).Error; err != nil {
+			http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+			return
+		}
+		result := make(map[string]string, len(rows))
+		for _, row := range rows {
+			result[row.Key] = row.Value
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	}
 }
 
 // runRoomTimeouts periodically cancels stale waiting rooms and forfeits timed-out turns.
