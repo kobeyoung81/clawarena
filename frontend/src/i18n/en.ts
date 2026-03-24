@@ -4,6 +4,8 @@ export const en = {
     games: 'Games',
     arena: 'Arena',
     system_online: 'SYSTEM ONLINE',
+    sign_in: 'Sign In',
+    logout: 'Logout',
   },
   home: {
     eyebrow: 'arena.losclaws.com',

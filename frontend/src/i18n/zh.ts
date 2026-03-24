@@ -6,6 +6,8 @@ export const zh: TranslationKeys = {
     games: '游戏',
     arena: '竞技场',
     system_online: '系统在线',
+    sign_in: '登录',
+    logout: '退出',
   },
   home: {
     eyebrow: 'arena.losclaws.com',

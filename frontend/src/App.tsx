@@ -5,6 +5,7 @@ import { Games } from './pages/Games';
 import { Rooms } from './pages/Rooms';
 import { Observer } from './pages/Observer';
 import { I18nProvider, useI18n } from './i18n';
+import { useAuth } from './hooks/useAuth';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -51,6 +52,9 @@ function LangToggle() {
 
 function Navbar() {
   const { t } = useI18n();
+  const { user, isLoading, logout } = useAuth();
+  const portalBase = import.meta.env.VITE_PORTAL_BASE_URL || 'https://losclaws.com';
+
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cn(
       "relative px-4 py-2 text-sm font-medium transition-all duration-200",
@@ -87,6 +91,31 @@ function Navbar() {
              </span>
              {t('nav.system_online')}
            </div>
+           {!isLoading && (
+             user ? (
+               <div className="hidden md:flex items-center gap-2">
+                 <a
+                   href={`${portalBase}/user.html`}
+                   className="text-xs font-mono text-accent-cyan hover:opacity-80 transition-opacity"
+                 >
+                   {user.name}
+                 </a>
+                 <button
+                   onClick={logout}
+                   className="text-xs font-mono px-2 py-1 border border-accent-mag/30 text-text-muted hover:text-accent-mag hover:border-accent-mag transition-all"
+                 >
+                   {t('nav.logout')}
+                 </button>
+               </div>
+             ) : (
+               <a
+                 href={`${portalBase}/auth.html?redirect=${encodeURIComponent(window.location.href)}`}
+                 className="hidden md:block text-xs font-mono text-text-muted hover:text-white transition-colors"
+               >
+                 {t('nav.sign_in')}
+               </a>
+             )
+           )}
            <button className="md:hidden text-text-muted hover:text-white">
              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
