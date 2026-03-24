@@ -23,8 +23,8 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 	gameplayH := handlers.NewGameplayHandler(db, hub, cfg.EloKFactor)
 	watchH := handlers.NewWatchHandler(db, hub)
 
-	auth := middleware.Auth(cfg.AuthJWKSURL, cfg.AuthPublicKeyPath, cfg.RateLimit)
-	tryAuth := middleware.TryAuth(cfg.AuthJWKSURL, cfg.AuthPublicKeyPath)
+	auth := middleware.Auth(cfg.AuthJWKSURL, cfg.AuthPublicKeyContent, cfg.RateLimit)
+	tryAuth := middleware.TryAuth(cfg.AuthJWKSURL, cfg.AuthPublicKeyContent)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)

@@ -13,7 +13,6 @@ import (
 	"log"
 	"math/big"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -52,15 +51,15 @@ type jwtClaims struct {
 
 // jwksCache fetches and caches the public key from the JWKS endpoint.
 type jwksCache struct {
-	mu        sync.RWMutex
-	publicKey *rsa.PublicKey
-	fetchedAt time.Time
-	url       string
-	keyPath   string // optional local PEM path
+	mu         sync.RWMutex
+	publicKey  *rsa.PublicKey
+	fetchedAt  time.Time
+	url        string
+	keyContent string // optional PEM content stored directly in the database
 }
 
-func newJWKSCache(jwksURL, keyPath string) *jwksCache {
-	return &jwksCache{url: jwksURL, keyPath: keyPath}
+func newJWKSCache(jwksURL, keyContent string) *jwksCache {
+	return &jwksCache{url: jwksURL, keyContent: keyContent}
 }
 
 func (c *jwksCache) getKey() (*rsa.PublicKey, error) {
@@ -80,20 +79,20 @@ func (c *jwksCache) refresh() (*rsa.PublicKey, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Local PEM key takes precedence (dev/testing)
-	if c.keyPath != "" {
-		key, err := loadPEMPublicKey(c.keyPath)
+	// Inline PEM content takes precedence (dev/testing)
+	if c.keyContent != "" {
+		key, err := parsePEMPublicKey([]byte(c.keyContent))
 		if err == nil {
 			c.publicKey = key
 			c.fetchedAt = time.Now()
 			return key, nil
 		}
-		log.Printf("[auth] warn: failed to load local public key from %s: %v", c.keyPath, err)
+		log.Printf("[auth] warn: failed to parse inline public key: %v", err)
 	}
 
 	// Fetch JWKS from URL
 	if c.url == "" {
-		return nil, fmt.Errorf("no JWKS URL or public key path configured")
+		return nil, fmt.Errorf("no JWKS URL or public key content configured")
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -141,11 +140,7 @@ func jwkToRSA(nB64, eB64 string) (*rsa.PublicKey, error) {
 	return &rsa.PublicKey{N: n, E: int(e.Int64())}, nil
 }
 
-func loadPEMPublicKey(path string) (*rsa.PublicKey, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
+func parsePEMPublicKey(data []byte) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode(data)
 	if block == nil {
 		return nil, fmt.Errorf("invalid PEM data")
@@ -244,8 +239,8 @@ func writeError(w http.ResponseWriter, status int, msg, code string) {
 }
 
 // Auth validates a Bearer JWT and rejects unauthenticated requests.
-func Auth(jwksURL, keyPath string, rateLimit int) func(http.Handler) http.Handler {
-	cache := newJWKSCache(jwksURL, keyPath)
+func Auth(jwksURL, keyContent string, rateLimit int) func(http.Handler) http.Handler {
+	cache := newJWKSCache(jwksURL, keyContent)
 	// Pre-warm the cache
 	go func() {
 		if _, err := cache.refresh(); err != nil {
@@ -286,8 +281,8 @@ func Auth(jwksURL, keyPath string, rateLimit int) func(http.Handler) http.Handle
 }
 
 // TryAuth attempts JWT auth but does not reject unauthenticated requests.
-func TryAuth(jwksURL, keyPath string) func(http.Handler) http.Handler {
-	cache := newJWKSCache(jwksURL, keyPath)
+func TryAuth(jwksURL, keyContent string) func(http.Handler) http.Handler {
+	cache := newJWKSCache(jwksURL, keyContent)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

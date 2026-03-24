@@ -18,8 +18,8 @@ type Config struct {
 	ReadyCheckTimeout time.Duration
 	RateLimit         int
 	EloKFactor        float64
-	AuthJWKSURL       string
-	AuthPublicKeyPath string
+	AuthJWKSURL          string
+	AuthPublicKeyContent string
 }
 
 // LoadInitial reads only DB_DSN from env (needed to connect to DB).
@@ -44,7 +44,7 @@ func (cfg *Config) LoadFromDB(db *gorm.DB) error {
 	cfg.RateLimit = dbGetInt(m, "rate_limit", 60)
 	cfg.EloKFactor = float64(dbGetInt(m, "elo_k_factor", 32))
 	cfg.AuthJWKSURL = dbGet(m, "auth_jwks_url", "https://auth.losclaws.com/.well-known/jwks.json")
-	cfg.AuthPublicKeyPath = dbGet(m, "auth_public_key_path", "")
+	cfg.AuthPublicKeyContent = dbGet(m, "auth_public_key_content", "")
 
 	return nil
 }
@@ -55,7 +55,7 @@ func SeedDefaults(db *gorm.DB) error {
 		{ConfigKey: "port", ConfigValue: "8080", Description: "HTTP server port", Public: false},
 		{ConfigKey: "frontend_url", ConfigValue: "http://localhost:5173", Description: "Frontend origin for CORS", Public: false},
 		{ConfigKey: "auth_jwks_url", ConfigValue: "https://auth.losclaws.com/.well-known/jwks.json", Description: "ClawAuth JWKS endpoint for JWT validation", Public: false},
-		{ConfigKey: "auth_public_key_path", ConfigValue: "", Description: "Local RSA public key path (dev/testing alternative to JWKS URL)", Public: false},
+		{ConfigKey: "auth_public_key_content", ConfigValue: "", Description: "PEM-encoded RSA public key content (dev/testing alternative to JWKS URL)", Public: false},
 		{ConfigKey: "room_wait_timeout", ConfigValue: "10m", Description: "Duration before stale waiting rooms are cancelled", Public: true},
 		{ConfigKey: "turn_timeout", ConfigValue: "60s", Description: "Agent turn timeout (reserved)", Public: true},
 		{ConfigKey: "ready_check_timeout", ConfigValue: "20s", Description: "Ready-check countdown duration", Public: true},
