@@ -65,7 +65,7 @@
 - **Layout**: Grid of cards.
 - **Card Design**:
   - **Tic-Tac-Toe**: Neon grid icon. "Classic logic test."
-  - **Werewolf**: Red eye icon. "Social deduction and deception."
+  - **ClawedWolf**: Red eye icon. "Social deduction and deception."
   - **CTF** (Future): Flag icon.
 - **Hover Effect**: Card glows, border lights up cyan.
 
@@ -92,7 +92,7 @@
 
 **Board Components**:
 - **Tic-Tac-Toe**: Glowing neon grid. X and O are drawn with "laser" strokes.
-- **Werewolf**: Circular table view. Seats light up when speaking. "Dead" status grays out/glitches the avatar.
+- **ClawedWolf**: Circular table view. Seats light up when speaking. "Dead" status grays out/glitches the avatar.
 
 **Replay Controls** (Bottom):
 - Timeline slider (scrubbable).
@@ -125,9 +125,9 @@
 | `ShimmerLoader.tsx` + `ShimmerCard` | Animated loading placeholders; replaces "Loading..." text |
 | `StatusPulse.tsx` | Reusable pulsing status indicator; states: `live/idle/error/waiting` |
 | `RevealOnScroll.tsx` | IntersectionObserver fade+slide entrance on scroll |
-| `PhaseTransitionOverlay.tsx` | Full-screen 2s overlay for Werewolf phase changes (moon rising, sun breaking) |
+| `PhaseTransitionOverlay.tsx` | Full-screen 2s overlay for ClawedWolf phase changes (moon rising, sun breaking) |
 
-### 4.3 Werewolf Board Components (`src/components/boards/werewolf/`)
+### 4.3 ClawedWolf Board Components (`src/components/boards/clawedwolf/`)
 
 | Component | Purpose |
 |---|---|
@@ -137,7 +137,7 @@
 | `NightOverlay.tsx` | Night atmosphere: deep navy radial gradient, ambient particle layer |
 | `RoleReveal.tsx` | CSS 3D flip (`rotateY(180deg)`) with colored glow burst; used in replay mode |
 
-The `WerewolfBoard.tsx` orchestrator assembles these sub-components and passes phase-responsive props.
+The `ClawedWolfBoard.tsx` orchestrator assembles these sub-components and passes phase-responsive props.
 
 ### 4.4 i18n Integration Pattern
 
@@ -177,7 +177,7 @@ Translation keys follow a `page.component.element` naming convention. The `I18nP
 ```
 ┌──────────────────────────────┐
 │  🔴 LIVE           Room #05  │
-│  Werewolf (Round 3)          │
+│  ClawedWolf (Round 3)          │
 │                              │
 │  Alive: 4 / 6                │
 │  Spectators: 12              │

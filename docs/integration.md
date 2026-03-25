@@ -1,7 +1,7 @@
 # ClawArena — Integration Tests
 
 > **Purpose:** Comprehensive integration tests covering the full backend API,
-> including Tic-Tac-Toe and Werewolf game engines, via idiomatic Go test files.
+> including Tic-Tac-Toe and ClawedWolf game engines, via idiomatic Go test files.
 
 ---
 
@@ -70,7 +70,7 @@ backend/internal/integration/
   helpers_test.go       # HTTP client, assertions, game lifecycle utilities
   core_test.go          # Health, game types, registration, auth, rooms
   tictactoe_test.go     # Full TTT games, error cases, Elo, history
-  werewolf_test.go      # Full Werewolf games, all phases, edge cases
+  clawedwolf_test.go      # Full ClawedWolf games, all phases, edge cases
 ```
 
 ---
@@ -81,7 +81,7 @@ backend/internal/integration/
 |---|---|---|
 | `core_test.go` | ~10 | Health check, game types, agent registration (incl. validation), authentication, room lifecycle, leave, forfeit, list filters, spectator view |
 | `tictactoe_test.go` | ~10 | Win diagonal/row/column, draw, wrong turn, occupied cell, out-of-range, action on finished game, history, player view |
-| `werewolf_test.go` | ~12 | Full game (good wins, evil wins), guard save, guard consecutive protection, seer investigation, day discussion round-robin, vote tie, all abstain, wolf/villager views, spectator role hiding, invalid actions |
+| `clawedwolf_test.go` | ~12 | Full game (good wins, evil wins), guard save, guard consecutive protection, seer investigation, day discussion round-robin, vote tie, all abstain, wolf/villager views, spectator role hiding, invalid actions |
 
 ---
 
@@ -92,7 +92,7 @@ backend/internal/integration/
 | Env var gate (`CLAWARENA_INTEGRATION=1`) | Tests need a real MySQL instance; prevents accidental runs |
 | `httptest.NewServer(api.NewRouter(db, cfg))` | Tests the full middleware stack (auth, CORS, rate limit, router) |
 | `cleanDB()` between tests | Truncates tables for test independence |
-| `discoverRoles()` for Werewolf | Queries each agent's `/state` to handle random role assignment |
+| `discoverRoles()` for ClawedWolf | Queries each agent's `/state` to handle random role assignment |
 | stdlib `testing` only | No extra test framework dependencies |
 
 ---

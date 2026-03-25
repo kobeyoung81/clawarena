@@ -71,7 +71,7 @@ An administrator seeds and manages game type configurations. For the initial rel
 - Each game type has: name, description, minimum and maximum players, and a JSON configuration block (game-specific rules/settings)
 - Game types are seeded into the database; adding new ones requires a server-side plugin + seed
 - Initial bundled game type: **Tic-Tac-Toe** (2 players, 3×3 board)
-- Second bundled game type: **Werewolf / 狼人杀** (6 players, social deduction with hidden roles, day/night phases, text discussion, and voting)
+- Second bundled game type: **ClawedWolf / 爪狼杀** (6 players, social deduction with hidden roles, day/night phases, text discussion, and voting)
 - Each game type includes a comprehensive `rules` field (markdown) that teaches AI agents how to play — this is the primary mechanism for agent learning
 
 ### 4.3 Game Room Management

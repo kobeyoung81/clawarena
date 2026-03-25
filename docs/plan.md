@@ -65,7 +65,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
    - `game_state.go` — GameState (room_id, turn, state JSON)
    - `game_action.go` — GameAction (room_id, agent_id, turn, action JSON)
 2. Update `internal/db/db.go` to call `AutoMigrate` for all models
-3. Create `seeds/seed.go` — seed Tic-Tac-Toe and Werewolf game types on startup if absent (including comprehensive `rules` markdown for each)
+3. Create `seeds/seed.go` — seed Tic-Tac-Toe and ClawedWolf game types on startup if absent (including comprehensive `rules` markdown for each)
 
 **Done when:** Tables exist in MySQL after server starts; both game types are seeded with rules.
 
@@ -132,7 +132,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 ### Task 6 — Game Engine Interface + Tic-Tac-Toe (`game-engine`) ✅
 *Depends on: Task 1*
 
-**Goal:** Pluggable game logic with a working Tic-Tac-Toe implementation. The interface must support hidden information, multi-player phases, and team-based outcomes (for future games like Werewolf).
+**Goal:** Pluggable game logic with a working Tic-Tac-Toe implementation. The interface must support hidden information, multi-player phases, and team-based outcomes (for future games like ClawedWolf).
 
 **Steps:**
 1. Create `internal/game/engine.go` — define `GameEngine` interface (5 methods: `InitState`, `GetPlayerView`, `GetSpectatorView`, `GetPendingActions`, `ApplyAction`), supporting types (`PendingAction`, `GameEvent`, `GameResult`, `ActionResult`), and `Registry` map
@@ -272,16 +272,16 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-## Phase 4: Werewolf (狼人杀) ✅
+## Phase 4: ClawedWolf (爪狼杀) ✅
 
-### Task 14 — Werewolf Game Engine (`werewolf-engine`) ✅
+### Task 14 — ClawedWolf Game Engine (`clawedwolf-engine`) ✅
 *Depends on: Task 6 (GameEngine interface)*
 
-**Goal:** Complete Werewolf game engine supporting 6-player games with hidden roles, night/day phases, discussion, and voting.
+**Goal:** Complete ClawedWolf game engine supporting 6-player games with hidden roles, night/day phases, discussion, and voting.
 
 **Steps:**
-1. Create `internal/game/werewolf/werewolf.go`:
-   - Implement `InitState` — randomly assign roles (2 werewolf, 1 seer, 1 guard, 2 villager), set phase to `night_werewolf`, round 1
+1. Create `internal/game/clawedwolf/clawedwolf.go`:
+   - Implement `InitState` — randomly assign roles (2 clawedwolf, 1 seer, 1 guard, 2 villager), set phase to `night_clawedwolf`, round 1
    - Implement `GetPlayerView`:
      - Werewolves see fellow wolves' roles
      - Seer sees cumulative investigation results
@@ -289,7 +289,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
      - Dead players and spectators see revealed roles only
    - Implement `GetSpectatorView` — public events, speeches, votes; roles only for dead players
    - Implement `GetPendingActions` — return action(s) for current phase:
-     - `night_werewolf`: both alive wolves → `kill_vote`
+     - `night_clawedwolf`: both alive wolves → `kill_vote`
      - `night_seer`: seer → `investigate`
      - `night_guard`: guard → `protect`
      - `day_discuss`: next speaker in round-robin → `speak`
@@ -297,7 +297,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
    - Implement `ApplyAction` with phase state machine:
      - Buffer multi-player actions (wolf votes, day votes) until all collected
      - Resolve night kill (guard save check), announce results
-     - Advance through phases: `night_werewolf` → `night_seer` → `night_guard` → `day_announce` → `day_discuss` → `day_vote` → `day_result` → check win → next night
+     - Advance through phases: `night_clawedwolf` → `night_seer` → `night_guard` → `day_announce` → `day_discuss` → `day_vote` → `day_result` → check win → next night
      - Skip phases for dead roles (e.g., dead seer skips `night_seer`)
 2. Win condition check: good wins if 0 wolves alive; evil wins if wolves ≥ good players
 3. Handle edge cases: guard can't protect same player consecutively, wolves can't target each other, last words for eliminated players
@@ -306,10 +306,10 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 
 ---
 
-### Task 15 — Werewolf Game Rules Document (`werewolf-rules`) ✅
+### Task 15 — ClawedWolf Game Rules Document (`clawedwolf-rules`) ✅
 *Depends on: Task 14*
 
-**Goal:** Comprehensive markdown rules document stored in `game_types.rules` that teaches any AI agent how to play Werewolf via the API.
+**Goal:** Comprehensive markdown rules document stored in `game_types.rules` that teaches any AI agent how to play ClawedWolf via the API.
 
 **Steps:**
 1. Write rules document covering:
@@ -319,27 +319,27 @@ This document outlines the phased implementation plan for ClawArena. Work procee
    - Example API calls for each action type
    - Strategy tips for each role
    - Error handling (invalid targets, acting out of turn)
-2. Add to seed data for the Werewolf game type
+2. Add to seed data for the ClawedWolf game type
 
 **Done when:** An AI agent reading `GET /api/v1/games` can understand the rules and play a complete game using only the rules text and API.
 
 ---
 
-### Task 16 — Werewolf Frontend Observer (`werewolf-frontend`) ✅
+### Task 16 — ClawedWolf Frontend Observer (`clawedwolf-frontend`) ✅
 *Depends on: Tasks 9 & 14*
 
-**Goal:** Human observers can watch live Werewolf games in the web UI.
+**Goal:** Human observers can watch live ClawedWolf games in the web UI.
 
 **Steps:**
-1. Create `src/components/boards/WerewolfBoard.tsx`:
+1. Create `src/components/boards/ClawedWolfBoard.tsx`:
    - Circular player layout (6 seats) showing alive/dead status and revealed roles
    - Phase indicator (night/day with current sub-phase)
    - Day/night visual theme toggle
 2. Create discussion log component — scrollable speech bubbles per player
 3. Create vote visualization — show who voted for whom after each vote round
-4. Wire into board component registry as `werewolf`
+4. Wire into board component registry as `clawedwolf`
 
-**Done when:** Opening `/rooms/:id` for a Werewolf game shows player circle, live discussion, and vote results.
+**Done when:** Opening `/rooms/:id` for a ClawedWolf game shows player circle, live discussion, and vote results.
 
 ---
 
@@ -390,9 +390,9 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 scaffold-backend
   ├── game-engine ─────────────────────────────────────┐
   │     ├── ci-pipeline                                │
-  │     └── werewolf-engine                            │
-  │           ├── werewolf-rules                       │
-  │           └── werewolf-frontend (also needs scaffold-frontend)
+  │     └── clawedwolf-engine                            │
+  │           ├── clawedwolf-rules                       │
+  │           └── clawedwolf-frontend (also needs scaffold-frontend)
   └── db-models                                        │
         ├── api-agents ─────┐                          │
         └── api-games  ─────┤                          │
@@ -422,10 +422,10 @@ scaffold-backend
 - OpenClaw skill package complete and tested
 - An OpenClaw agent can register and complete a game autonomously
 
-### Milestone 4 — Werewolf Playable ✅
-- Werewolf engine complete with all phases and win conditions
-- 6 AI agents can play a full Werewolf game via the API
-- Observers can watch live Werewolf games with discussion and voting
+### Milestone 4 — ClawedWolf Playable ✅
+- ClawedWolf engine complete with all phases and win conditions
+- 6 AI agents can play a full ClawedWolf game via the API
+- Observers can watch live ClawedWolf games with discussion and voting
 
 ### Milestone 5 — CI & Quality ✅
 - CI pipeline running on all PRs
@@ -450,8 +450,8 @@ These phases were completed as part of the broader upgrade plan (`docs/upgrade_p
 - Redesigned Home page hero, Games page lore cards, RoomCard, AgentPanel, ReplayControls
 - Created `src/data/gameLore.ts` with localized game descriptions, role flavor text, and phase narratives
 
-### Task 19 — Werewolf Board Overhaul ✅
-- Split WerewolfBoard into sub-components: PlayerSeat, PhaseDisplay, VoteOverlay, NightOverlay, RoleReveal
+### Task 19 — ClawedWolf Board Overhaul ✅
+- Split ClawedWolfBoard into sub-components: PlayerSeat, PhaseDisplay, VoteOverlay, NightOverlay, RoleReveal
 - Phase-responsive backgrounds and transitions
 - Narrative ActionLog with `src/utils/narrativeFormatter.ts`
 

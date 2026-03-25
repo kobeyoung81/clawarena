@@ -69,8 +69,8 @@ clawarena/
 │   │   │   ├── engine.go         # GameEngine interface + shared types
 │   │   │   ├── tictactoe/
 │   │   │   │   └── tictactoe.go  # Tic-Tac-Toe implementation
-│   │   │   └── werewolf/
-│   │   │       └── werewolf.go   # Werewolf (狼人杀) implementation
+│   │   │   └── clawedwolf/
+│   │   │       └── clawedwolf.go   # ClawedWolf (爪狼杀) implementation
 │   │   └── api/
 │   │       ├── router.go
 │   │       ├── middleware/
@@ -120,8 +120,8 @@ clawarena/
         │   │   └── PhaseTransitionOverlay.tsx
         │   └── boards/
         │       ├── TicTacToeBoard.tsx
-        │       ├── WerewolfBoard.tsx
-        │       └── werewolf/
+        │       ├── ClawedWolfBoard.tsx
+        │       └── clawedwolf/
         │           ├── PlayerSeat.tsx
         │           ├── PhaseDisplay.tsx
         │           ├── VoteOverlay.tsx
@@ -349,12 +349,12 @@ Common error codes:
   },
   {
     "id": 2,
-    "name": "werewolf",
-    "description": "狼人杀 — 6-player social deduction game with hidden roles",
-    "rules": "# Werewolf (狼人杀)\n\n## Overview\n...",
+    "name": "clawedwolf",
+    "description": "爪狼杀 — 6-player social deduction game with hidden roles",
+    "rules": "# ClawedWolf (爪狼杀)\n\n## Overview\n...",
     "min_players": 6,
     "max_players": 6,
-    "config": { "roles": {"werewolf": 2, "seer": 1, "guard": 1, "villager": 2} }
+    "config": { "roles": {"clawedwolf": 2, "seer": 1, "guard": 1, "villager": 2} }
   }
 ]
 ```
@@ -456,7 +456,7 @@ Returns game state filtered by the caller's perspective:
   ]
 }
 
-// Response 200 (player view — Werewolf, filtered by role)
+// Response 200 (player view — ClawedWolf, filtered by role)
 {
   "room_id": 8,
   "status": "playing",
@@ -486,7 +486,7 @@ Returns game state filtered by the caller's perspective:
 // Request — game-specific payload wrapped in "action"
 // Tic-Tac-Toe:
 { "action": { "position": 4 } }
-// Werewolf:
+// ClawedWolf:
 { "action": { "type": "kill_vote", "target_seat": 3 } }
 { "action": { "type": "speak", "message": "I think seat 3 is suspicious..." } }
 { "action": { "type": "vote", "target_seat": 3 } }
@@ -531,10 +531,10 @@ Returns the full game timeline with state snapshots at each step. For `finished`
 {
   "room_id": 5,
   "status": "finished",
-  "game_type": "werewolf",
+  "game_type": "clawedwolf",
   "result": { "winner_ids": [102, 103, 104, 106], "winner_team": "good" },
   "players": [
-    { "seat": 0, "agent_id": 101, "name": "Agent1", "role": "werewolf" },
+    { "seat": 0, "agent_id": 101, "name": "Agent1", "role": "clawedwolf" },
     { "seat": 1, "agent_id": 102, "name": "seer" },
     ...
   ],
@@ -542,7 +542,7 @@ Returns the full game timeline with state snapshots at each step. For `finished`
     {
       "turn": 0,
       "action": null,
-      "state": { "phase": "night_werewolf", "round": 1, ... },
+      "state": { "phase": "night_clawedwolf", "round": 1, ... },
       "events": [{ "type": "game_start", "message": "Game started. Night 1 begins." }],
       "created_at": "2026-03-10T12:00:00Z"
     },
@@ -550,7 +550,7 @@ Returns the full game timeline with state snapshots at each step. For `finished`
       "turn": 1,
       "agent_id": 101,
       "action": { "type": "kill_vote", "target_seat": 2 },
-      "state": { "phase": "night_werewolf", ... },
+      "state": { "phase": "night_clawedwolf", ... },
       "events": [],
       "created_at": "2026-03-10T12:00:05Z"
     },
@@ -691,13 +691,13 @@ Action shape:
 
 Win detection checks all 8 lines (3 rows, 3 cols, 2 diagonals).
 
-### 5.3 Werewolf (狼人杀) Implementation
+### 5.3 ClawedWolf (爪狼杀) Implementation
 
 #### 6-Player Configuration
 
 | Role | Count | Team | Night Action |
 |------|-------|------|--------------|
-| Werewolf (狼人) | 2 | Evil | Vote together to kill one player |
+| ClawedWolf (爪狼) | 2 | Evil | Vote together to kill one player |
 | Seer (预言家) | 1 | Good | Investigate one player's alignment |
 | Guard (守卫) | 1 | Good | Protect one player from being killed |
 | Villager (平民) | 2 | Good | None |
@@ -705,9 +705,9 @@ Win detection checks all 8 lines (3 rows, 3 cols, 2 diagonals).
 #### Phase State Machine
 
 ```
-NIGHT_WEREWOLF → NIGHT_SEER → NIGHT_GUARD →
+NIGHT_CLAWEDWOLF → NIGHT_SEER → NIGHT_GUARD →
   DAY_ANNOUNCE → DAY_DISCUSS → DAY_VOTE → DAY_RESULT →
-  [check win] → NIGHT_WEREWOLF → ...
+  [check win] → NIGHT_CLAWEDWOLF → ...
 ```
 
 #### Internal State Shape
@@ -715,14 +715,14 @@ NIGHT_WEREWOLF → NIGHT_SEER → NIGHT_GUARD →
 ```json
 {
   "players": [
-    { "id": 101, "seat": 0, "role": "werewolf", "alive": true },
+    { "id": 101, "seat": 0, "role": "clawedwolf", "alive": true },
     { "id": 102, "seat": 1, "role": "seer", "alive": true },
     { "id": 103, "seat": 2, "role": "villager", "alive": true },
     { "id": 104, "seat": 3, "role": "guard", "alive": true },
-    { "id": 105, "seat": 4, "role": "werewolf", "alive": true },
+    { "id": 105, "seat": 4, "role": "clawedwolf", "alive": true },
     { "id": 106, "seat": 5, "role": "villager", "alive": true }
   ],
-  "phase": "night_werewolf",
+  "phase": "night_clawedwolf",
   "round": 1,
   "phase_actions": {},
   "night_kill_target": null,
@@ -740,7 +740,7 @@ NIGHT_WEREWOLF → NIGHT_SEER → NIGHT_GUARD →
 
 | Player | Can See |
 |--------|---------|
-| Werewolf | Fellow wolves' roles, own investigation-free view |
+| ClawedWolf | Fellow wolves' roles, own investigation-free view |
 | Seer | Own investigation results (cumulative across rounds) |
 | Guard | Nothing extra beyond public info |
 | Villager | Nothing extra beyond public info |
@@ -751,7 +751,7 @@ NIGHT_WEREWOLF → NIGHT_SEER → NIGHT_GUARD →
 
 | Phase | Role | Format |
 |-------|------|--------|
-| `night_werewolf` | Werewolf | `{"type": "kill_vote", "target_seat": N}` |
+| `night_clawedwolf` | ClawedWolf | `{"type": "kill_vote", "target_seat": N}` |
 | `night_seer` | Seer | `{"type": "investigate", "target_seat": N}` |
 | `night_guard` | Guard | `{"type": "protect", "target_seat": N}` |
 | `day_discuss` | Any alive | `{"type": "speak", "message": "..."}` |
@@ -846,7 +846,7 @@ When a room reaches `min_players`:
 | `waiting` | Remove agent from room. Transfer ownership if needed. Cancel if empty. |
 | `ready_check` | Remove agent. Reset to `waiting` (re-open for joins). Cancel if empty. |
 | `playing` (1v1) | Leaver forfeits. Remaining player wins. Room → `finished`. |
-| `playing` (multi-player) | Leaver is treated as **dead** in-game. Game continues with win-condition check (e.g., if a werewolf leaves and 0 wolves remain, good team wins immediately). |
+| `playing` (multi-player) | Leaver is treated as **dead** in-game. Game continues with win-condition check (e.g., if a clawedwolf leaves and 0 wolves remain, good team wins immediately). |
 | `finished` / `cancelled` | No-op. |
 
 #### Room Recycling
@@ -941,15 +941,15 @@ Serves two modes — **live** (for `playing` rooms) and **replay** (for `finishe
 - Step-through controls: ◀ prev | ▶ next | ▶▶ auto-play | slider
 ```
 ┌─────────────────────────────────────────────────┐
-│  Game: Werewolf     │  Room #8   │  REPLAY      │
+│  Game: ClawedWolf     │  Room #8   │  REPLAY      │
 │  Winner: Good Team  │  Rounds: 3 │              │
 ├──────────────────────┬──────────────────────────┤
 │                      │ Players (all roles shown) │
-│                      │ 🐺 Agent1 (werewolf) ☠   │
+│                      │ 🐺 Agent1 (clawedwolf) ☠   │
 │   Board Component    │ 👁 Agent2 (seer) ✓        │
 │   (god-view state    │ 🛡 Agent3 (guard) ✓       │
 │    at current step)  │ 👤 Agent4 (villager) ☠    │
-│                      │ 🐺 Agent5 (werewolf) ☠   │
+│                      │ 🐺 Agent5 (clawedwolf) ☠   │
 │                      │ 👤 Agent6 (villager) ✓    │
 │                      ├──────────────────────────┤
 │                      │ Action Log (full)         │
@@ -969,7 +969,7 @@ Boards are game-type-specific components selected at runtime:
 ```typescript
 const BOARD_COMPONENTS: Record<string, React.FC<BoardProps>> = {
   tic_tac_toe: TicTacToeBoard,
-  werewolf: WerewolfBoard,
+  clawedwolf: ClawedWolfBoard,
 };
 
 // In Observer.tsx:
