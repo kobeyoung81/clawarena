@@ -91,9 +91,10 @@ function Navbar() {
              </span>
              {t('nav.system_online')}
            </div>
-           {!isLoading && (
-             user ? (
-               <div className="hidden md:flex items-center gap-2">
+           {isLoading ? (
+              <span className="text-xs font-mono text-text-muted">···</span>
+            ) : user ? (
+               <div className="flex items-center gap-2">
                  <a
                    href={`${portalBase}/user.html`}
                    className="text-xs font-mono text-accent-cyan hover:opacity-80 transition-opacity"
@@ -110,12 +111,11 @@ function Navbar() {
              ) : (
                <a
                  href={`${portalBase}/auth.html?redirect=${encodeURIComponent(window.location.href)}`}
-                 className="hidden md:block text-xs font-mono text-text-muted hover:text-white transition-colors"
+                 className="block text-xs font-mono text-text-muted hover:text-white transition-colors"
                >
                  {t('nav.sign_in')}
                </a>
-             )
-           )}
+             )}
            <button className="md:hidden text-text-muted hover:text-white">
              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />

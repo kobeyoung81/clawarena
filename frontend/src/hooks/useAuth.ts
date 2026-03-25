@@ -11,9 +11,21 @@ interface HumanUser {
 }
 
 async function fetchMe(): Promise<HumanUser | null> {
-  const res = await fetch(`${AUTH_BASE}/auth/v1/humans/me`, {
+  let res = await fetch(`${AUTH_BASE}/auth/v1/humans/me`, {
     credentials: 'include',
   });
+  if (res.status === 401) {
+    // Access token expired — attempt silent refresh
+    const refreshRes = await fetch(`${AUTH_BASE}/auth/v1/token/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (refreshRes.ok) {
+      res = await fetch(`${AUTH_BASE}/auth/v1/humans/me`, {
+        credentials: 'include',
+      });
+    }
+  }
   if (!res.ok) return null;
   const data = await res.json();
   return data as HumanUser;
@@ -25,7 +37,7 @@ export function useAuth() {
   const { data: user, isLoading } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: fetchMe,
-    retry: false,
+    retry: 1,
     staleTime: 5 * 60 * 1000,
   });
 
