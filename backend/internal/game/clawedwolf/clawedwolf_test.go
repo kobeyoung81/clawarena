@@ -1,4 +1,4 @@
-package werewolf
+package clawedwolf
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"github.com/clawarena/clawarena/internal/game"
 )
 
-func initWerewolf(t *testing.T, players []uint) json.RawMessage {
+func initClawedWolf(t *testing.T, players []uint) json.RawMessage {
 	t.Helper()
 	e := &Engine{}
 	state, err := e.InitState(nil, players)
@@ -50,7 +50,7 @@ func allPlayerIDsForRole(s *State, role string) []uint {
 var testPlayers = []uint{101, 102, 103, 104, 105, 106}
 
 func TestInitState_SixPlayers(t *testing.T) {
-	state := initWerewolf(t, testPlayers)
+	state := initClawedWolf(t, testPlayers)
 	s := parseTestState(t, state)
 	if len(s.Players) != 6 {
 		t.Fatalf("expected 6 players, got %d", len(s.Players))
@@ -62,8 +62,8 @@ func TestInitState_SixPlayers(t *testing.T) {
 			t.Errorf("player %d should be alive at start", p.ID)
 		}
 	}
-	if roleCounts[RoleWerewolf] != 2 {
-		t.Errorf("expected 2 werewolves, got %d", roleCounts[RoleWerewolf])
+	if roleCounts[RoleClawedWolf] != 2 {
+		t.Errorf("expected 2 clawed wolves, got %d", roleCounts[RoleClawedWolf])
 	}
 	if roleCounts[RoleSeer] != 1 {
 		t.Errorf("expected 1 seer, got %d", roleCounts[RoleSeer])
@@ -74,8 +74,8 @@ func TestInitState_SixPlayers(t *testing.T) {
 	if roleCounts[RoleVillager] != 2 {
 		t.Errorf("expected 2 villagers, got %d", roleCounts[RoleVillager])
 	}
-	if s.Phase != PhaseNightWerewolf {
-		t.Errorf("expected initial phase %q, got %q", PhaseNightWerewolf, s.Phase)
+	if s.Phase != PhaseNightClawedWolf {
+		t.Errorf("expected initial phase %q, got %q", PhaseNightClawedWolf, s.Phase)
 	}
 }
 
@@ -87,12 +87,12 @@ func TestInitState_WrongPlayerCount(t *testing.T) {
 	}
 }
 
-func TestNightWerewolfAction(t *testing.T) {
-	state := initWerewolf(t, testPlayers)
+func TestNightClawedWolfAction(t *testing.T) {
+	state := initClawedWolf(t, testPlayers)
 	s := parseTestState(t, state)
 	e := &Engine{}
 
-	wolves := allPlayerIDsForRole(s, RoleWerewolf)
+	wolves := allPlayerIDsForRole(s, RoleClawedWolf)
 	if len(wolves) != 2 {
 		t.Fatalf("expected 2 wolves")
 	}
@@ -100,7 +100,7 @@ func TestNightWerewolfAction(t *testing.T) {
 	// Find a non-wolf target
 	var targetSeat int
 	for _, p := range s.Players {
-		if p.Role != RoleWerewolf {
+		if p.Role != RoleClawedWolf {
 			targetSeat = p.Seat
 			break
 		}
@@ -112,9 +112,9 @@ func TestNightWerewolfAction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("wolf 1 kill_vote failed: %v", err)
 	}
-	// After first wolf votes, phase should still be night_werewolf
+	// After first wolf votes, phase should still be night_clawedwolf
 	s1 := parseTestState(t, result1.NewState)
-	if s1.Phase != PhaseNightWerewolf {
+	if s1.Phase != PhaseNightClawedWolf {
 		t.Logf("phase after first wolf vote: %s", s1.Phase)
 	}
 
@@ -128,17 +128,17 @@ func TestNightWerewolfAction(t *testing.T) {
 	if s2.NightKillTarget == nil {
 		t.Error("expected night_kill_target to be set after both wolves vote")
 	}
-	if s2.Phase == PhaseNightWerewolf {
+	if s2.Phase == PhaseNightClawedWolf {
 		t.Error("phase should advance after both wolves vote")
 	}
 }
 
 func TestSeerInvestigate(t *testing.T) {
-	state := initWerewolf(t, testPlayers)
+	state := initClawedWolf(t, testPlayers)
 	s := parseTestState(t, state)
 	e := &Engine{}
 
-	wolves := allPlayerIDsForRole(s, RoleWerewolf)
+	wolves := allPlayerIDsForRole(s, RoleClawedWolf)
 	seerID := playerIDForRole(t, s, RoleSeer)
 
 	// Find seer's seat for target exclusion
@@ -147,7 +147,7 @@ func TestSeerInvestigate(t *testing.T) {
 		if p.Role == RoleSeer {
 			seerSeat = p.Seat
 		}
-		if p.Role == RoleWerewolf {
+		if p.Role == RoleClawedWolf {
 			wolfSeat = p.Seat
 		}
 		if p.Role == RoleVillager {
@@ -160,7 +160,7 @@ func TestSeerInvestigate(t *testing.T) {
 	// Complete wolf phase first
 	targetSeat := 0
 	for _, p := range s.Players {
-		if p.Role != RoleWerewolf {
+		if p.Role != RoleClawedWolf {
 			targetSeat = p.Seat
 			break
 		}
@@ -196,8 +196,8 @@ func TestWinCondition_GoodWins(t *testing.T) {
 	// Manually construct a state where good wins
 	s := &State{
 		Players: []Player{
-			{ID: 1, Seat: 0, Role: RoleWerewolf, Alive: false},
-			{ID: 2, Seat: 1, Role: RoleWerewolf, Alive: false},
+			{ID: 1, Seat: 0, Role: RoleClawedWolf, Alive: false},
+			{ID: 2, Seat: 1, Role: RoleClawedWolf, Alive: false},
 			{ID: 3, Seat: 2, Role: RoleVillager, Alive: true},
 			{ID: 4, Seat: 3, Role: RoleSeer, Alive: true},
 			{ID: 5, Seat: 4, Role: RoleGuard, Alive: true},
@@ -222,8 +222,8 @@ func TestWinCondition_GoodWins(t *testing.T) {
 func TestWinCondition_EvilWins(t *testing.T) {
 	s := &State{
 		Players: []Player{
-			{ID: 1, Seat: 0, Role: RoleWerewolf, Alive: true},
-			{ID: 2, Seat: 1, Role: RoleWerewolf, Alive: true},
+			{ID: 1, Seat: 0, Role: RoleClawedWolf, Alive: true},
+			{ID: 2, Seat: 1, Role: RoleClawedWolf, Alive: true},
 			{ID: 3, Seat: 2, Role: RoleVillager, Alive: true},
 			{ID: 4, Seat: 3, Role: RoleVillager, Alive: false},
 			{ID: 5, Seat: 4, Role: RoleSeer, Alive: false},
@@ -249,8 +249,8 @@ func TestGuardSaveMechanic(t *testing.T) {
 		NightKillTarget:  &target,
 		NightGuardTarget: &target,
 		Players: []Player{
-			{ID: 1, Seat: 0, Role: RoleWerewolf, Alive: true},
-			{ID: 2, Seat: 1, Role: RoleWerewolf, Alive: true},
+			{ID: 1, Seat: 0, Role: RoleClawedWolf, Alive: true},
+			{ID: 2, Seat: 1, Role: RoleClawedWolf, Alive: true},
 			{ID: 3, Seat: 2, Role: RoleVillager, Alive: true},
 			{ID: 4, Seat: 3, Role: RoleSeer, Alive: true},
 			{ID: 5, Seat: 4, Role: RoleGuard, Alive: true},
@@ -278,7 +278,7 @@ func TestGuardSaveMechanic(t *testing.T) {
 }
 
 func TestGuardCannotProtectSamePlayerConsecutively(t *testing.T) {
-	state := initWerewolf(t, testPlayers)
+	state := initClawedWolf(t, testPlayers)
 	s := parseTestState(t, state)
 	e := &Engine{}
 
@@ -303,7 +303,7 @@ func TestGuardCannotProtectSamePlayerConsecutively(t *testing.T) {
 }
 
 func TestDayDiscussionRoundRobin(t *testing.T) {
-	state := initWerewolf(t, testPlayers)
+	state := initClawedWolf(t, testPlayers)
 	s := parseTestState(t, state)
 	e := &Engine{}
 
@@ -343,7 +343,7 @@ func TestDayVoting_Majority(t *testing.T) {
 	target := 1
 	s := &State{
 		Players: []Player{
-			{ID: 101, Seat: 0, Role: RoleWerewolf, Alive: true},
+			{ID: 101, Seat: 0, Role: RoleClawedWolf, Alive: true},
 			{ID: 102, Seat: 1, Role: RoleVillager, Alive: true},
 			{ID: 103, Seat: 2, Role: RoleSeer, Alive: true},
 			{ID: 104, Seat: 3, Role: RoleGuard, Alive: true},
@@ -377,7 +377,7 @@ func TestDayVoting_Majority(t *testing.T) {
 func TestDayVoting_Tie_NoElimination(t *testing.T) {
 	s := &State{
 		Players: []Player{
-			{ID: 101, Seat: 0, Role: RoleWerewolf, Alive: true},
+			{ID: 101, Seat: 0, Role: RoleClawedWolf, Alive: true},
 			{ID: 102, Seat: 1, Role: RoleVillager, Alive: true},
 			{ID: 103, Seat: 2, Role: RoleSeer, Alive: true},
 			{ID: 104, Seat: 3, Role: RoleGuard, Alive: true},
@@ -405,12 +405,12 @@ func TestDayVoting_Tie_NoElimination(t *testing.T) {
 	}
 }
 
-func TestGetPlayerView_WerewolfSeesPartner(t *testing.T) {
-	state := initWerewolf(t, testPlayers)
+func TestGetPlayerView_ClawedWolfSeesPartner(t *testing.T) {
+	state := initClawedWolf(t, testPlayers)
 	s := parseTestState(t, state)
 	e := &Engine{}
 
-	wolves := allPlayerIDsForRole(s, RoleWerewolf)
+	wolves := allPlayerIDsForRole(s, RoleClawedWolf)
 	if len(wolves) != 2 {
 		t.Fatal("expected 2 wolves")
 	}
@@ -423,13 +423,13 @@ func TestGetPlayerView_WerewolfSeesPartner(t *testing.T) {
 	var v map[string]interface{}
 	json.Unmarshal(view, &v)
 
-	if v["your_role"] != RoleWerewolf {
+	if v["your_role"] != RoleClawedWolf {
 		t.Errorf("wolf should see own role, got %v", v["your_role"])
 	}
 }
 
 func TestGetSpectatorView_HidesRoles(t *testing.T) {
-	state := initWerewolf(t, testPlayers)
+	state := initClawedWolf(t, testPlayers)
 	e := &Engine{}
 
 	view, err := e.GetSpectatorView(state)
@@ -456,7 +456,7 @@ func TestGetSpectatorView_HidesRoles(t *testing.T) {
 }
 
 func TestGetGodView_RevealsAllRoles(t *testing.T) {
-	state := initWerewolf(t, testPlayers)
+	state := initClawedWolf(t, testPlayers)
 	e := &Engine{}
 
 	view, err := e.GetGodView(state)

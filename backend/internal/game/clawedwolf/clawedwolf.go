@@ -1,4 +1,4 @@
-package werewolf
+package clawedwolf
 
 import (
 	"encoding/json"
@@ -10,11 +10,11 @@ import (
 )
 
 func init() {
-	game.Register("werewolf", &Engine{})
+	game.Register("clawedwolf", &Engine{})
 }
 
 const (
-	PhaseNightWerewolf = "night_werewolf"
+	PhaseNightClawedWolf = "night_clawedwolf"
 	PhaseNightSeer     = "night_seer"
 	PhaseNightGuard    = "night_guard"
 	PhaseDayAnnounce   = "day_announce"
@@ -23,7 +23,7 @@ const (
 	PhaseDayResult     = "day_result"
 	PhaseFinished      = "finished"
 
-	RoleWerewolf = "werewolf"
+	RoleClawedWolf = "clawedwolf"
 	RoleSeer     = "seer"
 	RoleGuard    = "guard"
 	RoleVillager = "villager"
@@ -82,9 +82,9 @@ func parseState(raw json.RawMessage) (*State, error) {
 
 func (e *Engine) InitState(_ json.RawMessage, players []uint) (json.RawMessage, error) {
 	if len(players) != 6 {
-		return nil, errors.New("werewolf requires exactly 6 players")
+		return nil, errors.New("clawedwolf requires exactly 6 players")
 	}
-	roles := []string{RoleWerewolf, RoleWerewolf, RoleSeer, RoleGuard, RoleVillager, RoleVillager}
+	roles := []string{RoleClawedWolf, RoleClawedWolf, RoleSeer, RoleGuard, RoleVillager, RoleVillager}
 	perm := rand.Perm(6)
 	ps := make([]Player, 6)
 	for i, pid := range players {
@@ -92,7 +92,7 @@ func (e *Engine) InitState(_ json.RawMessage, players []uint) (json.RawMessage, 
 	}
 	s := State{
 		Players:      ps,
-		Phase:        PhaseNightWerewolf,
+		Phase:        PhaseNightClawedWolf,
 		Round:        1,
 		PhaseActions: map[string]int{},
 		SeerResults:  map[int]string{},
@@ -136,7 +136,7 @@ func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMess
 		if !p.Alive {
 			pp.Role = p.Role // dead players' roles are public
 		}
-		if myPlayer != nil && myPlayer.Role == RoleWerewolf && p.Role == RoleWerewolf {
+		if myPlayer != nil && myPlayer.Role == RoleClawedWolf && p.Role == RoleClawedWolf {
 			pp.Role = p.Role // wolves see each other
 		}
 		pubPlayers[i] = pp
@@ -236,9 +236,9 @@ func pendingActionsForPhase(s *State) []game.PendingAction {
 	aliveSeats := alivePlayerSeats(s)
 
 	switch s.Phase {
-	case PhaseNightWerewolf:
+	case PhaseNightClawedWolf:
 		for _, p := range s.Players {
-			if p.Alive && p.Role == RoleWerewolf {
+			if p.Alive && p.Role == RoleClawedWolf {
 				if _, done := s.PhaseActions[fmt.Sprintf("%d", p.Seat)]; !done {
 					targets := targetsExcluding(s, []int{})
 					actions = append(actions, game.PendingAction{
@@ -300,7 +300,7 @@ func pendingActionsForPhase(s *State) []game.PendingAction {
 				actions = append(actions, game.PendingAction{
 					PlayerID:   p.ID,
 					ActionType: "speak",
-					Prompt:     "Share your thoughts. Try to identify the werewolves.",
+					Prompt:     "Share your thoughts. Try to identify the clawed wolves.",
 				})
 				break
 			}
@@ -395,8 +395,8 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 	var newEvents []game.GameEvent
 
 	switch s.Phase {
-	case PhaseNightWerewolf:
-		if action.Type != "kill_vote" || actor.Role != RoleWerewolf {
+	case PhaseNightClawedWolf:
+		if action.Type != "kill_vote" || actor.Role != RoleClawedWolf {
 			return game.ActionResult{}, errors.New("invalid action for this phase")
 		}
 		if action.TargetSeat == nil {
@@ -409,12 +409,12 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 		s.PhaseActions[fmt.Sprintf("%d", actor.Seat)] = *action.TargetSeat
 
 		// Check if all alive wolves have voted
-		aliveWolves := aliveByRole(s, RoleWerewolf)
+		aliveWolves := aliveByRole(s, RoleClawedWolf)
 		if len(s.PhaseActions) >= len(aliveWolves) {
 			// Resolve: first wolf's choice wins on disagreement
 			firstVote := -1
 			for _, p := range s.Players {
-				if p.Alive && p.Role == RoleWerewolf {
+				if p.Alive && p.Role == RoleClawedWolf {
 					if v, ok := s.PhaseActions[fmt.Sprintf("%d", p.Seat)]; ok {
 						if firstVote == -1 {
 							firstVote = v
@@ -440,7 +440,7 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 			return game.ActionResult{}, errors.New("invalid target")
 		}
 		alignment := "good"
-		if target.Role == RoleWerewolf {
+		if target.Role == RoleClawedWolf {
 			alignment = "evil"
 		}
 		s.SeerResults[*action.TargetSeat] = alignment
@@ -540,7 +540,7 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 				s.NightGuardTarget = nil
 				s.SpeakStartSeat = (s.SpeakStartSeat + 1) % len(s.Players)
 				s.SpeakerIndex = 0
-				s.Phase = PhaseNightWerewolf
+				s.Phase = PhaseNightClawedWolf
 				newEvents = append(newEvents, game.GameEvent{
 					Type:       "phase_change",
 					Message:    fmt.Sprintf("Night %d begins.", s.Round),
@@ -570,8 +570,8 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 		team := *s.Winner
 		var winnerIDs []uint
 		for _, p := range s.Players {
-			if (team == "good" && p.Role != RoleWerewolf) ||
-				(team == "evil" && p.Role == RoleWerewolf) {
+			if (team == "good" && p.Role != RoleClawedWolf) ||
+				(team == "evil" && p.Role == RoleClawedWolf) {
 				winnerIDs = append(winnerIDs, p.ID)
 			}
 		}
@@ -726,7 +726,7 @@ func checkWinCondition(s *State, events *[]game.GameEvent) {
 	aliveGood := 0
 	for _, p := range s.Players {
 		if p.Alive {
-			if p.Role == RoleWerewolf {
+			if p.Role == RoleClawedWolf {
 				aliveWolves++
 			} else {
 				aliveGood++
@@ -738,7 +738,7 @@ func checkWinCondition(s *State, events *[]game.GameEvent) {
 		s.Winner = &winner
 		*events = append(*events, game.GameEvent{
 			Type:       "game_over",
-			Message:    "All werewolves eliminated! Good team wins!",
+			Message:    "All clawed wolves eliminated! Good team wins!",
 			Visibility: "public",
 		})
 	} else if aliveWolves >= aliveGood {
@@ -746,7 +746,7 @@ func checkWinCondition(s *State, events *[]game.GameEvent) {
 		s.Winner = &winner
 		*events = append(*events, game.GameEvent{
 			Type:       "game_over",
-			Message:    "Werewolves outnumber the good players! Evil team wins!",
+			Message:    "Clawed wolves outnumber the good players! Evil team wins!",
 			Visibility: "public",
 		})
 	}

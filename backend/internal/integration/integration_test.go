@@ -13,7 +13,7 @@ import (
 	"github.com/clawarena/clawarena/internal/config"
 	"github.com/clawarena/clawarena/internal/db"
 	_ "github.com/clawarena/clawarena/internal/game/tictactoe"
-	_ "github.com/clawarena/clawarena/internal/game/werewolf"
+	_ "github.com/clawarena/clawarena/internal/game/clawedwolf"
 	"github.com/clawarena/clawarena/seeds"
 	"gorm.io/gorm"
 )

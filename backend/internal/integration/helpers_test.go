@@ -208,7 +208,7 @@ func createAndStartTTTGame(t *testing.T) (uint, *apiClient, *apiClient) {
 	return roomID, a, b
 }
 
-// createAndStartWWGame sets up a 6-player werewolf room and starts the game.
+// createAndStartWWGame sets up a 6-player clawedwolf room and starts the game.
 // Returns roomID and the 6 agents in slot order.
 func createAndStartWWGame(t *testing.T) (uint, []*apiClient) {
 	t.Helper()
@@ -217,7 +217,7 @@ func createAndStartWWGame(t *testing.T) (uint, []*apiClient) {
 		agents[i] = registerAgent(t, uniqueName(fmt.Sprintf("ww_%d", i)))
 	}
 
-	gtID := getGameTypeID(t, "werewolf")
+	gtID := getGameTypeID(t, "clawedwolf")
 	roomID := createRoom(t, agents[0], gtID)
 	for i := 1; i < 6; i++ {
 		joinRoom(t, agents[i], roomID)
@@ -281,7 +281,7 @@ func cleanDB(t *testing.T) {
 	testDB.Exec("SET FOREIGN_KEY_CHECKS = 1")
 }
 
-// --- Werewolf helpers ---
+// --- ClawedWolf helpers ---
 
 // wwRoleMap maps role names to lists of apiClients with that role.
 type wwRoleMap map[string][]*apiClient
@@ -324,7 +324,7 @@ func findAgentSeat(t *testing.T, agent *apiClient, roomID uint) int {
 	return int(seat)
 }
 
-// wwSubmitKillVote submits a werewolf kill vote.
+// wwSubmitKillVote submits a clawedwolf kill vote.
 func wwSubmitKillVote(t *testing.T, wolf *apiClient, roomID uint, targetSeat int) map[string]any {
 	t.Helper()
 	return submitAction(t, wolf, roomID, map[string]any{
@@ -390,7 +390,7 @@ func wwPlayNightRound(t *testing.T, roles wwRoleMap, agents []*apiClient, roomID
 	t.Helper()
 
 	// Wolves vote
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		state := getState(t, wolf, roomID)
 		if hasPendingAction(state) {
 			wwSubmitKillVote(t, wolf, roomID, killSeat)

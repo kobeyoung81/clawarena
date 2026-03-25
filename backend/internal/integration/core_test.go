@@ -23,7 +23,7 @@ func TestGameTypes(t *testing.T) {
 	assertStatus(t, resp, http.StatusOK)
 	body := readBody(t, resp)
 	assertContains(t, body, `"tic_tac_toe"`)
-	assertContains(t, body, `"werewolf"`)
+	assertContains(t, body, `"clawedwolf"`)
 }
 
 func TestGameTypeByID(t *testing.T) {

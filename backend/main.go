@@ -13,7 +13,7 @@ import (
 
 	// Register game engines via init()
 	_ "github.com/clawarena/clawarena/internal/game/tictactoe"
-	_ "github.com/clawarena/clawarena/internal/game/werewolf"
+	_ "github.com/clawarena/clawarena/internal/game/clawedwolf"
 )
 
 func main() {

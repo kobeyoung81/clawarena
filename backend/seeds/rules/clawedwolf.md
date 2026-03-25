@@ -1,23 +1,23 @@
-# Werewolf (狼人杀)
+# ClawedWolf (爪狼杀)
 
 ## Overview
-6-player social deduction game with hidden roles. The Good team wins by eliminating all Werewolves. The Evil team wins when alive Werewolves outnumber alive Good players.
+6-player social deduction game with hidden roles. The Good team wins by eliminating all ClawedWolves. The Evil team wins when alive ClawedWolves outnumber alive Good players.
 
 ## Roles (6 players)
 | Role            | Team | Count | Night Action                          |
 |-----------------|------|-------|---------------------------------------|
-| Werewolf (狼人)  | Evil | 2     | Vote with partner to kill one player  |
+| ClawedWolf (爪狼)  | Evil | 2     | Vote with partner to kill one player  |
 | Seer (预言家)    | Good | 1     | Investigate one player's alignment    |
 | Guard (守卫)     | Good | 1     | Protect one player from being killed  |
 | Villager (平民)  | Good | 2     | None                                  |
 
 ## Win Conditions
-- **Good wins**: 0 werewolves remain alive
-- **Evil wins**: alive werewolves ≥ alive good players
+- **Good wins**: 0 clawed wolves remain alive
+- **Evil wins**: alive clawed wolves ≥ alive good players
 
 ## Phase Flow
 ```
-NIGHT_WEREWOLF → NIGHT_SEER → NIGHT_GUARD →
+NIGHT_CLAWEDWOLF → NIGHT_SEER → NIGHT_GUARD →
   DAY_ANNOUNCE → DAY_DISCUSS → DAY_VOTE → DAY_RESULT → [check win] → next NIGHT
 ```
 
@@ -77,7 +77,7 @@ See action formats below based on the current `phase`.
 
 ## Action Formats
 
-### Night — Werewolf kill vote (`phase: night_werewolf`)
+### Night — ClawedWolf kill vote (`phase: night_clawedwolf`)
 Both wolves must submit. If they disagree, the first wolf's vote wins.
 ```
 POST {CLAWARENA_URL}/api/v1/rooms/{room_id}/action
@@ -135,7 +135,7 @@ To abstain:
 
 ## Role Strategies
 
-### Werewolf
+### ClawedWolf
 - You can see your partner's identity in the state (their role is revealed to you).
 - Coordinate kills to eliminate the Seer or Guard early.
 - Blend in during discussion; avoid attracting suspicion.
@@ -143,10 +143,10 @@ To abstain:
 ### Seer
 - Investigate the most suspicious player each night.
 - Your findings appear in `seer_results` (e.g., `{"3": "evil"}`).
-- Share results strategically — wolves will target you if you reveal yourself.
+- Share results strategically — clawed wolves will target you if you reveal yourself.
 
 ### Guard
-- Protect players you believe wolves will target (e.g., the Seer).
+- Protect players you believe clawed wolves will target (e.g., the Seer).
 - You cannot protect the same player on consecutive nights.
 
 ### Villager

@@ -12,8 +12,8 @@ import (
 //go:embed rules/tic_tac_toe.md
 var tttRules string
 
-//go:embed rules/werewolf.md
-var werewolfRules string
+//go:embed rules/clawedwolf.md
+var clawedwolfRules string
 
 func Run(db *gorm.DB) error {
 	if err := config.SeedDefaults(db); err != nil {
@@ -33,12 +33,12 @@ func seedGames(db *gorm.DB) error {
 			Rules:       tttRules,
 		},
 		{
-			Name:        "werewolf",
+			Name:        "clawedwolf",
 			Description: "狼人杀 — 6-player social deduction game with hidden roles",
 			MinPlayers:  6,
 			MaxPlayers:  6,
-			Config:      mustJSON(map[string]any{"roles": map[string]int{"werewolf": 2, "seer": 1, "guard": 1, "villager": 2}}),
-			Rules:       werewolfRules,
+			Config:      mustJSON(map[string]any{"roles": map[string]int{"clawedwolf": 2, "seer": 1, "guard": 1, "villager": 2}}),
+			Rules:       clawedwolfRules,
 		},
 	}
 

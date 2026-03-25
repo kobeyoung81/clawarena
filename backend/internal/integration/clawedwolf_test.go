@@ -11,7 +11,7 @@ func TestWW_FullGame_GoodWins(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolves := roles["werewolf"]
+	wolves := roles["clawedwolf"]
 	if len(wolves) != 2 {
 		t.Fatalf("expected 2 wolves, got %d", len(wolves))
 	}
@@ -106,7 +106,7 @@ func TestWW_FullGame_EvilWins(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolves := roles["werewolf"]
+	wolves := roles["clawedwolf"]
 	seerSeat := findAgentSeat(t, roles["seer"][0], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
@@ -194,10 +194,10 @@ func TestWW_GuardSave(t *testing.T) {
 
 	// Kill target = seer, guard protects seer → seer survives
 	seerSeat := findAgentSeat(t, roles["seer"][0], roomID)
-	wolfSeats := wolfSeats(t, roles["werewolf"], roomID)
+	wolfSeats := wolfSeats(t, roles["clawedwolf"], roomID)
 
 	// Wolves target seer
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		state := getState(t, wolf, roomID)
 		if hasPendingAction(state) {
 			wwSubmitKillVote(t, wolf, roomID, seerSeat)
@@ -223,7 +223,7 @@ func TestWW_GuardCannotProtectSameConsecutively(t *testing.T) {
 
 	seerSeat := findAgentSeat(t, roles["seer"][0], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
-	wolfSeats := wolfSeats(t, roles["werewolf"], roomID)
+	wolfSeats := wolfSeats(t, roles["clawedwolf"], roomID)
 	villagerSeat := findAgentSeat(t, roles["villager"][0], roomID)
 
 	// Round 1: guard protects seer
@@ -235,7 +235,7 @@ func TestWW_GuardCannotProtectSameConsecutively(t *testing.T) {
 	// Round 2: guard tries to protect seer again → should fail
 	// Wolves vote
 	killTarget := findAliveNonWolfSeat(t, agents, roomID, wolfSeats)
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		state := getState(t, wolf, roomID)
 		if hasPendingAction(state) {
 			wwSubmitKillVote(t, wolf, roomID, killTarget)
@@ -274,12 +274,12 @@ func TestWW_SeerInvestigation(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolfSeats := wolfSeats(t, roles["werewolf"], roomID)
+	wolfSeats := wolfSeats(t, roles["clawedwolf"], roomID)
 	villagerSeat := findAgentSeat(t, roles["villager"][0], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
 	// Wolves vote
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		state := getState(t, wolf, roomID)
 		if hasPendingAction(state) {
 			wwSubmitKillVote(t, wolf, roomID, villagerSeat)
@@ -316,7 +316,7 @@ func TestWW_SeerInvestigation(t *testing.T) {
 
 	// Round 2 night
 	killTarget := findAliveNonWolfSeat(t, agents, roomID, wolfSeats)
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		state := getState(t, wolf, roomID)
 		if hasPendingAction(state) {
 			wwSubmitKillVote(t, wolf, roomID, killTarget)
@@ -360,7 +360,7 @@ func TestWW_DayDiscussion_RoundRobin(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolfSeats := wolfSeats(t, roles["werewolf"], roomID)
+	wolfSeats := wolfSeats(t, roles["clawedwolf"], roomID)
 	villagerSeat := findAgentSeat(t, roles["villager"][0], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
@@ -396,7 +396,7 @@ func TestWW_DayVote_TieNoElimination(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolfSeats := wolfSeats(t, roles["werewolf"], roomID)
+	wolfSeats := wolfSeats(t, roles["clawedwolf"], roomID)
 	villagerSeat := findAgentSeat(t, roles["villager"][0], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
@@ -486,7 +486,7 @@ func TestWW_DayVote_AllAbstain(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolfSeats := wolfSeats(t, roles["werewolf"], roomID)
+	wolfSeats := wolfSeats(t, roles["clawedwolf"], roomID)
 	villagerSeat := findAgentSeat(t, roles["villager"][0], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
@@ -538,7 +538,7 @@ func TestWW_PlayerView_WolvesSeePartner(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolves := roles["werewolf"]
+	wolves := roles["clawedwolf"]
 	wolf0 := wolves[0]
 	wolf1Seat := findAgentSeat(t, wolves[1], roomID)
 
@@ -550,8 +550,8 @@ func TestWW_PlayerView_WolvesSeePartner(t *testing.T) {
 		pm := p.(map[string]any)
 		if int(pm["seat"].(float64)) == wolf1Seat {
 			role, _ := pm["role"].(string)
-			if role != "werewolf" {
-				t.Fatalf("wolf should see partner's role as werewolf, got %q", role)
+			if role != "clawedwolf" {
+				t.Fatalf("wolf should see partner's role as clawedwolf, got %q", role)
 			}
 		}
 	}
@@ -565,7 +565,7 @@ func TestWW_PlayerView_WolvesSeePartner(t *testing.T) {
 		pm := p.(map[string]any)
 		role, _ := pm["role"].(string)
 		alive, _ := pm["alive"].(bool)
-		if alive && role == "werewolf" {
+		if alive && role == "clawedwolf" {
 			t.Fatal("villager should not see alive wolf roles")
 		}
 	}
@@ -620,7 +620,7 @@ func TestWW_DeadPlayerCannotAct(t *testing.T) {
 
 	villager := roles["villager"][0]
 	villagerSeat := findAgentSeat(t, villager, roomID)
-	ws := wolfSeats(t, roles["werewolf"], roomID)
+	ws := wolfSeats(t, roles["clawedwolf"], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
 	// Night 1: wolves kill the villager; guard protects self.
@@ -645,12 +645,12 @@ func TestWW_SeerViewShowsResults(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	ws := wolfSeats(t, roles["werewolf"], roomID)
+	ws := wolfSeats(t, roles["clawedwolf"], roomID)
 	villagerSeat := findAgentSeat(t, roles["villager"][0], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
 	// Night 1: wolves kill villager, seer investigates wolf 0, guard protects self.
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		if s := getState(t, wolf, roomID); hasPendingAction(s) {
 			wwSubmitKillVote(t, wolf, roomID, villagerSeat)
 		}
@@ -688,7 +688,7 @@ func TestWW_DeadRoleRevealedInSpectatorView(t *testing.T) {
 
 	villager := roles["villager"][0]
 	villagerSeat := findAgentSeat(t, villager, roomID)
-	ws := wolfSeats(t, roles["werewolf"], roomID)
+	ws := wolfSeats(t, roles["clawedwolf"], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
 	// Night 1: kill the villager; guard protects self (not the villager).
@@ -734,7 +734,7 @@ func TestWW_SkipDeadSeerPhase(t *testing.T) {
 
 	seer := roles["seer"][0]
 	seerSeat := findAgentSeat(t, seer, roomID)
-	ws := wolfSeats(t, roles["werewolf"], roomID)
+	ws := wolfSeats(t, roles["clawedwolf"], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 	villagerSeat := findAgentSeat(t, roles["villager"][0], roomID)
 
@@ -760,7 +760,7 @@ func TestWW_SkipDeadSeerPhase(t *testing.T) {
 
 	// Round 2 night: wolves vote.
 	killTarget2 := findAliveNonWolfSeat(t, agents, roomID, ws)
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		if s := getState(t, wolf, roomID); hasPendingAction(s) {
 			wwSubmitKillVote(t, wolf, roomID, killTarget2)
 		}
@@ -785,7 +785,7 @@ func TestWW_SkipDeadGuardPhase(t *testing.T) {
 
 	guard := roles["guard"][0]
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
-	ws := wolfSeats(t, roles["werewolf"], roomID)
+	ws := wolfSeats(t, roles["clawedwolf"], roomID)
 	villagerSeat := findAgentSeat(t, roles["villager"][0], roomID)
 	wolfSeat0 := ws[0]
 
@@ -811,7 +811,7 @@ func TestWW_SkipDeadGuardPhase(t *testing.T) {
 
 	// Round 2 night: wolves vote.
 	killTarget2 := findAliveNonWolfSeat(t, agents, roomID, ws)
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		if s := getState(t, wolf, roomID); hasPendingAction(s) {
 			wwSubmitKillVote(t, wolf, roomID, killTarget2)
 		}
@@ -842,7 +842,7 @@ func TestWW_VoteForDeadPlayer(t *testing.T) {
 
 	villager := roles["villager"][0]
 	villagerSeat := findAgentSeat(t, villager, roomID)
-	ws := wolfSeats(t, roles["werewolf"], roomID)
+	ws := wolfSeats(t, roles["clawedwolf"], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
 	// Night 1: kill the villager.
@@ -892,7 +892,7 @@ func TestWW_VoteForSelf(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	ws := wolfSeats(t, roles["werewolf"], roomID)
+	ws := wolfSeats(t, roles["clawedwolf"], roomID)
 	villagerSeat := findAgentSeat(t, roles["villager"][0], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
@@ -931,13 +931,13 @@ func TestWW_VoteForSelf(t *testing.T) {
 }
 
 // TestWW_HistoryGodView verifies that the history endpoint for a finished
-// Werewolf game returns the god view with all roles revealed.
+// ClawedWolf game returns the god view with all roles revealed.
 func TestWW_HistoryGodView(t *testing.T) {
 	cleanDB(t)
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolves := roles["werewolf"]
+	wolves := roles["clawedwolf"]
 	wolfSeat0 := findAgentSeat(t, wolves[0], roomID)
 	wolfSeat1 := findAgentSeat(t, wolves[1], roomID)
 	villager0Seat := findAgentSeat(t, roles["villager"][0], roomID)
@@ -1000,11 +1000,11 @@ func TestWW_NightKillNoGuardSave(t *testing.T) {
 
 	villager := roles["villager"][0]
 	villagerSeat := findAgentSeat(t, villager, roomID)
-	ws := wolfSeats(t, roles["werewolf"], roomID)
+	ws := wolfSeats(t, roles["clawedwolf"], roomID)
 	seerSeat := findAgentSeat(t, roles["seer"][0], roomID)
 
 	// Wolves kill villager; guard protects seer (different target → no save).
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		if s := getState(t, wolf, roomID); hasPendingAction(s) {
 			wwSubmitKillVote(t, wolf, roomID, villagerSeat)
 		}
@@ -1046,7 +1046,7 @@ func TestWW_SpeakOutOfOrder(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	ws := wolfSeats(t, roles["werewolf"], roomID)
+	ws := wolfSeats(t, roles["clawedwolf"], roomID)
 	villagerSeat := findAgentSeat(t, roles["villager"][0], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
@@ -1087,11 +1087,11 @@ func TestWW_GuardProtectDeadPlayer(t *testing.T) {
 
 	villager := roles["villager"][0]
 	villagerSeat := findAgentSeat(t, villager, roomID)
-	ws := wolfSeats(t, roles["werewolf"], roomID)
+	ws := wolfSeats(t, roles["clawedwolf"], roomID)
 	guardSeat := findAgentSeat(t, roles["guard"][0], roomID)
 
 	// Round 1: kill villager; guard protects self.
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		if s := getState(t, wolf, roomID); hasPendingAction(s) {
 			wwSubmitKillVote(t, wolf, roomID, villagerSeat)
 		}
@@ -1116,7 +1116,7 @@ func TestWW_GuardProtectDeadPlayer(t *testing.T) {
 
 	// Round 2: wolves vote.
 	killTarget2 := findAliveNonWolfSeat(t, agents, roomID, ws)
-	for _, wolf := range roles["werewolf"] {
+	for _, wolf := range roles["clawedwolf"] {
 		if s := getState(t, wolf, roomID); hasPendingAction(s) {
 			wwSubmitKillVote(t, wolf, roomID, killTarget2)
 		}
@@ -1150,13 +1150,13 @@ func TestWW_GuardProtectDeadPlayer(t *testing.T) {
 }
 
 // TestWW_EloUpdatedAfterGame verifies that Elo ratings are updated correctly
-// after a Werewolf game: winners gain, losers lose.
+// after a ClawedWolf game: winners gain, losers lose.
 func TestWW_EloUpdatedAfterGame(t *testing.T) {
 	cleanDB(t)
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolves := roles["werewolf"]
+	wolves := roles["clawedwolf"]
 	wolfSeat0 := findAgentSeat(t, wolves[0], roomID)
 	wolfSeat1 := findAgentSeat(t, wolves[1], roomID)
 	villager0Seat := findAgentSeat(t, roles["villager"][0], roomID)
@@ -1209,7 +1209,7 @@ func TestWW_ActionOnFinishedGame(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolves := roles["werewolf"]
+	wolves := roles["clawedwolf"]
 	wolfSeat0 := findAgentSeat(t, wolves[0], roomID)
 	wolfSeat1 := findAgentSeat(t, wolves[1], roomID)
 	villager0Seat := findAgentSeat(t, roles["villager"][0], roomID)
@@ -1251,7 +1251,7 @@ func TestWW_WolfKillVoteDisagreement(t *testing.T) {
 	roomID, agents := createAndStartWWGame(t)
 	roles := discoverRoles(t, agents, roomID)
 
-	wolves := roles["werewolf"]
+	wolves := roles["clawedwolf"]
 	if len(wolves) != 2 {
 		t.Fatalf("expected 2 wolves, got %d", len(wolves))
 	}
@@ -1325,7 +1325,7 @@ func TestWW_WolfKillVoteDisagreement(t *testing.T) {
 	}
 }
 
-// --- Helper functions for werewolf tests ---
+// --- Helper functions for clawedwolf tests ---
 
 // wolfSeats returns the seat numbers of the given wolf agents.
 func wolfSeats(t *testing.T, wolves []*apiClient, roomID uint) []int {
