@@ -18,7 +18,7 @@ export function useSSE(roomId: number | null) {
   useEffect(() => {
     if (roomId == null) return;
 
-    const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+    const baseURL = '';
     const url = `${baseURL}/api/v1/rooms/${roomId}/watch`;
 
     function connect() {

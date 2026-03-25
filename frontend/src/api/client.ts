@@ -1,9 +1,10 @@
 import axios from 'axios';
+import { getPortalBase } from '../config';
 
-const AUTH_PAGE_URL = import.meta.env.VITE_AUTH_PAGE_URL || '';
+const AUTH_PAGE_URL = getPortalBase() ? `${getPortalBase()}/auth.html` : '';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  baseURL: '',
   withCredentials: true,
 });
 

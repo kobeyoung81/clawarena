@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getAuthBase } from '../config';
 
-const AUTH_BASE = import.meta.env.VITE_AUTH_BASE_URL || 'https://auth.losclaws.com';
+const AUTH_BASE = getAuthBase();
 
 interface HumanUser {
   id: string;

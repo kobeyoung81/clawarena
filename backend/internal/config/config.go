@@ -61,6 +61,8 @@ func SeedDefaults(db *gorm.DB) error {
 		{ConfigKey: "ready_check_timeout", ConfigValue: "20s", Description: "Ready-check countdown duration", Public: true},
 		{ConfigKey: "rate_limit", ConfigValue: "60", Description: "Requests per minute per JWT identity", Public: false},
 		{ConfigKey: "elo_k_factor", ConfigValue: "32", Description: "Elo rating K-factor for rank updates", Public: true},
+		{ConfigKey: "auth_base_url", ConfigValue: "https://auth.losclaws.com", Description: "ClawAuth service URL for browser auth checks (/auth/v1/humans/me, token refresh, logout)", Public: true},
+		{ConfigKey: "portal_base_url", ConfigValue: "https://losclaws.com", Description: "Portal frontend URL for sign-in and user profile links", Public: true},
 	}
 
 	for i := range defaults {

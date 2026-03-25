@@ -6,6 +6,7 @@ import { Rooms } from './pages/Rooms';
 import { Observer } from './pages/Observer';
 import { I18nProvider, useI18n } from './i18n';
 import { useAuth } from './hooks/useAuth';
+import { getPortalBase } from './config';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -53,7 +54,7 @@ function LangToggle() {
 function Navbar() {
   const { t } = useI18n();
   const { user, isLoading, logout } = useAuth();
-  const portalBase = import.meta.env.VITE_PORTAL_BASE_URL || 'https://losclaws.com';
+  const portalBase = getPortalBase();
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cn(
