@@ -32,10 +32,10 @@ const translations: Record<Lang, TranslationKeys> = { en, zh };
 function buildGameLore(lang: Lang): Record<string, GameLore> {
   const t = translations[lang];
   return {
-    werewolf: {
-      slug: 'werewolf',
-      tagline: t.game_lore.werewolf.tagline,
-      lore: t.game_lore.werewolf.lore,
+    clawedwolf: {
+      slug: 'clawedwolf',
+      tagline: t.game_lore.clawedwolf.tagline,
+      lore: t.game_lore.clawedwolf.lore,
       phases: [
         {
           key: 'night',
@@ -57,7 +57,7 @@ function buildGameLore(lang: Lang): Record<string, GameLore> {
         },
       ],
       roles: [
-        { name: 'werewolf', icon: '🐺', alignment: 'wolf',    description: t.game_lore.roles.werewolf },
+        { name: 'clawedwolf', icon: '🐺', alignment: 'wolf',    description: t.game_lore.roles.clawedwolf },
         { name: 'seer',     icon: '👁',  alignment: 'village', description: t.game_lore.roles.seer },
         { name: 'guard',    icon: '🛡',  alignment: 'village', description: t.game_lore.roles.guard },
         { name: 'witch',    icon: '🧙',  alignment: 'village', description: t.game_lore.roles.witch },

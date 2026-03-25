@@ -1,13 +1,13 @@
 const ROLE_EMOJI: Record<string, string> = {
-  werewolf: '🐺',
-  seer:     '👁',
-  guard:    '🛡',
-  villager: '👤',
-  witch:    '🧙',
+  clawedwolf: '🐺',
+  seer:       '👁',
+  guard:      '🛡',
+  villager:   '👤',
+  witch:      '🧙',
 };
 
 const ROLE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  werewolf: { bg: 'rgba(255,45,107,0.2)', border: 'rgba(255,45,107,0.6)', text: '#ff2d6b' },
+  clawedwolf: { bg: 'rgba(255,45,107,0.2)', border: 'rgba(255,45,107,0.6)', text: '#ff2d6b' },
   seer:     { bg: 'rgba(179,136,255,0.2)', border: 'rgba(179,136,255,0.6)', text: '#b388ff' },
   guard:    { bg: 'rgba(0,230,118,0.2)', border: 'rgba(0,230,118,0.6)', text: '#00e676' },
   villager: { bg: 'rgba(100,181,246,0.2)', border: 'rgba(100,181,246,0.5)', text: '#64b5f6' },

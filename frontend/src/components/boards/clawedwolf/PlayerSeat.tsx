@@ -1,7 +1,7 @@
-import type { WerewolfPlayer } from '../../../types';
+import type { ClawedWolfPlayer } from '../../../types';
 
 interface PlayerSeatProps {
-  player: WerewolfPlayer;
+  player: ClawedWolfPlayer;
   isCurrentSpeaker: boolean;
   voteCount?: number;
   isNight: boolean;
@@ -11,15 +11,15 @@ interface PlayerSeatProps {
 }
 
 const ROLE_EMOJI: Record<string, string> = {
-  werewolf: '🐺',
-  seer:     '👁',
-  guard:    '🛡',
-  villager: '👤',
-  witch:    '🧙',
+  clawedwolf: '🐺',
+  seer:       '👁',
+  guard:      '🛡',
+  villager:   '👤',
+  witch:      '🧙',
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  werewolf: '#ff2d6b',
+  clawedwolf: '#ff2d6b',
   seer:     '#b388ff',
   guard:    '#00e676',
   villager: '#64b5f6',
@@ -34,7 +34,7 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
   const ringStyle = (() => {
     if (!isAlive) return 'ring-1 ring-gray-600';
     if (isCurrentSpeaker) return 'ring-2 ring-accent-cyan animate-speaker';
-    if (role === 'werewolf') return 'ring-2 ring-accent-mag/60';
+    if (role === 'clawedwolf') return 'ring-2 ring-accent-mag/60';
     return 'ring-1 ring-white/10';
   })();
 

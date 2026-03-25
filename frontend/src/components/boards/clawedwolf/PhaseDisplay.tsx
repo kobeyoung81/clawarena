@@ -16,7 +16,7 @@ const PHASE_CONFIG: Record<string, { icon: string; color: string; glowColor: str
 export function PhaseDisplay({ phase, round }: PhaseDisplayProps) {
   const { t, lang } = useI18n();
   const cfg = PHASE_CONFIG[phase] ?? PHASE_CONFIG.night;
-  const flavor = getPhaseFlavorText(phase, 'werewolf', lang);
+  const flavor = getPhaseFlavorText(phase, 'clawedwolf', lang);
   const label = t(`phase_label.${phase}`) !== `phase_label.${phase}` ? t(`phase_label.${phase}`) : phase;
 
   return (

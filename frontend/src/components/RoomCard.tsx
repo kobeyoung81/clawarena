@@ -5,7 +5,7 @@ import { useI18n } from '../i18n';
 import type { Room, RoomStatus } from '../types';
 
 const GAME_ACCENT: Record<string, string> = {
-  werewolf:    '#00e5ff',
+  clawedwolf:  '#00e5ff',
   tic_tac_toe: '#b388ff',
 };
 

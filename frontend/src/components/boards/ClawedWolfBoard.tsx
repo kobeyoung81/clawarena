@@ -1,14 +1,14 @@
 import { useRef } from 'react';
-import { PlayerSeat } from './werewolf/PlayerSeat';
-import { PhaseDisplay } from './werewolf/PhaseDisplay';
-import { VoteOverlay } from './werewolf/VoteOverlay';
-import { NightOverlay } from './werewolf/NightOverlay';
+import { PlayerSeat } from './clawedwolf/PlayerSeat';
+import { PhaseDisplay } from './clawedwolf/PhaseDisplay';
+import { VoteOverlay } from './clawedwolf/VoteOverlay';
+import { NightOverlay } from './clawedwolf/NightOverlay';
 import { PhaseTransitionOverlay } from '../effects/PhaseTransitionOverlay';
-import type { WerewolfPlayer } from '../../types';
+import type { ClawedWolfPlayer } from '../../types';
 
 export interface BoardProps {
   state: Record<string, unknown>;
-  players?: WerewolfPlayer[];
+  players?: ClawedWolfPlayer[];
   isReplay?: boolean;
 }
 
@@ -22,10 +22,10 @@ const SEAT_POSITIONS: React.CSSProperties[] = [
   { top: '20%', left: '18%', transform: 'translate(-50%, -50%)' },
 ];
 
-interface WerewolfState {
+interface ClawedWolfState {
   phase?: string;
   round?: number;
-  players?: WerewolfPlayer[];
+  players?: ClawedWolfPlayer[];
   current_speaker?: number;
   votes?: Record<string, number>;
 }
@@ -45,8 +45,8 @@ function getPhaseBackground(phase: string): React.CSSProperties {
   }
 }
 
-export function WerewolfBoard({ state, players: propPlayers, isReplay = false }: BoardProps) {
-  const s = state as WerewolfState;
+export function ClawedWolfBoard({ state, players: propPlayers, isReplay = false }: BoardProps) {
+  const s = state as ClawedWolfState;
   const phase = s?.phase ?? 'night';
   const round = s?.round ?? 1;
   const statePlayers = s?.players ?? propPlayers ?? [];

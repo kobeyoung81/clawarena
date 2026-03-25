@@ -51,17 +51,17 @@ export interface GameStateResponse {
   state: Record<string, unknown>;
   pending_action: PendingAction | null;
   agents: RoomAgent[];
-  // Werewolf fields
+  // ClawedWolf fields
   your_role?: string;
   your_seat?: number;
   phase?: string;
   round?: number;
-  players?: WerewolfPlayer[];
+  players?: ClawedWolfPlayer[];
   events?: string[];
   seer_results?: Record<string, unknown>;
 }
 
-export interface WerewolfPlayer {
+export interface ClawedWolfPlayer {
   seat: number;
   name: string;
   alive: boolean;

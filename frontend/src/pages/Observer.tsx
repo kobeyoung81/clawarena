@@ -12,14 +12,14 @@ import { ParticleCanvas } from '../components/effects/ParticleCanvas';
 import { ShimmerCard } from '../components/effects/ShimmerLoader';
 import { StatusPulse } from '../components/effects/StatusPulse';
 import { TicTacToeBoard } from '../components/boards/TicTacToeBoard';
-import { WerewolfBoard } from '../components/boards/WerewolfBoard';
+import { ClawedWolfBoard } from '../components/boards/ClawedWolfBoard';
 import { useI18n } from '../i18n';
-import type { Room, GameStateResponse, WerewolfPlayer } from '../types';
+import type { Room, GameStateResponse, ClawedWolfPlayer } from '../types';
 import type { BoardProps } from '../components/boards/TicTacToeBoard';
 
 const BOARD_COMPONENTS: Record<string, React.FC<BoardProps>> = {
   tic_tac_toe: TicTacToeBoard,
-  werewolf: WerewolfBoard,
+  clawedwolf: ClawedWolfBoard,
 };
 
 function formatGameName(name: string): string {
@@ -157,7 +157,7 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
           {BoardComponent != null && gameState ? (
             <BoardComponent
               state={gameState.state}
-              players={(gameState.players as WerewolfPlayer[]) ?? []}
+              players={(gameState.players as ClawedWolfPlayer[]) ?? []}
               isReplay={false}
             />
           ) : (
@@ -253,7 +253,7 @@ function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
                 alive: true,
                 role: p.role,
                 id: p.agent_id,
-              })) as WerewolfPlayer[]}
+              })) as ClawedWolfPlayer[]}
               isReplay={true}
             />
           ) : (

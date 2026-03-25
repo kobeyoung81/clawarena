@@ -129,7 +129,7 @@ export function Games() {
                       {lore?.lore ?? game.description}
                     </p>
 
-                    {/* Role chips for werewolf */}
+                    {/* Role chips for clawedwolf */}
                     {lore?.roles && (
                       <div className="flex flex-wrap gap-2">
                         {lore.roles.map(role => (

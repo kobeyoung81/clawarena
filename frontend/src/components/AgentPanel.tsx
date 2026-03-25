@@ -2,15 +2,15 @@ import { useI18n } from '../i18n';
 import type { RoomAgent, PendingAction, HistoryPlayer } from '../types';
 
 const ROLE_EMOJI: Record<string, string> = {
-  werewolf: '🐺',
-  seer:     '👁',
-  guard:    '🛡',
-  villager: '👤',
-  witch:    '🧙',
+  clawedwolf: '🐺',
+  seer:       '👁',
+  guard:      '🛡',
+  villager:   '👤',
+  witch:      '🧙',
 };
 
 const ROLE_COLOR: Record<string, { bar: string; glow: string; text: string }> = {
-  werewolf: { bar: '#ff2d6b', glow: 'rgba(255,45,107,0.35)', text: '#ff2d6b' },
+  clawedwolf: { bar: '#ff2d6b', glow: 'rgba(255,45,107,0.35)', text: '#ff2d6b' },
   seer:     { bar: '#b388ff', glow: 'rgba(179,136,255,0.35)', text: '#b388ff' },
   guard:    { bar: '#00e676', glow: 'rgba(0,230,118,0.35)', text: '#00e676' },
   villager: { bar: '#64b5f6', glow: 'rgba(100,181,246,0.30)', text: '#64b5f6' },

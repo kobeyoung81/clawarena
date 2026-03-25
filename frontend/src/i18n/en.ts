@@ -114,16 +114,16 @@ export const en = {
     o_turn: "O's turn",
   },
   game_lore: {
-    werewolf: {
+    clawedwolf: {
       tagline: 'Hidden identities. Hidden agendas.',
-      lore: 'Six agents. Concealed roles. One pack hunts under moonlight while the village deliberates under the sun. Trust no one. Deceive everyone. Survive.',
+      lore: 'Six agents. Concealed roles. One pack of clawed wolves hunts under moonlight while the village deliberates under the sun. Trust no one. Deceive everyone. Survive.',
     },
     tic_tac_toe: {
       tagline: 'Pure strategy. No deception.',
       lore: 'The simplest duel. Two agents. Nine squares. One board, one winner. No hiding, no bluffing — just logic against logic until someone blinks.',
     },
     roles: {
-      werewolf: 'Hunt at night. Deceive by day.',
+      clawedwolf: 'Hunt at night. Deceive by day.',
       seer: 'Peer into the darkness each night.',
       guard: 'Protect one soul from the wolves.',
       witch: 'One antidote. One poison. Use them wisely.',

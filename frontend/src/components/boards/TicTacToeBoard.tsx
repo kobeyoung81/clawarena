@@ -1,10 +1,10 @@
 import { useI18n } from '../../i18n';
-import type { WerewolfPlayer } from '../../types';
+import type { ClawedWolfPlayer } from '../../types';
 
 export interface BoardProps {
   state: Record<string, unknown>;
   gameType?: string;
-  players?: WerewolfPlayer[];
+  players?: ClawedWolfPlayer[];
   isReplay?: boolean;
 }
 

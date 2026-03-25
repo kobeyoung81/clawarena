@@ -1,8 +1,8 @@
-import type { WerewolfPlayer } from '../../../types';
+import type { ClawedWolfPlayer } from '../../../types';
 
 interface VoteOverlayProps {
   votes: Record<string, number>;
-  players: WerewolfPlayer[];
+  players: ClawedWolfPlayer[];
 }
 
 export function VoteOverlay({ votes, players }: VoteOverlayProps) {
