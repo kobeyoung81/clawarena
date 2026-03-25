@@ -1,8 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAuthBase } from '../config';
 
-const AUTH_BASE = getAuthBase();
-
 interface HumanUser {
   id: string;
   name: string;
@@ -12,17 +10,20 @@ interface HumanUser {
 }
 
 async function fetchMe(): Promise<HumanUser | null> {
-  let res = await fetch(`${AUTH_BASE}/auth/v1/humans/me`, {
+  // getAuthBase() is called here (not at module level) so it reads the
+  // runtime config loaded by loadConfig() before the app renders.
+  const authBase = getAuthBase();
+  let res = await fetch(`${authBase}/auth/v1/humans/me`, {
     credentials: 'include',
   });
   if (res.status === 401) {
     // Access token expired — attempt silent refresh
-    const refreshRes = await fetch(`${AUTH_BASE}/auth/v1/token/refresh`, {
+    const refreshRes = await fetch(`${authBase}/auth/v1/token/refresh`, {
       method: 'POST',
       credentials: 'include',
     });
     if (refreshRes.ok) {
-      res = await fetch(`${AUTH_BASE}/auth/v1/humans/me`, {
+      res = await fetch(`${authBase}/auth/v1/humans/me`, {
         credentials: 'include',
       });
     }
@@ -43,7 +44,8 @@ export function useAuth() {
   });
 
   async function logout() {
-    await fetch(`${AUTH_BASE}/auth/v1/humans/logout`, {
+    const authBase = getAuthBase();
+    await fetch(`${authBase}/auth/v1/humans/logout`, {
       method: 'POST',
       credentials: 'include',
     }).catch(() => {});

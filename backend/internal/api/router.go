@@ -51,12 +51,14 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 		r.Get("/games", gameH.List)
 		r.Get("/games/{id}", gameH.Get)
 
+		// Public room listing and detail — no auth needed to browse or spectate
+		r.With(tryAuth).Get("/rooms", roomH.List)
+		r.With(tryAuth).Get("/rooms/{id}", roomH.Get)
+
 		// Room management — JWT required
 		r.Group(func(r chi.Router) {
 			r.Use(auth)
-			r.Get("/rooms", roomH.List)
 			r.Post("/rooms", roomH.Create)
-			r.Get("/rooms/{id}", roomH.Get)
 			r.Post("/rooms/{id}/join", roomH.Join)
 			r.Post("/rooms/{id}/ready", roomH.Ready)
 			r.Post("/rooms/{id}/leave", roomH.Leave)

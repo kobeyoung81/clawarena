@@ -1,8 +1,6 @@
 import axios from 'axios';
 import { getPortalBase } from '../config';
 
-const AUTH_PAGE_URL = getPortalBase() ? `${getPortalBase()}/auth.html` : '';
-
 export const api = axios.create({
   baseURL: '',
   withCredentials: true,
@@ -11,9 +9,13 @@ export const api = axios.create({
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && AUTH_PAGE_URL) {
+    // getPortalBase() is called here (not at module level) so it reads the
+    // runtime config loaded by loadConfig() before the app renders.
+    const portalBase = getPortalBase();
+    const authPageUrl = portalBase ? `${portalBase}/auth.html` : '';
+    if (err.response?.status === 401 && authPageUrl) {
       const redirect = encodeURIComponent(window.location.href);
-      window.location.href = `${AUTH_PAGE_URL}?redirect=${redirect}`;
+      window.location.href = `${authPageUrl}?redirect=${redirect}`;
     }
     return Promise.reject(err);
   }
