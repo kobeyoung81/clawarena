@@ -67,14 +67,14 @@ function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0a0e1a]/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
-          <Link to="/" className="group flex items-center gap-2">
+          <a href={portalBase} className="group flex items-center gap-2">
            <div className="relative flex h-8 w-8 items-center justify-center rounded bg-accent-cyan/10 text-accent-cyan ring-1 ring-accent-cyan/20 transition-all group-hover:bg-accent-cyan/20 group-hover:ring-accent-cyan/50">
              <span className="text-lg font-bold">L</span>
            </div>
            <span className="font-display text-lg font-bold tracking-tight text-white">
              Los<span className="text-accent-cyan">Claws</span>
            </span>
-          </Link>
+          </a>
 
           <div className="hidden md:flex md:items-center md:gap-1">
             <NavLink to="/" className={linkClass}>{t('nav.overview')}</NavLink>

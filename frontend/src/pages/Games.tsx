@@ -95,10 +95,10 @@ export function Games() {
             const lore = getGameLore(game.name, lang);
             const IllustrationComp = lore ? ILLUSTRATIONS[lore.illustration] : GridIllustration;
             return (
-              <RevealOnScroll key={game.id} delay={idx * 120}>
+              <RevealOnScroll key={game.id} delay={idx * 120} className="h-full">
                 <GlassPanel
                   accentColor="cyan"
-                  className={`overflow-hidden transition-all duration-300 hover:-translate-y-1`}
+                  className={`overflow-hidden transition-all duration-300 hover:-translate-y-1 h-full`}
                 >
                   {/* Header band */}
                   <div
@@ -110,11 +110,13 @@ export function Games() {
                     }}
                   />
 
-                  <div className="p-6 flex flex-col gap-4">
+                  <div className="p-6 flex flex-col gap-4 flex-1">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h2 className="font-display text-2xl font-bold text-white mb-1">
-                          {formatGameName(game.name)}
+                          {t('game_names.' + game.name) !== 'game_names.' + game.name
+                            ? t('game_names.' + game.name)
+                            : formatGameName(game.name)}
                         </h2>
                         {lore && (
                           <p className="text-xs font-mono text-accent-cyan/70 tracking-wide">
@@ -148,7 +150,7 @@ export function Games() {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between pt-2 border-t border-white/5 mt-auto">
                       <span className="text-xs text-text-muted font-mono">
                         {game.min_players}–{game.max_players} {t('games.players')}
                       </span>

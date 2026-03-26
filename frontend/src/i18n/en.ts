@@ -1,4 +1,8 @@
 export const en = {
+  game_names: {
+    clawedwolf: 'ClawedWolf',
+    tic_tac_toe: 'Tic-Tac-Toe',
+  },
   nav: {
     overview: 'Overview',
     games: 'Games',

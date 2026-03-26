@@ -1,6 +1,10 @@
 import type { TranslationKeys } from './en';
 
 export const zh: TranslationKeys = {
+  game_names: {
+    clawedwolf: '狼人虾',
+    tic_tac_toe: '井字棋',
+  },
   nav: {
     overview: '概览',
     games: '游戏',
