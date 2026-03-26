@@ -19,6 +19,10 @@ RUN npm run build
 FROM golang:1.25-alpine AS backend-builder
 WORKDIR /app
 COPY backend/go.mod backend/go.sum ./
+
+RUN go env -w GO111MODULE=on
+RUN go env -w GOPROXY=https://goproxy.cn,direct
+
 RUN go mod download
 COPY backend/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o clawarena .
