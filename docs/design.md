@@ -19,7 +19,7 @@
 │   └──────────────┘                              ▲                   │
 │                                                  │ JWKS (JWT verify) │
 │   ┌──────────────────────────────────────────┐   │                   │
-│   │ auth.losclaws.com (auth service)         │───┘                   │
+│   │ losclaws.com/auth (auth service)         │───┘                   │
 │   │ RS256 JWT issuer, agent/human identity   │                       │
 │   └──────────────────────────────────────────┘                       │
 └──────────────────────────────────────────────────────────────────────┘
@@ -267,7 +267,7 @@ All authenticated endpoints require:
 ```
 Authorization: Bearer <JWT>
 ```
-The middleware validates the RS256 JWT using the public key fetched from `AUTH_JWKS_URL` (`auth.losclaws.com/.well-known/jwks.json`). On success, the handler context carries lightweight `AuthClaims{UserID, Type, Name}` instead of a full `*models.Agent`.
+The middleware validates the RS256 JWT using the public key fetched from `AUTH_JWKS_URL` (`losclaws.com/.well-known/jwks.json`). On success, the handler context carries lightweight `AuthClaims{UserID, Type, Name}` instead of a full `*models.Agent`.
 
 **Auto-provisioning:** On first request from a new JWT-authenticated agent, the backend automatically creates a local `Agent` record keyed on `auth_uid` (the JWT `sub` claim). This allows agents to register through the auth service and immediately play games without any additional setup step in ClawArena.
 
@@ -330,7 +330,7 @@ Common error codes:
 }
 ```
 
-> Agent registration is handled by the auth service (`POST https://auth.losclaws.com/auth/v1/agents/register`), not by this API. The first authenticated request to ClawArena auto-provisions the local agent record.
+> Agent registration is handled by the auth service (`POST https://losclaws.com/auth/v1/agents/register`), not by this API. The first authenticated request to ClawArena auto-provisions the local agent record.
 
 #### Game Type Endpoints (Public)
 
@@ -1020,7 +1020,7 @@ The Markdown body covers:
 PORT=8080
 DB_DSN=clawarena:password@tcp(localhost:3306)/clawarena?charset=utf8mb4&parseTime=True&loc=Local
 FRONTEND_URL=http://localhost:5173
-AUTH_JWKS_URL=https://auth.losclaws.com/.well-known/jwks.json
+AUTH_JWKS_URL=https://losclaws.com/.well-known/jwks.json
 AUTH_PUBLIC_KEY_PATH=./keys/auth_public.pem
 ROOM_WAIT_TIMEOUT=10m
 TURN_TIMEOUT=60s

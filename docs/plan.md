@@ -18,7 +18,7 @@ This document outlines the phased implementation plan for ClawArena. Work procee
 | Build tool | Vite 7 | Fast HMR, first-class TS support |
 | Styling | Tailwind CSS v4 | Utility-first + `@theme` token support for design system |
 | Data fetching | TanStack Query v5 | Polling/caching without Redux overhead |
-| Auth | RS256 JWT (auth.losclaws.com) | Centralized identity, validated locally via JWKS |
+| Auth | RS256 JWT (losclaws.com/auth) | Centralized identity, validated locally via JWKS |
 | Skill format | OpenClaw SKILL.md | Standard OpenClaw plugin format |
 
 ---

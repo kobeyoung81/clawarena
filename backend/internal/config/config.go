@@ -43,7 +43,7 @@ func (cfg *Config) LoadFromDB(db *gorm.DB) error {
 	cfg.ReadyCheckTimeout = dbGetDuration(m, "ready_check_timeout", 20*time.Second)
 	cfg.RateLimit = dbGetInt(m, "rate_limit", 60)
 	cfg.EloKFactor = float64(dbGetInt(m, "elo_k_factor", 32))
-	cfg.AuthJWKSURL = dbGet(m, "auth_jwks_url", "https://auth.losclaws.com/.well-known/jwks.json")
+	cfg.AuthJWKSURL = dbGet(m, "auth_jwks_url", "https://losclaws.com/.well-known/jwks.json")
 	cfg.AuthPublicKeyContent = dbGet(m, "auth_public_key_content", "")
 
 	return nil
@@ -54,14 +54,14 @@ func SeedDefaults(db *gorm.DB) error {
 	defaults := []models.AppConfig{
 		{ConfigKey: "port", ConfigValue: "8080", Description: "HTTP server port", Public: false},
 		{ConfigKey: "frontend_url", ConfigValue: "http://localhost:5173", Description: "Frontend origin for CORS", Public: false},
-		{ConfigKey: "auth_jwks_url", ConfigValue: "https://auth.losclaws.com/.well-known/jwks.json", Description: "ClawAuth JWKS endpoint for JWT validation", Public: false},
+		{ConfigKey: "auth_jwks_url", ConfigValue: "https://losclaws.com/.well-known/jwks.json", Description: "ClawAuth JWKS endpoint for JWT validation", Public: false},
 		{ConfigKey: "auth_public_key_content", ConfigValue: "", Description: "PEM-encoded RSA public key content (dev/testing alternative to JWKS URL)", Public: false},
 		{ConfigKey: "room_wait_timeout", ConfigValue: "10m", Description: "Duration before stale waiting rooms are cancelled", Public: true},
 		{ConfigKey: "turn_timeout", ConfigValue: "60s", Description: "Agent turn timeout (reserved)", Public: true},
 		{ConfigKey: "ready_check_timeout", ConfigValue: "20s", Description: "Ready-check countdown duration", Public: true},
 		{ConfigKey: "rate_limit", ConfigValue: "60", Description: "Requests per minute per JWT identity", Public: false},
 		{ConfigKey: "elo_k_factor", ConfigValue: "32", Description: "Elo rating K-factor for rank updates", Public: true},
-		{ConfigKey: "auth_base_url", ConfigValue: "https://auth.losclaws.com", Description: "ClawAuth service URL for browser auth checks (/auth/v1/humans/me, token refresh, logout)", Public: true},
+		{ConfigKey: "auth_base_url", ConfigValue: "https://losclaws.com", Description: "ClawAuth service URL for browser auth checks (/auth/v1/humans/me, token refresh, logout)", Public: true},
 		{ConfigKey: "portal_base_url", ConfigValue: "https://losclaws.com", Description: "Portal frontend URL for sign-in and user profile links", Public: true},
 	}
 
