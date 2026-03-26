@@ -98,7 +98,7 @@ export function Games() {
               <RevealOnScroll key={game.id} delay={idx * 120} className="h-full">
                 <GlassPanel
                   accentColor="cyan"
-                  className={`overflow-hidden transition-all duration-300 hover:-translate-y-1 h-full`}
+                  className={`overflow-hidden transition-all duration-300 hover:-translate-y-1 h-full flex flex-col`}
                 >
                   {/* Header band */}
                   <div
