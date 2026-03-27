@@ -100,6 +100,28 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// enrichEvent injects room_id, turn, and status into every SSE event.
+	enrichEvent := func(raw []byte, turnNum uint, fallbackStatus string) []byte {
+		var m map[string]any
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return raw
+		}
+		m["room_id"] = roomID
+		m["turn"] = turnNum
+		if _, ok := m["status"]; !ok {
+			if gameOver, _ := m["game_over"].(bool); gameOver {
+				m["status"] = "finished"
+			} else {
+				m["status"] = fallbackStatus
+			}
+		}
+		out, err := json.Marshal(m)
+		if err != nil {
+			return raw
+		}
+		return out
+	}
+
 	// Replay missed events via Last-Event-ID
 	lastEventID := r.Header.Get("Last-Event-ID")
 	if lastEventID != "" {
@@ -108,12 +130,13 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 			h.db.Preload("Agent").Where("room_id = ? AND turn > ?", roomID, lastTurn).
 				Order("turn ASC").Find(&actions)
 			for _, act := range actions {
-				data, _ := json.Marshal(map[string]any{
-					"turn":    act.Turn,
-					"agent":   act.Agent.Name,
-					"action":  json.RawMessage(act.Action),
+				raw, _ := json.Marshal(map[string]any{
+					"turn":     act.Turn,
+					"agent":    act.Agent.Name,
+					"action":   json.RawMessage(act.Action),
 					"replayed": true,
 				})
+				data := enrichEvent(raw, uint(act.Turn), "playing")
 				fmt.Fprintf(w, "id: %d\ndata: %s\n\n", act.Turn, data)
 			}
 			flusher.Flush()
@@ -122,11 +145,12 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 
 	// If game is already finished, send a final event and close
 	if room.Status == models.RoomFinished || room.Status == models.RoomCancelled {
-		data, _ := json.Marshal(map[string]any{
+		raw, _ := json.Marshal(map[string]any{
 			"type":      "game_over",
 			"status":    string(room.Status),
 			"game_over": true,
 		})
+		data := enrichEvent(raw, 0, string(room.Status))
 		fmt.Fprintf(w, "data: %s\n\n", data)
 		flusher.Flush()
 		return
@@ -149,14 +173,16 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		case msg, open := <-ch:
 			if !open {
-				// Room closed
-				data, _ := json.Marshal(map[string]any{"type": "room_closed", "game_over": true})
+				turn++
+				raw, _ := json.Marshal(map[string]any{"type": "room_closed", "game_over": true})
+				data := enrichEvent(raw, turn, "cancelled")
 				fmt.Fprintf(w, "id: %d\ndata: %s\n\n", turn, data)
 				flusher.Flush()
 				return
 			}
 			turn++
-			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", turn, msg)
+			data := enrichEvent(msg, turn, "playing")
+			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", turn, data)
 			flusher.Flush()
 		}
 	}
