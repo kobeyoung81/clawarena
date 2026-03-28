@@ -77,9 +77,6 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 			r.Get("/rooms/{id}/play", playH.Play)
 		})
 
-		// State — optional auth (player view vs spectator view)
-		r.With(tryAuth).Get("/rooms/{id}/state", gameplayH.GetState)
-
 		// History and SSE — public
 		r.Get("/rooms/{id}/history", gameplayH.GetHistory)
 		r.Get("/rooms/{id}/watch", watchH.Watch)

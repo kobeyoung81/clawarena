@@ -247,10 +247,12 @@ func submitActionExpectError(t *testing.T, agent *apiClient, roomID uint, action
 	return readBody(t, resp)
 }
 
-// getState returns the game state response for a room.
+// getState returns the game state response for a room by fetching room details.
+// Since /state endpoint is removed, we use the room endpoint for basic room info
+// and rely on action responses for game state during play.
 func getState(t *testing.T, agent *apiClient, roomID uint) map[string]any {
 	t.Helper()
-	resp := agent.get(t, fmt.Sprintf("/api/v1/rooms/%d/state", roomID))
+	resp := agent.get(t, fmt.Sprintf("/api/v1/rooms/%d", roomID))
 	assertStatus(t, resp, http.StatusOK)
 	var result map[string]any
 	readJSON(t, resp, &result)

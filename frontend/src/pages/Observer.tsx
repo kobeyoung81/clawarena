@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getRoom } from '../api/client';
 import { useSSE } from '../hooks/useSSE';
-import { useGameState } from '../hooks/useGameState';
 import { useReplay } from '../hooks/useReplay';
 import { AgentPanel } from '../components/AgentPanel';
 import { ActionLog } from '../components/ActionLog';
@@ -140,14 +139,30 @@ function ResultBanner({ winner_team }: { winner_team?: string }) {
 function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
   const { t } = useI18n();
   const { latestEvent, isConnected } = useSSE(roomId);
-  const { data: polledState, refetch } = useGameState(roomId);
 
-  // Accumulate live events from SSE messages
+  // Derive game state from SSE events (initial + subsequent)
+  const [gameState, setGameState] = useState<GameStateResponse | null>(null);
   const [liveEvents, setLiveEvents] = useState<string[]>([]);
+
   useEffect(() => {
     if (latestEvent) {
-      refetch();
-      const events = (latestEvent as Record<string, unknown>)?.events;
+      const evt = latestEvent as Record<string, unknown>;
+
+      // Build GameStateResponse from the SSE event payload
+      if (evt.state != null) {
+        setGameState({
+          room_id: (evt.room_id as number) ?? roomId,
+          status: (evt.status as GameStateResponse['status']) ?? room.status,
+          turn: (evt.turn as number) ?? 0,
+          state: evt.state as Record<string, unknown>,
+          pending_action: (evt.pending_action as GameStateResponse['pending_action']) ?? null,
+          agents: (evt.agents as GameStateResponse['agents']) ?? room.agents ?? [],
+          phase: (evt.phase as string) ?? undefined,
+        });
+      }
+
+      // Accumulate event messages
+      const events = evt.events;
       if (Array.isArray(events)) {
         setLiveEvents(prev => [
           ...prev,
@@ -157,9 +172,8 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
         ]);
       }
     }
-  }, [latestEvent, refetch]);
+  }, [latestEvent, roomId, room.status, room.agents]);
 
-  const gameState: GameStateResponse | null = polledState ?? null;
   const gameName = room.game_type?.name ?? '';
   const BoardComponent = BOARD_COMPONENTS[gameName];
   const phase = (gameState?.state as { phase?: string })?.phase ?? gameState?.phase ?? '';

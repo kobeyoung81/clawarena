@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/clawarena/clawarena/internal/api/dto"
-	"github.com/clawarena/clawarena/internal/api/middleware"
 	"github.com/clawarena/clawarena/internal/game"
 	"github.com/clawarena/clawarena/internal/models"
 	"github.com/go-chi/chi/v5"
@@ -25,82 +24,6 @@ type GameplayHandler struct {
 
 func NewGameplayHandler(db *gorm.DB, hub *RoomHub, eloKFactor float64) *GameplayHandler {
 	return &GameplayHandler{db: db, hub: hub, eloKFactor: eloKFactor}
-}
-
-func (h *GameplayHandler) GetState(w http.ResponseWriter, r *http.Request) {
-	roomID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid room id", "INVALID_REQUEST")
-		return
-	}
-
-	var room models.Room
-	if err := h.db.Preload("GameType").Preload("Agents.Agent").First(&room, roomID).Error; err != nil {
-		writeError(w, http.StatusNotFound, "room not found", "NOT_FOUND")
-		return
-	}
-
-	var gs models.GameState
-	if err := h.db.Where("room_id = ?", roomID).Order("turn DESC").First(&gs).Error; err != nil {
-		writeError(w, http.StatusNotFound, "no game state found", "NOT_FOUND")
-		return
-	}
-
-	eng, ok := game.Registry[room.GameType.Name]
-	if !ok {
-		writeError(w, http.StatusInternalServerError, "game engine not found", "INTERNAL_ERROR")
-		return
-	}
-
-	claims := middleware.ClaimsFromCtx(r.Context())
-	var stateView json.RawMessage
-	if claims != nil {
-		localAgent, provErr := GetOrProvisionByAuthUID(h.db, claims)
-		if provErr == nil {
-			stateView, err = eng.GetPlayerView(json.RawMessage(gs.State), localAgent.ID)
-		} else {
-			stateView, err = eng.GetSpectatorView(json.RawMessage(gs.State))
-		}
-	} else {
-		stateView, err = eng.GetSpectatorView(json.RawMessage(gs.State))
-	}
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get state view", "INTERNAL_ERROR")
-		return
-	}
-
-	// Get pending actions
-	pending, _ := eng.GetPendingActions(json.RawMessage(gs.State))
-
-	resp := dto.GameStateResponse{
-		RoomID: room.ID,
-		Status: string(room.Status),
-		Turn:   gs.Turn,
-		State:  stateView,
-		Agents: roomAgentsInfo(room.Agents),
-	}
-
-	// Find pending action for requesting agent
-	for _, pa := range pending {
-		if claims != nil {
-			localAgent, provErr := GetOrProvisionByAuthUID(h.db, claims)
-			if provErr == nil && pa.PlayerID == localAgent.ID {
-				resp.PendingAction = &dto.PendingActionDTO{
-					PlayerID:     pa.PlayerID,
-					ActionType:   pa.ActionType,
-					Prompt:       pa.Prompt,
-					ValidTargets: pa.ValidTargets,
-				}
-			}
-		}
-		// Set current agent (first in pending list)
-		if resp.CurrentAgentID == nil {
-			id := pa.PlayerID
-			resp.CurrentAgentID = &id
-		}
-	}
-
-	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
@@ -123,6 +46,7 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 	var actionResult game.ActionResult
 	var newTurn uint
 	var gameType string
+	var roomSnapshot models.Room
 
 	err = h.db.Transaction(func(tx *gorm.DB) error {
 		var room models.Room
@@ -249,6 +173,7 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 				updateElo(tx, result.Result.WinnerIDs, loserIDs, h.eloKFactor)
 			}
 		}
+		roomSnapshot = room
 		return nil
 	})
 
@@ -290,13 +215,49 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Build spectator view for broadcast
+	broadcastState := json.RawMessage(actionResult.NewState)
+	if eng, ok := game.Registry[gameType]; ok {
+		if sv, err := eng.GetSpectatorView(json.RawMessage(actionResult.NewState)); err == nil {
+			broadcastState = sv
+		}
+	}
+
+	// Build spectator-friendly pending action (who needs to act, not details)
+	var pendingDTO *dto.PendingActionDTO
+	var currentAgentID *uint
+	if eng, ok := game.Registry[gameType]; ok {
+		if pending, err := eng.GetPendingActions(json.RawMessage(actionResult.NewState)); err == nil && len(pending) > 0 {
+			id := pending[0].PlayerID
+			currentAgentID = &id
+			pendingDTO = &dto.PendingActionDTO{
+				PlayerID:   pending[0].PlayerID,
+				ActionType: pending[0].ActionType,
+				Prompt:     pending[0].Prompt,
+			}
+		}
+	}
+
+	// Extract phase from state if available
+	var phase string
+	var stateMap map[string]any
+	if json.Unmarshal(broadcastState, &stateMap) == nil {
+		if p, ok := stateMap["phase"].(string); ok {
+			phase = p
+		}
+	}
+
 	broadcast := map[string]any{
-		"turn":      newTurn,
-		"state":     json.RawMessage(actionResult.NewState),
-		"events":    events,
-		"game_over": actionResult.GameOver,
-		"result":    resultDTO,
-		"game_type": gameType,
+		"turn":             newTurn,
+		"state":            broadcastState,
+		"events":           events,
+		"game_over":        actionResult.GameOver,
+		"result":           resultDTO,
+		"game_type":        gameType,
+		"agents":           roomAgentsInfo(roomSnapshot.Agents),
+		"pending_action":   pendingDTO,
+		"current_agent_id": currentAgentID,
+		"phase":            phase,
 	}
 	if actionResult.GameOver {
 		broadcast["status"] = "post_game"

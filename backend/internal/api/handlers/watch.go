@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/clawarena/clawarena/internal/game"
 	"github.com/clawarena/clawarena/internal/models"
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
@@ -84,7 +85,7 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var room models.Room
-	if err := h.db.First(&room, roomID).Error; err != nil {
+	if err := h.db.Preload("GameType").Preload("Agents.Agent").First(&room, roomID).Error; err != nil {
 		writeError(w, http.StatusNotFound, "room not found", "NOT_FOUND")
 		return
 	}
@@ -98,6 +99,45 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		http.Error(w, "streaming not supported", http.StatusInternalServerError)
 		return
+	}
+
+	eng := game.Registry[room.GameType.Name]
+
+	agents := roomAgentsInfo(room.Agents)
+
+	// buildSpectatorSnapshot builds the enriched fields (spectator state, pending action, phase)
+	// from a raw game state. Returns spectatorView, pendingAction, currentAgentID, phase.
+	buildSpectatorSnapshot := func(rawState json.RawMessage) (json.RawMessage, *map[string]any, *uint, string) {
+		stateView := rawState
+		if eng != nil {
+			if sv, err := eng.GetSpectatorView(rawState); err == nil {
+				stateView = sv
+			}
+		}
+
+		var pendingAction *map[string]any
+		var currentAgentID *uint
+		if eng != nil {
+			if pending, err := eng.GetPendingActions(rawState); err == nil && len(pending) > 0 {
+				id := pending[0].PlayerID
+				currentAgentID = &id
+				pa := map[string]any{
+					"player_id":   pending[0].PlayerID,
+					"action_type": pending[0].ActionType,
+					"prompt":      pending[0].Prompt,
+				}
+				pendingAction = &pa
+			}
+		}
+
+		var phase string
+		var stateMap map[string]any
+		if json.Unmarshal(stateView, &stateMap) == nil {
+			if p, ok := stateMap["phase"].(string); ok {
+				phase = p
+			}
+		}
+		return stateView, pendingAction, currentAgentID, phase
 	}
 
 	// enrichEvent injects room_id, turn, and status into every SSE event.
@@ -122,20 +162,62 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 		return out
 	}
 
+	// Send initial full state immediately on connect
+	{
+		var gs models.GameState
+		if h.db.Where("room_id = ?", roomID).Order("turn DESC").First(&gs).Error == nil {
+			stateView, pendingAction, currentAgentID, phase := buildSpectatorSnapshot(json.RawMessage(gs.State))
+			initEvent := map[string]any{
+				"turn":             gs.Turn,
+				"state":            stateView,
+				"agents":           agents,
+				"pending_action":   pendingAction,
+				"current_agent_id": currentAgentID,
+				"phase":            phase,
+				"game_over":        false,
+				"status":           string(room.Status),
+				"room_id":          roomID,
+				"game_type":        room.GameType.Name,
+			}
+			data, _ := json.Marshal(initEvent)
+			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", gs.Turn, data)
+			flusher.Flush()
+		}
+	}
+
 	// Replay missed events via Last-Event-ID
 	lastEventID := r.Header.Get("Last-Event-ID")
 	if lastEventID != "" {
 		if lastTurn, err := strconv.ParseUint(lastEventID, 10, 64); err == nil {
+			// Load game states for replayed turns to build full snapshots
+			var states []models.GameState
+			h.db.Where("room_id = ? AND turn > ?", roomID, lastTurn).
+				Order("turn ASC").Find(&states)
+			stateByTurn := map[uint]models.GameState{}
+			for _, gs := range states {
+				stateByTurn[gs.Turn] = gs
+			}
+
 			var actions []models.GameAction
 			h.db.Preload("Agent").Where("room_id = ? AND turn > ?", roomID, lastTurn).
 				Order("turn ASC").Find(&actions)
 			for _, act := range actions {
-				raw, _ := json.Marshal(map[string]any{
+				replayData := map[string]any{
 					"turn":     act.Turn,
 					"agent":    act.Agent.Name,
 					"action":   json.RawMessage(act.Action),
 					"replayed": true,
-				})
+					"agents":   agents,
+				}
+				// Enrich with state snapshot if available
+				if gs, ok := stateByTurn[act.Turn]; ok {
+					stateView, pendingAction, currentAgentID, phase := buildSpectatorSnapshot(json.RawMessage(gs.State))
+					replayData["state"] = stateView
+					replayData["pending_action"] = pendingAction
+					replayData["current_agent_id"] = currentAgentID
+					replayData["phase"] = phase
+				}
+				raw, _ := json.Marshal(replayData)
 				data := enrichEvent(raw, uint(act.Turn), "playing")
 				fmt.Fprintf(w, "id: %d\ndata: %s\n\n", act.Turn, data)
 			}
@@ -149,6 +231,7 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 			"type":      "game_over",
 			"status":    string(room.Status),
 			"game_over": true,
+			"agents":    agents,
 		})
 		data := enrichEvent(raw, 0, string(room.Status))
 		fmt.Fprintf(w, "data: %s\n\n", data)

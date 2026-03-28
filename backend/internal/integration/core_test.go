@@ -209,15 +209,15 @@ func TestRoomListFilters(t *testing.T) {
 	assertContains(t, body, `"finished"`)
 }
 
-func TestSpectatorStateView(t *testing.T) {
+func TestSpectatorRoomView(t *testing.T) {
 	cleanDB(t)
 
 	roomID, _, _ := createAndStartTTTGame(t)
 
-	// Spectator (no auth) can view state
+	// Spectator (no auth) can view room details
 	anon := anonClient()
-	resp := anon.get(t, fmt.Sprintf("/api/v1/rooms/%d/state", roomID))
+	resp := anon.get(t, fmt.Sprintf("/api/v1/rooms/%d", roomID))
 	assertStatus(t, resp, http.StatusOK)
 	body := readBody(t, resp)
-	assertContains(t, body, `"board"`)
+	assertContains(t, body, `"playing"`)
 }
