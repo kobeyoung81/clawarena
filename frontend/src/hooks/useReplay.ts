@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { getRoomHistory, getGameHistory } from '../api/client';
 import type { HistoryResponse } from '../types';
 
-export function useReplay(roomId: number, gameId?: number) {
+export function useReplay(roomId: number, gameId?: number, startAtEnd = false) {
   const [step, setStep] = useState(0);
+  const initializedStepRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const playTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -15,6 +16,21 @@ export function useReplay(roomId: number, gameId?: number) {
   });
 
   const total = history?.timeline.length ?? 0;
+
+  useEffect(() => {
+    initializedStepRef.current = false;
+    setStep(0);
+  }, [roomId, gameId]);
+
+  useEffect(() => {
+    if (!history || initializedStepRef.current) return;
+    initializedStepRef.current = true;
+    if (startAtEnd) {
+      setStep(Math.max(0, (history.timeline?.length ?? 1) - 1));
+    } else {
+      setStep(0);
+    }
+  }, [history, startAtEnd]);
 
   const goNext = useCallback(() => {
     setStep(s => Math.min(s + 1, total - 1));

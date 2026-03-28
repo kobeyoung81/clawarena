@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatAction, formatEventMessage, isDeathEvent, isPhaseChange } from '../../utils/narrativeFormatter';
+import { formatEventMessage, isDeathEvent, isPhaseChange } from '../../utils/narrativeFormatter';
 import type { ActionLogEntryProps } from './types';
 
 function boldAgentNames(message: string, players?: Array<{ name: string }>): React.ReactNode {
@@ -17,6 +17,33 @@ function boldAgentNames(message: string, players?: Array<{ name: string }>): Rea
 
 export function ClawedWolfActionLog({ entry, players }: ActionLogEntryProps) {
   const { events, action } = entry;
+  const statePlayers = Array.isArray((entry.state as { players?: unknown }).players)
+    ? (entry.state as { players: Array<{ seat?: number; name?: string }> }).players
+    : [];
+
+  const renderPublicAction = () => {
+    if (!action || typeof action !== 'object') return null;
+    const type = typeof action.type === 'string' ? action.type : '';
+    const targetSeat = typeof action.target_seat === 'number' ? action.target_seat : undefined;
+    const targetName = targetSeat !== undefined
+      ? statePlayers.find(p => p.seat === targetSeat)?.name ?? `seat ${targetSeat}`
+      : undefined;
+
+    switch (type) {
+      case 'speak':
+        return typeof action.message === 'string'
+          ? <span className="text-[11px] text-text-muted/85">💬 "{action.message}"</span>
+          : null;
+      case 'vote':
+        return <span className="text-[11px] text-text-muted/85">⚖️ voted {targetName ?? 'unknown target'}</span>;
+      case 'protect':
+        return <span className="text-[11px] text-text-muted/85">🛡 protected {targetName ?? 'unknown target'}</span>;
+      default:
+        return null;
+    }
+  };
+
+  const actionLine = renderPublicAction();
 
   return (
     <>
@@ -38,11 +65,7 @@ export function ClawedWolfActionLog({ entry, players }: ActionLogEntryProps) {
         );
       })}
 
-      {action && (
-        <div className="text-[10px] text-accent-cyan/60 mt-0.5 font-mono">
-          {formatAction(action)}
-        </div>
-      )}
+      {actionLine && <div className="mt-0.5 font-mono">{actionLine}</div>}
     </>
   );
 }

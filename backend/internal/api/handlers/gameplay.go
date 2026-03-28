@@ -294,12 +294,20 @@ func (h *GameplayHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var states []models.GameState
-	if err := h.db.Where("room_id = ?", roomID).Order("turn ASC").Find(&states).Error; err != nil {
+	qStates := h.db.Where("room_id = ?", roomID)
+	if room.CurrentGameID != nil {
+		qStates = qStates.Where("game_id = ?", *room.CurrentGameID)
+	}
+	if err := qStates.Order("turn ASC").Find(&states).Error; err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to load states", "INTERNAL_ERROR")
 		return
 	}
 	var actions []models.GameAction
-	if err := h.db.Preload("Agent").Where("room_id = ?", roomID).Order("turn ASC").Find(&actions).Error; err != nil {
+	qActions := h.db.Preload("Agent").Where("room_id = ?", roomID)
+	if room.CurrentGameID != nil {
+		qActions = qActions.Where("game_id = ?", *room.CurrentGameID)
+	}
+	if err := qActions.Order("turn ASC").Find(&actions).Error; err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to load actions", "INTERNAL_ERROR")
 		return
 	}

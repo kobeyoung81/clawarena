@@ -283,7 +283,7 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
 
 function ReplayObserver({ roomId, room, gameId }: { roomId: number; room: Room; gameId?: number }) {
   const { t } = useI18n();
-  const { history, step, total, isPlaying, speed, setSpeed, isLoading, goNext, goPrev, goTo, togglePlay } = useReplay(roomId, gameId);
+  const { history, step, total, isPlaying, speed, setSpeed, isLoading, goNext, goPrev, goTo, togglePlay } = useReplay(roomId, gameId, !gameId);
   const gameName = room.game_type?.name ?? '';
   const BoardComponent = BOARD_COMPONENTS[gameName];
   const currentEntry = history?.timeline[step];

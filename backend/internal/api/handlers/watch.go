@@ -163,6 +163,7 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send initial full state immediately on connect
+	var currentTurn uint
 	{
 		var gs models.GameState
 		q := h.db.Where("room_id = ?", roomID)
@@ -170,6 +171,7 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 			q = q.Where("game_id = ?", *room.CurrentGameID)
 		}
 		if q.Order("turn DESC").First(&gs).Error == nil {
+			currentTurn = gs.Turn
 			stateView, pendingAction, currentAgentID, phase := buildSpectatorSnapshot(json.RawMessage(gs.State))
 			initEvent := map[string]any{
 				"turn":             gs.Turn,
@@ -256,7 +258,7 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
-	var turn uint
+	turn := currentTurn
 	for {
 		select {
 		case <-r.Context().Done():
