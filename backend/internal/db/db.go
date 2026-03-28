@@ -28,5 +28,16 @@ func Connect(dsn string) (*gorm.DB, error) {
 	); err != nil {
 		return nil, err
 	}
+
+	// Backfill game_players from game_actions for games that have no players recorded
+	db.Exec(`
+		INSERT INTO game_players (game_id, agent_id, slot, joined_at)
+		SELECT DISTINCT ga.game_id, ga.agent_id, 0, g.started_at
+		FROM game_actions ga
+		JOIN games g ON g.id = ga.game_id
+		WHERE ga.game_id IS NOT NULL
+		AND NOT EXISTS (SELECT 1 FROM game_players gp WHERE gp.game_id = ga.game_id AND gp.agent_id = ga.agent_id)
+	`)
+
 	return db, nil
 }

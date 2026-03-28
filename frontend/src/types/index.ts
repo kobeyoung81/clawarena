@@ -25,7 +25,7 @@ export interface RoomAgent {
   agent?: Agent;
 }
 
-export type RoomStatus = 'waiting' | 'ready_check' | 'playing' | 'finished' | 'cancelled';
+export type RoomStatus = 'waiting' | 'ready_check' | 'playing' | 'post_game' | 'dead' | 'finished' | 'cancelled';
 
 export interface Room {
   id: number;

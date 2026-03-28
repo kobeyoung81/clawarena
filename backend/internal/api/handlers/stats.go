@@ -96,10 +96,10 @@ func (h *StatsHandler) buildStats() (*statsResponse, error) {
 		return nil, err
 	}
 
-	// matches_today
+	// matches_today — count finished games (not rooms, since rooms cycle through post_game→dead)
 	todayMidnight := time.Now().UTC().Truncate(24 * time.Hour)
-	if err := h.db.Model(&models.Room{}).
-		Where("status = ? AND created_at >= ?", "finished", todayMidnight).
+	if err := h.db.Model(&models.Game{}).
+		Where("status = ? AND finished_at >= ?", string(models.GameFinished), todayMidnight).
 		Count(&resp.Stats.MatchesToday).Error; err != nil {
 		return nil, err
 	}
@@ -118,43 +118,43 @@ func (h *StatsHandler) buildStats() (*statsResponse, error) {
 		}
 	}
 
-	// recent_activity: last 10 finished rooms
-	var recentRooms []models.Room
-	if err := h.db.Preload("GameType").
-		Where("status = ? AND winner_id IS NOT NULL", "finished").
-		Order("created_at DESC").
+	// recent_activity: last 10 finished games
+	var recentGames []models.Game
+	if err := h.db.Preload("GameType").Preload("Players.Agent").
+		Where("status = ?", string(models.GameFinished)).
+		Order("finished_at DESC").
 		Limit(10).
-		Find(&recentRooms).Error; err != nil {
+		Find(&recentGames).Error; err != nil {
 		return nil, err
 	}
 
-	// Batch-load winner names
-	winnerIDs := make([]uint, 0, len(recentRooms))
-	for _, rm := range recentRooms {
-		if rm.WinnerID != nil {
-			winnerIDs = append(winnerIDs, *rm.WinnerID)
+	resp.RecentActivity = make([]activityEntry, 0, len(recentGames))
+	for _, g := range recentGames {
+		var summary string
+		if g.WinnerID != nil {
+			// Find winner name from game players
+			winnerName := "Unknown"
+			for _, p := range g.Players {
+				if p.AgentID == *g.WinnerID {
+					winnerName = p.Agent.Name
+					break
+				}
+			}
+			summary = winnerName + " won " + g.GameType.Name + " in Room #" + uitoa(g.RoomID)
+		} else if g.Result != nil {
+			summary = g.GameType.Name + " ended (draw) in Room #" + uitoa(g.RoomID)
+		} else {
+			summary = g.GameType.Name + " finished in Room #" + uitoa(g.RoomID)
 		}
-	}
-	winnerMap := make(map[uint]string)
-	if len(winnerIDs) > 0 {
-		var winners []models.Agent
-		if err := h.db.Where("id IN ?", winnerIDs).Find(&winners).Error; err != nil {
-			return nil, err
+		var ts time.Time
+		if g.FinishedAt != nil {
+			ts = *g.FinishedAt
+		} else {
+			ts = g.StartedAt
 		}
-		for _, a := range winners {
-			winnerMap[a.ID] = a.Name
-		}
-	}
-
-	resp.RecentActivity = make([]activityEntry, 0, len(recentRooms))
-	for _, rm := range recentRooms {
-		if rm.WinnerID == nil {
-			continue
-		}
-		name := winnerMap[*rm.WinnerID]
 		resp.RecentActivity = append(resp.RecentActivity, activityEntry{
-			Summary: name + " won " + rm.GameType.Name + " in Room #" + uitoa(rm.ID),
-			Time:    rm.CreatedAt.UTC().Format("15:04"),
+			Summary: summary,
+			Time:    ts.UTC().Format("15:04"),
 		})
 	}
 

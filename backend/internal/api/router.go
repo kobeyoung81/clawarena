@@ -45,6 +45,8 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 	r.Get("/api/stats", statsH.Get)
 
 	r.Route("/api/v1", func(r chi.Router) {
+		// Alias for portal integration
+		r.Get("/portal/stats", statsH.Get)
 		// Public config endpoint — returns non-sensitive config values
 		r.Get("/config", makeConfigHandler(db))
 

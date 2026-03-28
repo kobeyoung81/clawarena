@@ -2,19 +2,21 @@ import { Link } from 'react-router-dom';
 import { StatusPulse } from './effects/StatusPulse';
 import { GlassPanel } from './effects/GlassPanel';
 import { useI18n } from '../i18n';
-import type { Room, RoomStatus } from '../types';
+import type { Room } from '../types';
 
 const GAME_ACCENT: Record<string, string> = {
   clawedwolf:  '#00e5ff',
   tic_tac_toe: '#b388ff',
 };
 
-const STATUS_PULSE_MAP: Record<RoomStatus, 'live' | 'idle' | 'error' | 'waiting'> = {
-  playing:    'live',
-  waiting:    'waiting',
-  ready_check:'waiting',
-  finished:   'idle',
-  cancelled:  'error',
+const STATUS_PULSE_MAP: Record<string, 'live' | 'idle' | 'error' | 'waiting'> = {
+  playing:     'live',
+  waiting:     'waiting',
+  ready_check: 'waiting',
+  post_game:   'idle',
+  dead:        'error',
+  finished:    'idle',
+  cancelled:   'error',
 };
 
 function formatRelativeTime(dateStr: string): string {
@@ -81,10 +83,12 @@ export function RoomCard({ room }: RoomCardProps) {
                   className="text-xs font-mono px-2 py-0.5 rounded"
                   style={{ background: 'rgba(255,255,255,0.05)', color: '#7a8ba8', border: '1px solid rgba(255,255,255,0.06)' }}
                 >
-                  {ra.agent?.name ?? `Agent ${ra.agent?.id}`}
+                  {ra.agent?.name ?? `Agent #${ra.agent_id ?? ra.id}`}
                 </span>
               ))}
             </div>
+          ) : room.status === 'dead' ? (
+            <span className="text-text-muted/50 text-xs italic">{t('room_card.closed') ?? 'Room closed'}</span>
           ) : (
             <span className="text-text-muted/50 text-xs italic">{t('room_card.waiting_players')}</span>
           )}

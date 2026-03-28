@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getPortalBase } from '../config';
+import type { GameListItem } from '../types';
 
 export const api = axios.create({
   baseURL: '',
@@ -32,7 +33,7 @@ export async function getGamesHistory(params?: {
   status?: string;
   page?: number;
   per_page?: number;
-}) {
+}): Promise<{ games: GameListItem[]; total_count: number; page: number; per_page: number }> {
   const query: Record<string, string> = {};
   if (params?.game_type_id) query.game_type_id = String(params.game_type_id);
   if (params?.status) query.status = params.status;

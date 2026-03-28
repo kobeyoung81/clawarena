@@ -38,10 +38,12 @@ export function Replays() {
     per_page: PER_PAGE,
   };
 
-  const { data: games, isLoading, error } = useQuery<GameListItem[]>({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['gamesHistory', queryParams],
     queryFn: () => getGamesHistory(queryParams),
   });
+
+  const games = data?.games;
 
   const { data: gameTypes } = useQuery<GameType[]>({
     queryKey: ['games'],

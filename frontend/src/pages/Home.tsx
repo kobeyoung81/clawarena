@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getRooms } from '../api/client';
+import { getRooms, getGamesHistory } from '../api/client';
 import { RoomCard } from '../components/RoomCard';
 import { ParticleCanvas } from '../components/effects/ParticleCanvas';
 import { ArenaBackground } from '../components/effects/ArenaBackground';
 import { ShimmerLoader } from '../components/effects/ShimmerLoader';
 import { RevealOnScroll } from '../components/effects/RevealOnScroll';
 import { useI18n } from '../i18n';
-import type { Room } from '../types';
+import type { Room, GameListItem } from '../types';
 
 function StatCard({ value, label, delay = 0 }: { value: number | string; label: string; delay?: number }) {
   return (
@@ -31,14 +31,16 @@ export function Home() {
     refetchInterval: 10000,
   });
 
-  const { data: recentRooms, isLoading: loadingRecent } = useQuery<Room[]>({
-    queryKey: ['rooms', 'finished'],
-    queryFn: () => getRooms({ status: 'finished' }),
+  const { data: recentData, isLoading: loadingRecent } = useQuery({
+    queryKey: ['gamesHistory', 'finished', 'recent'],
+    queryFn: () => getGamesHistory({ status: 'finished', per_page: 6, page: 1 }),
     refetchInterval: 30000,
   });
 
+  const recentGames = recentData?.games ?? [];
+
   const liveCount = liveRooms?.length ?? 0;
-  const recentCount = recentRooms?.length ?? 0;
+  const recentCount = recentData?.total_count ?? 0;
 
   return (
     <div className="min-h-screen -mx-4 sm:-mx-6 lg:-mx-8">
@@ -140,11 +142,11 @@ export function Home() {
 
         {loadingRecent ? (
           <ShimmerLoader rows={3} />
-        ) : recentRooms && recentRooms.length > 0 ? (
+        ) : recentGames.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {recentRooms.map((room, i) => (
-              <RevealOnScroll key={room.id} delay={i * 60}>
-                <RoomCard room={room} />
+            {recentGames.map((game, i) => (
+              <RevealOnScroll key={game.id} delay={i * 60}>
+                <RecentGameCard game={game} />
               </RevealOnScroll>
             ))}
           </div>
@@ -155,5 +157,37 @@ export function Home() {
         )}
       </section>
     </div>
+  );
+}
+
+function RecentGameCard({ game }: { game: GameListItem }) {
+  const gameName = game.game_type?.name ?? 'unknown';
+  const winnerIds = game.result?.winner_ids ?? (game.winner_id ? [game.winner_id] : []);
+  const winners = game.players.filter(p => winnerIds.includes(p.agent_id));
+  const winnerLabel = winners.length > 0 ? winners.map(w => w.name).join(', ') : 'Draw';
+
+  return (
+    <Link to={`/rooms/${game.room_id}`} className="glass rounded-xl p-4 block hover:border-accent-cyan/20 transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-mono text-accent-cyan/60 uppercase tracking-wider">
+          {gameName.replace(/_/g, ' ')}
+        </span>
+        <span className="text-xs text-text-muted font-mono">
+          Room #{game.room_id}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1 mb-2">
+        {game.players.map(p => (
+          <span key={p.agent_id} className={`text-xs font-mono px-1.5 py-0.5 rounded ${
+            winnerIds.includes(p.agent_id) ? 'text-accent-cyan bg-accent-cyan/10' : 'text-text-muted bg-white/5'
+          }`}>
+            {winnerIds.includes(p.agent_id) ? '👑 ' : ''}{p.name}
+          </span>
+        ))}
+      </div>
+      <div className="text-xs text-text-muted">
+        {winners.length > 0 ? `Winner: ${winnerLabel}` : winnerLabel}
+      </div>
+    </Link>
   );
 }
