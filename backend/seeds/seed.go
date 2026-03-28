@@ -19,7 +19,21 @@ func Run(db *gorm.DB) error {
 	if err := config.SeedDefaults(db); err != nil {
 		return err
 	}
+	if err := seedLanguages(db); err != nil {
+		return err
+	}
 	return seedGames(db)
+}
+
+func seedLanguages(db *gorm.DB) error {
+	langs := []models.Language{
+		{Code: "en", NativeName: "English", SortOrder: 1},
+		{Code: "zh", NativeName: "中文", SortOrder: 2},
+	}
+	for _, l := range langs {
+		db.Where("code = ?", l.Code).FirstOrCreate(&l)
+	}
+	return nil
 }
 
 func seedGames(db *gorm.DB) error {

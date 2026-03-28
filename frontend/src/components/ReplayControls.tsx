@@ -12,7 +12,7 @@ interface ReplayControlsProps {
   onSpeedChange: (speed: number) => void;
 }
 
-const SPEEDS = [0.5, 1, 2, 4];
+const SPEEDS = [1, 2, 3];
 
 export function ReplayControls({ step, total, isPlaying, speed, onPrev, onNext, onPlay, onJump, onSpeedChange }: ReplayControlsProps) {
   const { t } = useI18n();
@@ -138,11 +138,11 @@ export function ReplayControls({ step, total, isPlaying, speed, onPrev, onNext, 
           style={{
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.08)',
-            color: speedIdx !== 1 ? '#ffc107' : 'rgba(255,255,255,0.4)',
+            color: speedIdx !== 0 ? '#ffc107' : 'rgba(255,255,255,0.4)',
           }}
           title={t('replay.speed')}
         >
-          {SPEEDS[speedIdx]}×
+          ×{SPEEDS[speedIdx]}
         </button>
       </div>
     </div>

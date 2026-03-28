@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { formatAction, formatEventMessage, isDeathEvent, isPhaseChange } from '../utils/narrativeFormatter';
+import { formatEventMessage, isDeathEvent, isPhaseChange } from '../utils/narrativeFormatter';
 import { useI18n } from '../i18n';
+import { ACTION_LOG_COMPONENTS, DefaultActionLog } from './actionlogs';
 import type { HistoryTimeline } from '../types';
 
 interface ActionLogProps {
@@ -8,11 +9,13 @@ interface ActionLogProps {
   liveEvents?: string[];
   currentStep?: number;
   isReplay?: boolean;
+  gameType?: string;
 }
 
-export function ActionLog({ timeline, liveEvents, currentStep, isReplay }: ActionLogProps) {
+export function ActionLog({ timeline, liveEvents, currentStep, isReplay, gameType }: ActionLogProps) {
   const { t } = useI18n();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const EntryRenderer = gameType ? (ACTION_LOG_COMPONENTS[gameType] ?? DefaultActionLog) : DefaultActionLog;
 
   useEffect(() => {
     if (!isReplay) {
@@ -43,28 +46,7 @@ export function ActionLog({ timeline, liveEvents, currentStep, isReplay }: Actio
                 }}
               >
                 <span className="text-text-muted/50 font-mono mr-2">T{entry.turn}</span>
-                {entry.events.map((ev, ei) => {
-                  const msg = formatEventMessage(ev.message);
-                  const isDeath = isDeathEvent(ev.message);
-                  const isPhase = isPhaseChange(ev.message);
-                  return (
-                    <span
-                      key={ei}
-                      className="mr-2 leading-relaxed"
-                      style={{
-                        color: isDeath ? '#ff2d6b' : isPhase ? '#ffc107' : '#7a8ba8',
-                        fontWeight: isDeath || isPhase ? 600 : 400,
-                      }}
-                    >
-                      {msg}
-                    </span>
-                  );
-                })}
-                {entry.action && (
-                  <div className="text-[10px] text-accent-cyan/60 mt-0.5 font-mono">
-                    {formatAction(entry.action)}
-                  </div>
-                )}
+                <EntryRenderer entry={entry} />
               </div>
             );
           })

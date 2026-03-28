@@ -143,8 +143,8 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// If game is already finished, send a final event and close
-	if room.Status == models.RoomFinished || room.Status == models.RoomCancelled {
+	// If game is already in a terminal state, send a final event and close
+	if room.Status == models.RoomFinished || room.Status == models.RoomCancelled || room.Status == models.RoomDead {
 		raw, _ := json.Marshal(map[string]any{
 			"type":      "game_over",
 			"status":    string(room.Status),

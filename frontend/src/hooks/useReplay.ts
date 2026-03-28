@@ -7,7 +7,7 @@ export function useReplay(roomId: number) {
   const [step, setStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const playTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const playTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: history, isLoading, error } = useQuery<HistoryResponse>({
     queryKey: ['roomHistory', roomId],
@@ -33,23 +33,36 @@ export function useReplay(roomId: number) {
   }, []);
 
   useEffect(() => {
-    if (isPlaying) {
-      playTimer.current = setInterval(() => {
-        setStep(s => {
-          if (s >= total - 1) {
-            setIsPlaying(false);
-            return s;
-          }
-          return s + 1;
-        });
-      }, Math.round(1000 / speed));
-    } else {
-      if (playTimer.current) clearInterval(playTimer.current);
+    if (!isPlaying || !history) return;
+
+    const timeline = history.timeline;
+    if (step >= total - 1) {
+      setIsPlaying(false);
+      return;
     }
+
+    const currentEntry = timeline[step];
+    const nextEntry = timeline[step + 1];
+
+    let delayMs: number;
+    if (currentEntry?.created_at && nextEntry?.created_at) {
+      const realDelta = new Date(nextEntry.created_at).getTime() - new Date(currentEntry.created_at).getTime();
+      const clampedDelta = Math.max(100, Math.min(realDelta, 10000));
+      delayMs = Math.round(clampedDelta / speed);
+    } else {
+      delayMs = Math.round(1000 / speed);
+    }
+    // Ensure minimum 50ms even after speed division
+    delayMs = Math.max(50, delayMs);
+
+    playTimer.current = setTimeout(() => {
+      setStep(s => s + 1);
+    }, delayMs);
+
     return () => {
-      if (playTimer.current) clearInterval(playTimer.current);
+      if (playTimer.current) clearTimeout(playTimer.current);
     };
-  }, [isPlaying, total, speed]);
+  }, [isPlaying, step, speed, total, history]);
 
   return { history, step, total, isPlaying, speed, setSpeed, isLoading, error, goNext, goPrev, goTo, togglePlay };
 }

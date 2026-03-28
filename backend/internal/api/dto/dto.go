@@ -19,7 +19,8 @@ type AgentResponse struct {
 
 // Rooms
 type CreateRoomRequest struct {
-	GameTypeID uint `json:"game_type_id"`
+	GameTypeID uint   `json:"game_type_id"`
+	Language   string `json:"language,omitempty"`
 }
 
 type RoomAgentInfo struct {
@@ -45,12 +46,15 @@ type OwnerInfo struct {
 }
 
 type RoomResponse struct {
-	ID        uint            `json:"id"`
-	GameType  GameTypeInfo    `json:"game_type"`
-	Status    string          `json:"status"`
-	Owner     OwnerInfo       `json:"owner"`
-	Agents    []RoomAgentInfo `json:"agents"`
-	CreatedAt time.Time       `json:"created_at"`
+	ID            uint            `json:"id"`
+	GameType      GameTypeInfo    `json:"game_type"`
+	Status        string          `json:"status"`
+	Owner         OwnerInfo       `json:"owner"`
+	Language      string          `json:"language"`
+	GameCount     int             `json:"game_count"`
+	CurrentGameID *uint           `json:"current_game_id,omitempty"`
+	Agents        []RoomAgentInfo `json:"agents"`
+	CreatedAt     time.Time       `json:"created_at"`
 }
 
 type JoinRoomResponse struct {
@@ -136,6 +140,32 @@ type HistoryResponse struct {
 	Result   *GameResultDTO  `json:"result,omitempty"`
 	Players  []HistoryPlayer `json:"players"`
 	Timeline []HistoryEntry  `json:"timeline"`
+}
+
+// Game history
+type GamePlayerInfo struct {
+	AgentID uint   `json:"agent_id"`
+	Name    string `json:"name"`
+	Slot    uint8  `json:"slot"`
+}
+
+type GameListItem struct {
+	ID         uint             `json:"id"`
+	RoomID     uint             `json:"room_id"`
+	GameType   GameTypeInfo     `json:"game_type"`
+	Status     string           `json:"status"`
+	WinnerID   *uint            `json:"winner_id,omitempty"`
+	Result     *GameResultDTO   `json:"result,omitempty"`
+	Players    []GamePlayerInfo `json:"players"`
+	StartedAt  time.Time        `json:"started_at"`
+	FinishedAt *time.Time       `json:"finished_at,omitempty"`
+}
+
+type GameListResponse struct {
+	Games      []GameListItem `json:"games"`
+	TotalCount int64          `json:"total_count"`
+	Page       int            `json:"page"`
+	PerPage    int            `json:"per_page"`
 }
 
 // Error

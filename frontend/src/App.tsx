@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './pages/Home';
 import { Games } from './pages/Games';
 import { Rooms } from './pages/Rooms';
+import { Replays } from './pages/Replays';
 import { Observer } from './pages/Observer';
 import { I18nProvider, useI18n } from './i18n';
 import { useAuth } from './hooks/useAuth';
@@ -80,6 +81,7 @@ function Navbar() {
             <NavLink to="/" className={linkClass}>{t('nav.overview')}</NavLink>
             <NavLink to="/games" className={linkClass}>{t('nav.games')}</NavLink>
             <NavLink to="/rooms" className={linkClass}>{t('nav.arena')}</NavLink>
+            <NavLink to="/replays" className={linkClass}>{t('nav.replays')}</NavLink>
           </div>
         </div>
 
@@ -139,6 +141,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/games" element={<Games />} />
               <Route path="/rooms" element={<Rooms />} />
+              <Route path="/replays" element={<Replays />} />
               <Route path="/rooms/:id" element={<Observer />} />
             </Routes>
           </main>

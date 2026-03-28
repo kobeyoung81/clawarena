@@ -57,10 +57,13 @@ func roomResponse(room *models.Room) dto.RoomResponse {
 			MinPlayers:  room.GameType.MinPlayers,
 			MaxPlayers:  room.GameType.MaxPlayers,
 		},
-		Status:    string(room.Status),
-		Owner:     dto.OwnerInfo{ID: room.Owner.ID, Name: room.Owner.Name},
-		Agents:    agents,
-		CreatedAt: room.CreatedAt,
+		Status:        string(room.Status),
+		Owner:         dto.OwnerInfo{ID: room.Owner.ID, Name: room.Owner.Name},
+		Language:      room.Language,
+		GameCount:     room.GameCount,
+		CurrentGameID: room.CurrentGameID,
+		Agents:        agents,
+		CreatedAt:     room.CreatedAt,
 	}
 }
 
@@ -131,10 +134,21 @@ func (h *RoomHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var room models.Room
 	err := h.db.Transaction(func(tx *gorm.DB) error {
+		lang := req.Language
+		if lang == "" {
+			lang = "en"
+		}
+		// Validate language exists
+		var langRow models.Language
+		if err := tx.Where("code = ?", lang).First(&langRow).Error; err != nil {
+			lang = "en" // fallback to English if invalid
+		}
+
 		room = models.Room{
 			GameTypeID: gt.ID,
 			OwnerID:    agent.ID,
 			Status:     models.RoomWaiting,
+			Language:   lang,
 		}
 		if err := tx.Create(&room).Error; err != nil {
 			return err
@@ -183,10 +197,12 @@ func (h *RoomHandler) Join(w http.ResponseWriter, r *http.Request) {
 			First(&room, roomID).Error; err != nil {
 			return errNotFound
 		}
-		if room.Status != models.RoomWaiting {
+		if room.Status != models.RoomWaiting && room.Status != models.RoomPostGame {
 			return errRoomNotOpen
 		}
-		if len(room.Agents) >= int(room.GameType.MaxPlayers) {
+		// Count only active (non-KIA) agents
+		activeAgents := activeRoomAgents(room.Agents)
+		if len(activeAgents) >= int(room.GameType.MaxPlayers) {
 			return errRoomFull
 		}
 
@@ -202,32 +218,37 @@ func (h *RoomHandler) Join(w http.ResponseWriter, r *http.Request) {
 			RoomID:   room.ID,
 			AgentID:  agent.ID,
 			Slot:     nextSlot,
+			Status:   models.RoomAgentActive,
 			JoinedAt: time.Now(),
 		}
 		if err := tx.Create(&ra).Error; err != nil {
 			return err
 		}
 
-		newCount := len(room.Agents) + 1
-		if newCount >= int(room.GameType.MinPlayers) {
+		newCount := len(activeAgents) + 1
+		if newCount >= int(room.GameType.MaxPlayers) {
 			deadline := time.Now().Add(h.readyCheckTimeout)
 			room.Status = models.RoomReadyCheck
 			room.ReadyDeadline = &deadline
+			// Reset ready flags for all agents
+			if err := tx.Model(&models.RoomAgent{}).Where("room_id = ?", room.ID).
+				Updates(map[string]any{"ready": false}).Error; err != nil {
+				return err
+			}
 			if err := tx.Save(&room).Error; err != nil {
 				return err
 			}
 			resp = dto.JoinRoomResponse{
 				Slot:     nextSlot,
 				Status:   string(models.RoomReadyCheck),
-				Message:  "All seats filled. Ready check started — confirm within 20s.",
+				Message:  "All seats filled. Ready check started — confirm within the deadline.",
 				Deadline: &deadline,
 			}
-			// Launch ready-check goroutine
 			go h.startReadyCheck(uint(roomID), deadline)
 		} else {
 			resp = dto.JoinRoomResponse{
 				Slot:    nextSlot,
-				Status:  string(models.RoomWaiting),
+				Status:  string(room.Status),
 				Message: "Joined room.",
 			}
 		}
@@ -269,6 +290,7 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 	var shouldStart bool
 	var playerIDs []uint
 	var gameTypeID uint
+	var roomIDUint = uint(roomID)
 
 	err = h.db.Transaction(func(tx *gorm.DB) error {
 		var room models.Room
@@ -301,23 +323,47 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		activeAgents := activeRoomAgents(room.Agents)
 		readyCount := 0
-		for _, ra := range room.Agents {
+		for _, ra := range activeAgents {
 			if ra.AgentID == agent.ID || ra.Ready {
 				readyCount++
 			}
 		}
 
-		if readyCount >= len(room.Agents) {
+		if readyCount >= len(activeAgents) && len(activeAgents) >= int(room.GameType.MinPlayers) {
 			shouldStart = true
 			gameTypeID = room.GameTypeID
-			for _, ra := range room.Agents {
+			for _, ra := range activeAgents {
 				playerIDs = append(playerIDs, ra.AgentID)
 			}
+
+			// Create Game record
+			now := time.Now()
+			g := models.Game{
+				RoomID:     room.ID,
+				GameTypeID: room.GameTypeID,
+				Status:     models.GamePlaying,
+				StartedAt:  now,
+			}
+			if err := tx.Create(&g).Error; err != nil {
+				return err
+			}
+
 			room.Status = models.RoomPlaying
+			room.CurrentGameID = &g.ID
+			room.GameCount++
+			room.ReadyDeadline = nil
 			if err := tx.Save(&room).Error; err != nil {
 				return err
 			}
+
+			// Reset all agents' ready flags
+			if err := tx.Model(&models.RoomAgent{}).Where("room_id = ?", room.ID).
+				Updates(map[string]any{"ready": false}).Error; err != nil {
+				return err
+			}
+
 			resp = dto.ReadyResponse{
 				Status:  string(models.RoomPlaying),
 				Message: "All players ready. Game started!",
@@ -326,7 +372,7 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 			resp = dto.ReadyResponse{
 				Status:     string(models.RoomReadyCheck),
 				ReadyCount: readyCount,
-				Total:      len(room.Agents),
+				Total:      len(activeAgents),
 				Deadline:   room.ReadyDeadline,
 			}
 		}
@@ -351,11 +397,11 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 
 	if shouldStart {
 		h.cancelReadyCheck(uint(roomID))
-		if err := h.initGame(uint(roomID), gameTypeID, playerIDs); err != nil {
+		if err := h.initGame(roomIDUint, gameTypeID, playerIDs); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to start game", "INTERNAL_ERROR")
 			return
 		}
-		h.hub.Broadcast(uint(roomID), mustMarshal(map[string]any{"type": "game_start", "status": "playing"}))
+		h.hub.Broadcast(roomIDUint, mustMarshal(map[string]any{"type": "game_start", "status": "playing"}))
 	}
 
 	writeJSON(w, http.StatusOK, resp)
@@ -380,7 +426,7 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 			return errNotFound
 		}
 
-		if room.Status == models.RoomFinished || room.Status == models.RoomCancelled {
+		if room.Status == models.RoomFinished || room.Status == models.RoomCancelled || room.Status == models.RoomDead {
 			return nil // no-op
 		}
 
@@ -399,12 +445,34 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 		}
 
 		switch room.Status {
-		case models.RoomWaiting, models.RoomReadyCheck:
+		case models.RoomWaiting, models.RoomPostGame:
 			if err := tx.Delete(mySlot).Error; err != nil {
 				return err
 			}
 			remaining := append(room.Agents[:myIdx], room.Agents[myIdx+1:]...)
-			if len(remaining) == 0 {
+			activeRemaining := activeRoomAgents(remaining)
+			if len(activeRemaining) == 0 {
+				room.Status = models.RoomDead
+				if err := tx.Save(&room).Error; err != nil {
+					return err
+				}
+				h.hub.CloseRoom(uint(roomID))
+			} else {
+				if room.OwnerID == agent.ID {
+					room.OwnerID = activeRemaining[0].AgentID
+				}
+				if err := tx.Save(&room).Error; err != nil {
+					return err
+				}
+			}
+
+		case models.RoomReadyCheck:
+			if err := tx.Delete(mySlot).Error; err != nil {
+				return err
+			}
+			remaining := append(room.Agents[:myIdx], room.Agents[myIdx+1:]...)
+			activeRemaining := activeRoomAgents(remaining)
+			if len(activeRemaining) == 0 {
 				room.Status = models.RoomCancelled
 				if err := tx.Save(&room).Error; err != nil {
 					return err
@@ -412,17 +480,14 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 				h.hub.CloseRoom(uint(roomID))
 			} else {
 				if room.OwnerID == agent.ID {
-					// Transfer ownership to first remaining
-					room.OwnerID = remaining[0].AgentID
+					room.OwnerID = activeRemaining[0].AgentID
 				}
-				if room.Status == models.RoomReadyCheck {
-					room.Status = models.RoomWaiting
-					room.ReadyDeadline = nil
-					// Reset all ready flags
-					for _, ra := range remaining {
-						ra.Ready = false
-						tx.Save(&ra)
-					}
+				// Cancel ready check, go back to waiting
+				room.Status = models.RoomWaiting
+				room.ReadyDeadline = nil
+				if err := tx.Model(&models.RoomAgent{}).Where("room_id = ?", room.ID).
+					Updates(map[string]any{"ready": false}).Error; err != nil {
+					return err
 				}
 				if err := tx.Save(&room).Error; err != nil {
 					return err
@@ -431,30 +496,60 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case models.RoomPlaying:
-			if err := tx.Delete(mySlot).Error; err != nil {
+			// Mark agent as KIA instead of deleting
+			mySlot.Status = models.RoomAgentKIA
+			if err := tx.Save(mySlot).Error; err != nil {
 				return err
 			}
-			remaining := append(room.Agents[:myIdx], room.Agents[myIdx+1:]...)
-			if len(remaining) == 0 {
-				room.Status = models.RoomCancelled
+
+			activeRemaining := activeRoomAgents(room.Agents)
+			// Exclude the agent we just marked KIA
+			var aliveRemaining []models.RoomAgent
+			for _, ra := range activeRemaining {
+				if ra.AgentID != agent.ID {
+					aliveRemaining = append(aliveRemaining, ra)
+				}
+			}
+
+			if len(aliveRemaining) == 0 {
+				room.Status = models.RoomDead
 				tx.Save(&room)
 				h.hub.CloseRoom(uint(roomID))
 			} else if len(room.Agents) == 2 {
-				// 1v1: remaining player wins
-				winnerID := remaining[0].AgentID
-				room.Status = models.RoomFinished
+				// 1v1: remaining player wins by forfeit
+				winnerID := aliveRemaining[0].AgentID
+				now := time.Now()
+
+				// Finish current game
+				if room.CurrentGameID != nil {
+					tx.Model(&models.Game{}).Where("id = ?", *room.CurrentGameID).
+						Updates(map[string]any{
+							"status":      string(models.GameFinished),
+							"winner_id":   winnerID,
+							"finished_at": now,
+						})
+				}
+
+				room.Status = models.RoomPostGame
 				room.WinnerID = &winnerID
 				if err := tx.Save(&room).Error; err != nil {
 					return err
 				}
+
+				// Reset ready flags
+				tx.Model(&models.RoomAgent{}).Where("room_id = ?", room.ID).
+					Updates(map[string]any{"ready": false})
+
 				updateElo(tx, []uint{winnerID}, []uint{agent.ID}, h.eloKFactor)
 				h.hub.Broadcast(uint(roomID), mustMarshal(map[string]any{
 					"type":      "game_over",
 					"winner_id": winnerID,
 					"reason":    "opponent_left",
+					"status":    "post_game",
+					"message":   "POST /ready to play again or /leave to exit",
 				}))
 			}
-			// Multi-player: handled by game engine (not implemented here for brevity)
+			// Multi-player: mark player as eliminated, game continues if enough players remain
 		}
 		return nil
 	})
@@ -498,7 +593,7 @@ func (h *RoomHandler) evictUnready(roomID uint) {
 	h.db.Transaction(func(tx *gorm.DB) error {
 		var room models.Room
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Preload("Agents").First(&room, roomID).Error; err != nil {
+			Preload("GameType").Preload("Agents").First(&room, roomID).Error; err != nil {
 			return err
 		}
 		if room.Status != models.RoomReadyCheck {
@@ -512,11 +607,27 @@ func (h *RoomHandler) evictUnready(roomID uint) {
 				tx.Delete(&ra)
 			}
 		}
+		room.ReadyDeadline = nil
 		if len(remaining) == 0 {
 			room.Status = models.RoomCancelled
+		} else if len(remaining) >= int(room.GameType.MinPlayers) {
+			// Enough players remain — restart ready check
+			deadline := time.Now().Add(h.readyCheckTimeout)
+			room.Status = models.RoomReadyCheck
+			room.ReadyDeadline = &deadline
+			// Reset ready flags for remaining
+			for _, ra := range remaining {
+				ra.Ready = false
+				tx.Save(&ra)
+			}
+			go h.startReadyCheck(roomID, deadline)
 		} else {
 			room.Status = models.RoomWaiting
-			room.ReadyDeadline = nil
+			// Reset ready flags
+			for _, ra := range remaining {
+				ra.Ready = false
+				tx.Save(&ra)
+			}
 		}
 		return tx.Save(&room).Error
 	})
@@ -535,8 +646,16 @@ func (h *RoomHandler) initGame(roomID, gameTypeID uint, playerIDs []uint) error 
 	if err != nil {
 		return err
 	}
+
+	// Fetch current game ID from room
+	var room models.Room
+	if err := h.db.Select("current_game_id").First(&room, roomID).Error; err != nil {
+		return err
+	}
+
 	gs := models.GameState{
 		RoomID:    roomID,
+		GameID:    room.CurrentGameID,
 		Turn:      0,
 		State:     datatypes.JSON(stateRaw),
 		CreatedAt: time.Now(),
@@ -548,8 +667,8 @@ func (h *RoomHandler) agentHasActiveRoom(agentID uint) bool {
 	var count int64
 	h.db.Model(&models.RoomAgent{}).
 		Joins("JOIN rooms ON rooms.id = room_agents.room_id").
-		Where("room_agents.agent_id = ? AND rooms.status IN ?", agentID,
-			[]string{string(models.RoomWaiting), string(models.RoomReadyCheck), string(models.RoomPlaying)}).
+		Where("room_agents.agent_id = ? AND room_agents.status != ? AND rooms.status IN ?", agentID, string(models.RoomAgentKIA),
+			[]string{string(models.RoomWaiting), string(models.RoomReadyCheck), string(models.RoomPlaying), string(models.RoomPostGame)}).
 		Count(&count)
 	return count > 0
 }
@@ -566,6 +685,17 @@ func (h *RoomHandler) loadRoom(w http.ResponseWriter, r *http.Request) (*models.
 		return nil, false
 	}
 	return &room, true
+}
+
+// activeRoomAgents returns agents that are not KIA.
+func activeRoomAgents(agents []models.RoomAgent) []models.RoomAgent {
+	var active []models.RoomAgent
+	for _, ra := range agents {
+		if ra.Status != models.RoomAgentKIA {
+			active = append(active, ra)
+		}
+	}
+	return active
 }
 
 // sentinel errors

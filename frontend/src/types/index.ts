@@ -72,6 +72,18 @@ export interface ClawedWolfPlayer {
   id?: number;
 }
 
+export interface GameListItem {
+  id: number;
+  room_id: number;
+  game_type: { id: number; name: string; description: string; min_players: number; max_players: number };
+  status: string;
+  winner_id?: number;
+  result?: { winner_ids: number[]; winner_team?: string };
+  players: { agent_id: number; name: string; slot: number }[];
+  started_at: string;
+  finished_at?: string;
+}
+
 export interface HistoryTimeline {
   turn: number;
   agent_id?: number;

@@ -183,6 +183,7 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		newTurn = gs.Turn + 1
 		newState := models.GameState{
 			RoomID:    room.ID,
+			GameID:    room.CurrentGameID,
 			Turn:      newTurn,
 			State:     datatypes.JSON(result.NewState),
 			CreatedAt: time.Now(),
@@ -192,6 +193,7 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		}
 		gameAction := models.GameAction{
 			RoomID:    room.ID,
+			GameID:    room.CurrentGameID,
 			AgentID:   agent.ID,
 			Turn:      newTurn,
 			Action:    datatypes.JSON(req.Action),
@@ -202,7 +204,8 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if result.GameOver {
-			room.Status = models.RoomFinished
+			now := time.Now()
+			room.Status = models.RoomPostGame
 			if result.Result != nil && len(result.Result.WinnerIDs) > 0 {
 				room.WinnerID = &result.Result.WinnerIDs[0]
 			}
@@ -211,6 +214,27 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 			if err := tx.Save(&room).Error; err != nil {
 				return err
 			}
+
+			// Update the Game record
+			if room.CurrentGameID != nil {
+				gameUpdates := map[string]any{
+					"status":      string(models.GameFinished),
+					"finished_at": now,
+				}
+				if result.Result != nil {
+					gameResultJSON, _ := json.Marshal(result.Result)
+					gameUpdates["result"] = datatypes.JSON(gameResultJSON)
+					if len(result.Result.WinnerIDs) > 0 {
+						gameUpdates["winner_id"] = result.Result.WinnerIDs[0]
+					}
+				}
+				tx.Model(&models.Game{}).Where("id = ?", *room.CurrentGameID).Updates(gameUpdates)
+			}
+
+			// Reset all agents' ready flags for next game
+			tx.Model(&models.RoomAgent{}).Where("room_id = ?", room.ID).
+				Updates(map[string]any{"ready": false})
+
 			if result.Result != nil {
 				var loserIDs []uint
 				winSet := map[uint]bool{}
@@ -274,11 +298,13 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		"result":    resultDTO,
 		"game_type": gameType,
 	}
+	if actionResult.GameOver {
+		broadcast["status"] = "post_game"
+		broadcast["message"] = "POST /ready to play again or /leave to exit"
+	}
 	h.hub.Broadcast(uint(roomID), mustMarshal(broadcast))
 
-	if actionResult.GameOver {
-		h.hub.CloseRoom(uint(roomID))
-	}
+	// Don't close the room hub on game over — room is reusable in post_game state
 
 	writeJSON(w, http.StatusOK, dto.ActionResponse{
 		Events:   events,
@@ -319,7 +345,7 @@ func (h *GameplayHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		actionByTurn[actions[i].Turn] = &actions[i]
 	}
 
-	isFinished := room.Status == models.RoomFinished
+	isFinished := room.Status == models.RoomFinished || room.Status == models.RoomPostGame || room.Status == models.RoomDead
 
 	timeline := make([]dto.HistoryEntry, len(states))
 	for i, gs := range states {

@@ -18,8 +18,10 @@ func Connect(dsn string) (*gorm.DB, error) {
 		&models.AppConfig{},
 		&models.Agent{},
 		&models.GameType{},
+		&models.Language{},
 		&models.Room{},
 		&models.RoomAgent{},
+		&models.Game{},
 		&models.GameState{},
 		&models.GameAction{},
 	); err != nil {
