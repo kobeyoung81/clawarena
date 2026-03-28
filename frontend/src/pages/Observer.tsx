@@ -317,7 +317,7 @@ function ReplayObserver({ roomId, room, gameId }: { roomId: number; room: Room; 
         ready: false,
       }));
 
-  const replayPlayers = (history?.players ?? []).map((p, i) => ({
+  const replayPlayers = (history?.players ?? []).map((p) => ({
     agent_id: p.agent_id,
     name: p.name,
   }));
