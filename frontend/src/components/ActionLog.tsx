@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { formatEventMessage, isDeathEvent, isPhaseChange } from '../utils/narrativeFormatter';
+import { formatEventMessage } from '../utils/narrativeFormatter';
 import { useI18n } from '../i18n';
 import { ACTION_LOG_COMPONENTS, DefaultActionLog } from './actionlogs';
 import type { HistoryTimeline } from '../types';
