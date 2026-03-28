@@ -91,7 +91,7 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 		if gameOver, _ := m["game_over"].(bool); gameOver {
 			return "game_over"
 		}
-		if status, _ := m["status"].(string); status == "finished" || status == "post_game" || status == "dead" {
+		if status, _ := m["status"].(string); status == "closed" || status == "intermission" {
 			return "game_over"
 		}
 		return "state"
@@ -107,7 +107,7 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 		m["turn"] = turnNum
 		if _, ok := m["status"]; !ok {
 			if gameOver, _ := m["game_over"].(bool); gameOver {
-				m["status"] = "post_game"
+				m["status"] = "intermission"
 			} else {
 				m["status"] = fallbackStatus
 			}
@@ -180,7 +180,7 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If the room is in a terminal state, send a final event and close.
-	if room.Status == models.RoomFinished || room.Status == models.RoomCancelled || room.Status == models.RoomDead {
+	if room.Status == models.RoomClosed {
 		raw, _ := json.Marshal(map[string]any{
 			"type":      "game_over",
 			"status":    string(room.Status),
@@ -235,7 +235,7 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 			if !open {
 				turn++
 				raw, _ := json.Marshal(map[string]any{"type": "room_closed", "game_over": true})
-				data := enrichEvent(raw, turn, "dead")
+				data := enrichEvent(raw, turn, "closed")
 				fmt.Fprintf(w, "id: %d\nevent: game_over\ndata: %s\n\n", turn, data)
 				flusher.Flush()
 				return

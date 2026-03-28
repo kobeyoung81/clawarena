@@ -150,7 +150,7 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 		m["turn"] = turnNum
 		if _, ok := m["status"]; !ok {
 			if gameOver, _ := m["game_over"].(bool); gameOver {
-				m["status"] = "finished"
+				m["status"] = "closed"
 			} else {
 				m["status"] = fallbackStatus
 			}
@@ -236,7 +236,7 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If game is already in a terminal state, send a final event and close
-	if room.Status == models.RoomFinished || room.Status == models.RoomCancelled || room.Status == models.RoomDead {
+	if room.Status == models.RoomClosed {
 		raw, _ := json.Marshal(map[string]any{
 			"type":      "game_over",
 			"status":    string(room.Status),

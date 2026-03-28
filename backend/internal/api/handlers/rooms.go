@@ -46,6 +46,7 @@ func roomResponse(room *models.Room) dto.RoomResponse {
 			Slot:    ra.Slot,
 			Score:   ra.Score,
 			Ready:   ra.Ready,
+			Status:  string(ra.Status),
 		})
 	}
 	return dto.RoomResponse{
@@ -74,6 +75,8 @@ func (h *RoomHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	if st := r.URL.Query().Get("status"); st != "" {
 		query = query.Where("status = ?", st)
+	} else {
+		query = query.Where("status != ?", string(models.RoomClosed))
 	}
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
@@ -197,7 +200,7 @@ func (h *RoomHandler) Join(w http.ResponseWriter, r *http.Request) {
 			First(&room, roomID).Error; err != nil {
 			return errNotFound
 		}
-		if room.Status != models.RoomWaiting && room.Status != models.RoomPostGame {
+		if room.Status != models.RoomWaiting && room.Status != models.RoomIntermission {
 			return errRoomNotOpen
 		}
 		// Count only active (non-KIA) agents
@@ -299,7 +302,7 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 			First(&room, roomID).Error; err != nil {
 			return errNotFound
 		}
-		if room.Status == models.RoomPostGame {
+		if room.Status == models.RoomIntermission {
 			// Transition from post_game → ready_check when first agent readies up
 			deadline := time.Now().Add(h.readyCheckTimeout)
 			room.Status = models.RoomReadyCheck
@@ -455,7 +458,7 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 			return errNotFound
 		}
 
-		if room.Status == models.RoomFinished || room.Status == models.RoomCancelled || room.Status == models.RoomDead {
+		if room.Status == models.RoomClosed {
 			return nil // no-op
 		}
 
@@ -474,14 +477,14 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 		}
 
 		switch room.Status {
-		case models.RoomWaiting, models.RoomPostGame:
+		case models.RoomWaiting, models.RoomIntermission:
 			if err := tx.Delete(mySlot).Error; err != nil {
 				return err
 			}
 			remaining := append(room.Agents[:myIdx], room.Agents[myIdx+1:]...)
 			activeRemaining := activeRoomAgents(remaining)
 			if len(activeRemaining) == 0 {
-				room.Status = models.RoomDead
+				room.Status = models.RoomClosed
 				if err := tx.Save(&room).Error; err != nil {
 					return err
 				}
@@ -502,7 +505,7 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 			remaining := append(room.Agents[:myIdx], room.Agents[myIdx+1:]...)
 			activeRemaining := activeRoomAgents(remaining)
 			if len(activeRemaining) == 0 {
-				room.Status = models.RoomCancelled
+				room.Status = models.RoomClosed
 				if err := tx.Save(&room).Error; err != nil {
 					return err
 				}
@@ -541,7 +544,7 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if len(aliveRemaining) == 0 {
-				room.Status = models.RoomDead
+				room.Status = models.RoomClosed
 				tx.Save(&room)
 				h.hub.CloseRoom(uint(roomID))
 			} else if len(room.Agents) == 2 {
@@ -559,7 +562,7 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 						})
 				}
 
-				room.Status = models.RoomPostGame
+				room.Status = models.RoomIntermission
 				room.WinnerID = &winnerID
 				if err := tx.Save(&room).Error; err != nil {
 					return err
@@ -574,7 +577,7 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 					"type":      "game_over",
 					"winner_id": winnerID,
 					"reason":    "opponent_left",
-					"status":    "post_game",
+					"status":    "intermission",
 					"message":   "POST /ready to play again or /leave to exit",
 				}))
 			}
@@ -638,7 +641,7 @@ func (h *RoomHandler) evictUnready(roomID uint) {
 		}
 		room.ReadyDeadline = nil
 		if len(remaining) == 0 {
-			room.Status = models.RoomCancelled
+			room.Status = models.RoomClosed
 		} else if len(remaining) >= int(room.GameType.MinPlayers) {
 			// Enough players remain — restart ready check
 			deadline := time.Now().Add(h.readyCheckTimeout)
@@ -671,7 +674,27 @@ func (h *RoomHandler) initGame(roomID, gameTypeID uint, playerIDs []uint) error 
 	if !ok {
 		return nil
 	}
-	stateRaw, err := eng.InitState(json.RawMessage(gt.Config), playerIDs)
+
+	// Fetch agent names to pass to the engine
+	var agents []models.Agent
+	h.db.Find(&agents, playerIDs)
+	nameMap := map[string]string{}
+	for _, a := range agents {
+		nameMap[strconv.FormatUint(uint64(a.ID), 10)] = a.Name
+	}
+
+	// Merge player_names into game type config
+	var cfgMap map[string]any
+	if gt.Config != nil {
+		json.Unmarshal(gt.Config, &cfgMap)
+	}
+	if cfgMap == nil {
+		cfgMap = map[string]any{}
+	}
+	cfgMap["player_names"] = nameMap
+	configJSON, _ := json.Marshal(cfgMap)
+
+	stateRaw, err := eng.InitState(json.RawMessage(configJSON), playerIDs)
 	if err != nil {
 		return err
 	}
@@ -697,7 +720,7 @@ func (h *RoomHandler) agentHasActiveRoom(agentID uint) bool {
 	h.db.Model(&models.RoomAgent{}).
 		Joins("JOIN rooms ON rooms.id = room_agents.room_id").
 		Where("room_agents.agent_id = ? AND room_agents.status != ? AND rooms.status IN ?", agentID, string(models.RoomAgentKIA),
-			[]string{string(models.RoomWaiting), string(models.RoomReadyCheck), string(models.RoomPlaying), string(models.RoomPostGame)}).
+			[]string{string(models.RoomWaiting), string(models.RoomReadyCheck), string(models.RoomPlaying), string(models.RoomIntermission)}).
 		Count(&count)
 	return count > 0
 }

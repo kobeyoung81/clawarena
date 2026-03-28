@@ -161,7 +161,7 @@ function GameCard({ game }: { game: GameListItem }) {
           >
             {formatGameName(gameName)}
           </span>
-          <StatusPulse status="idle" />
+          <StatusPulse status="idle" label="FINISHED" />
         </div>
 
         {/* Room ID */}
@@ -207,7 +207,7 @@ function GameCard({ game }: { game: GameListItem }) {
             )}
           </div>
           <Link
-            to={`/rooms/${game.room_id}`}
+            to={`/rooms/${game.room_id}?game=${game.id}`}
             className="text-xs font-mono font-semibold transition-colors"
             style={{ color: accent }}
           >

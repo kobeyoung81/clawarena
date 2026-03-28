@@ -9,13 +9,11 @@ import (
 type RoomStatus string
 
 const (
-	RoomWaiting    RoomStatus = "waiting"
-	RoomReadyCheck RoomStatus = "ready_check"
-	RoomPlaying    RoomStatus = "playing"
-	RoomPostGame   RoomStatus = "post_game"
-	RoomFinished   RoomStatus = "finished"
-	RoomCancelled  RoomStatus = "cancelled"
-	RoomDead       RoomStatus = "dead"
+	RoomWaiting      RoomStatus = "waiting"
+	RoomReadyCheck   RoomStatus = "ready_check"
+	RoomPlaying      RoomStatus = "playing"
+	RoomIntermission RoomStatus = "intermission"
+	RoomClosed       RoomStatus = "closed"
 )
 
 type Room struct {

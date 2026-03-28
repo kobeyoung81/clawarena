@@ -83,11 +83,11 @@ func (h *GameHistoryHandler) ListGames(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fallback: query rooms with matching status for pre-migration data
-	roomStatus := models.RoomFinished
+	roomStatus := models.RoomClosed
 	if status == "playing" {
 		roomStatus = models.RoomPlaying
 	} else if status == "aborted" {
-		roomStatus = models.RoomCancelled
+		roomStatus = models.RoomClosed
 	}
 
 	var roomCount int64

@@ -32,6 +32,7 @@ const (
 type Player struct {
 	ID        uint   `json:"id"`
 	Seat      int    `json:"seat"`
+	Name      string `json:"name"`
 	Role      string `json:"role"`
 	Alive     bool   `json:"alive"`
 	LastWords string `json:"last_words,omitempty"`
@@ -80,15 +81,26 @@ func parseState(raw json.RawMessage) (*State, error) {
 	return &s, nil
 }
 
-func (e *Engine) InitState(_ json.RawMessage, players []uint) (json.RawMessage, error) {
+func (e *Engine) InitState(config json.RawMessage, players []uint) (json.RawMessage, error) {
 	if len(players) != 6 {
 		return nil, errors.New("clawedwolf requires exactly 6 players")
 	}
+
+	// Extract player names from config
+	var cfg struct {
+		PlayerNames map[string]string `json:"player_names"`
+	}
+	json.Unmarshal(config, &cfg)
+
 	roles := []string{RoleClawedWolf, RoleClawedWolf, RoleSeer, RoleGuard, RoleVillager, RoleVillager}
 	perm := rand.Perm(6)
 	ps := make([]Player, 6)
 	for i, pid := range players {
-		ps[i] = Player{ID: pid, Seat: i, Role: roles[perm[i]], Alive: true}
+		name := ""
+		if cfg.PlayerNames != nil {
+			name = cfg.PlayerNames[fmt.Sprintf("%d", pid)]
+		}
+		ps[i] = Player{ID: pid, Seat: i, Name: name, Role: roles[perm[i]], Alive: true}
 	}
 	s := State{
 		Players:      ps,
@@ -357,6 +369,14 @@ func playerBySeat(s *State, seat int) *Player {
 	return nil
 }
 
+func nameOfSeat(s *State, seat int) string {
+	p := playerBySeat(s, seat)
+	if p != nil && p.Name != "" {
+		return p.Name
+	}
+	return fmt.Sprintf("Seat %d", seat)
+}
+
 type actionPayload struct {
 	Type       string  `json:"type"`
 	TargetSeat *int    `json:"target_seat"`
@@ -446,7 +466,7 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 		s.SeerResults[*action.TargetSeat] = alignment
 		newEvents = append(newEvents, game.GameEvent{
 			Type:       "seer_result",
-			Message:    fmt.Sprintf("You investigated seat %d: they are %s.", *action.TargetSeat, alignment),
+			Message:    fmt.Sprintf("%s investigated %s: they are %s.", nameOfSeat(s, actor.Seat), nameOfSeat(s, *action.TargetSeat), alignment),
 			Visibility: fmt.Sprintf("player:%d", playerID),
 		})
 		s.PhaseActions["seer"] = *action.TargetSeat
@@ -481,11 +501,12 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 		}
 		s.DaySpeeches = append(s.DaySpeeches, Speech{
 			Seat:    actor.Seat,
+			Name:    actor.Name,
 			Message: action.Message,
 		})
 		newEvents = append(newEvents, game.GameEvent{
 			Type:       "speech",
-			Message:    fmt.Sprintf("Seat %d: %s", actor.Seat, action.Message),
+			Message:    fmt.Sprintf("%s: %s", nameOfSeat(s, actor.Seat), action.Message),
 			Visibility: "public",
 		})
 		// Check if all alive players have spoken
@@ -641,7 +662,7 @@ func resolveNight(s *State) []game.GameEvent {
 	if saved {
 		events = append(events, game.GameEvent{
 			Type:       "guard_save",
-			Message:    fmt.Sprintf("Someone was attacked but protected! Seat %d survived.", target),
+			Message:    fmt.Sprintf("Someone was attacked but protected! %s survived.", nameOfSeat(s, target)),
 			Visibility: "public",
 		})
 	} else {
@@ -651,7 +672,7 @@ func resolveNight(s *State) []game.GameEvent {
 			s.Eliminated = append(s.Eliminated, target)
 			events = append(events, game.GameEvent{
 				Type:       "death",
-				Message:    fmt.Sprintf("Seat %d was killed during the night. They were a %s.", target, p.Role),
+				Message:    fmt.Sprintf("%s was killed during the night. They were a %s.", nameOfSeat(s, target), p.Role),
 				Visibility: "public",
 			})
 			// Update in slice
@@ -713,7 +734,7 @@ func resolveVote(s *State) []game.GameEvent {
 		s.Eliminated = append(s.Eliminated, eliminated)
 		events = append(events, game.GameEvent{
 			Type:       "vote_result",
-			Message:    fmt.Sprintf("Seat %d was voted out. They were a %s.", eliminated, p.Role),
+			Message:    fmt.Sprintf("%s was voted out. They were a %s.", nameOfSeat(s, eliminated), p.Role),
 			Visibility: "public",
 		})
 	}

@@ -133,7 +133,7 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 
 		if result.GameOver {
 			now := time.Now()
-			room.Status = models.RoomPostGame
+			room.Status = models.RoomIntermission
 			if result.Result != nil && len(result.Result.WinnerIDs) > 0 {
 				room.WinnerID = &result.Result.WinnerIDs[0]
 			}
@@ -310,7 +310,7 @@ func (h *GameplayHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		actionByTurn[actions[i].Turn] = &actions[i]
 	}
 
-	isFinished := room.Status == models.RoomFinished || room.Status == models.RoomPostGame || room.Status == models.RoomDead
+	isFinished := room.Status == models.RoomIntermission || room.Status == models.RoomClosed
 
 	timeline := make([]dto.HistoryEntry, len(states))
 	for i, gs := range states {
@@ -380,6 +380,7 @@ func roomAgentsInfo(agents []models.RoomAgent) []dto.RoomAgentInfo {
 			Slot:    ra.Slot,
 			Score:   ra.Score,
 			Ready:   ra.Ready,
+			Status:  string(ra.Status),
 		}
 	}
 	return result

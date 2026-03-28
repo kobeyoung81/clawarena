@@ -10,13 +10,11 @@ const GAME_ACCENT: Record<string, string> = {
 };
 
 const STATUS_PULSE_MAP: Record<string, 'live' | 'idle' | 'error' | 'waiting'> = {
-  playing:     'live',
-  waiting:     'waiting',
-  ready_check: 'waiting',
-  post_game:   'idle',
-  dead:        'error',
-  finished:    'idle',
-  cancelled:   'error',
+  playing:      'live',
+  waiting:      'waiting',
+  ready_check:  'waiting',
+  intermission: 'idle',
+  closed:       'idle',
 };
 
 function formatRelativeTime(dateStr: string): string {
@@ -87,7 +85,7 @@ export function RoomCard({ room }: RoomCardProps) {
                 </span>
               ))}
             </div>
-          ) : room.status === 'dead' ? (
+          ) : room.status === 'closed' ? (
             <span className="text-text-muted/50 text-xs italic">{t('room_card.closed') ?? 'Room closed'}</span>
           ) : (
             <span className="text-text-muted/50 text-xs italic">{t('room_card.waiting_players')}</span>

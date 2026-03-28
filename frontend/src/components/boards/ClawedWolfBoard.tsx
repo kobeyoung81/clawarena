@@ -13,13 +13,16 @@ export interface BoardProps {
 }
 
 const SEAT_POSITIONS: React.CSSProperties[] = [
-  { top: '5%',  left: '50%', transform: 'translateX(-50%)' },
-  { top: '20%', left: '82%', transform: 'translate(-50%, -50%)' },
-  { top: '65%', left: '90%', transform: 'translate(-50%, -50%)' },
-  { top: '88%', left: '65%', transform: 'translate(-50%, -50%)' },
-  { top: '88%', left: '35%', transform: 'translate(-50%, -50%)' },
-  { top: '65%', left: '10%', transform: 'translate(-50%, -50%)' },
-  { top: '20%', left: '18%', transform: 'translate(-50%, -50%)' },
+  // Top two (symmetric)
+  { top: '8%',  left: '35%', transform: 'translate(-50%, 0)' },
+  { top: '8%',  left: '65%', transform: 'translate(-50%, 0)' },
+  // Right (vertically centered)
+  { top: '45%', left: '88%', transform: 'translate(-50%, -50%)' },
+  // Bottom two (symmetric)
+  { top: '82%', left: '65%', transform: 'translate(-50%, -50%)' },
+  { top: '82%', left: '35%', transform: 'translate(-50%, -50%)' },
+  // Left (vertically centered)
+  { top: '45%', left: '12%', transform: 'translate(-50%, -50%)' },
 ];
 
 interface ClawedWolfState {
@@ -28,6 +31,8 @@ interface ClawedWolfState {
   players?: ClawedWolfPlayer[];
   current_speaker?: number;
   votes?: Record<string, number>;
+  speeches?: Array<{ seat: number; name?: string; message: string }>;
+  day_speeches?: Array<{ seat: number; name?: string; message: string }>;
 }
 
 function getPhaseBackground(phase: string): React.CSSProperties {
@@ -83,11 +88,13 @@ export function ClawedWolfBoard({ state, players: propPlayers, isReplay = false 
       {/* Center phase indicator */}
       <PhaseDisplay phase={phase} round={round} />
 
-      {/* Player seats arranged in ellipse */}
-      {statePlayers.slice(0, 7).map((player, idx) => {
+      {/* Player seats arranged symmetrically */}
+      {statePlayers.slice(0, 6).map((player, idx) => {
         const pos = SEAT_POSITIONS[idx];
         const isSpeaker = currentSpeaker === player.seat;
         const voteCount = votes[String(player.seat)];
+        const speeches = s?.day_speeches ?? s?.speeches ?? [];
+        const lastSpeech = speeches.filter(sp => sp.seat === player.seat).pop();
 
         return (
           <PlayerSeat
@@ -99,6 +106,7 @@ export function ClawedWolfBoard({ state, players: propPlayers, isReplay = false 
             isReplay={isReplay}
             phase={phase}
             style={pos}
+            speech={isSpeaker && lastSpeech ? lastSpeech.message : undefined}
           />
         );
       })}

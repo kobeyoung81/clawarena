@@ -130,7 +130,7 @@ func runRoomTimeouts(db *gorm.DB, hub *handlers.RoomHub, waitTimeout, turnTimeou
 				Scan(&rooms)
 			for _, room := range rooms {
 				db.Table("rooms").Where("id = ? AND status = ?", room.ID, "waiting").
-					Update("status", "cancelled")
+					Update("status", "closed")
 				hub.CloseRoom(room.ID)
 			}
 		}
@@ -185,7 +185,7 @@ func runRoomTimeouts(db *gorm.DB, hub *handlers.RoomHub, waitTimeout, turnTimeou
 										"finished_at": finishedAt,
 									})
 							}
-							room.Status = models.RoomPostGame
+							room.Status = models.RoomIntermission
 							room.WinnerID = &winner.AgentID
 							tx.Save(&room)
 
@@ -201,11 +201,11 @@ func runRoomTimeouts(db *gorm.DB, hub *handlers.RoomHub, waitTimeout, turnTimeou
 								"type":      "game_over",
 								"winner_id": winner.AgentID,
 								"reason":    "opponent_disconnected",
-								"status":    "post_game",
+								"status":    "intermission",
 							}))
 						} else {
 							// No active agents left
-							room.Status = models.RoomDead
+							room.Status = models.RoomClosed
 							tx.Save(&room)
 							hub.CloseRoom(roomID)
 						}
@@ -215,13 +215,13 @@ func runRoomTimeouts(db *gorm.DB, hub *handlers.RoomHub, waitTimeout, turnTimeou
 			}
 		}
 
-		// 3. Handle disconnected agents during waiting/post_game — auto-leave after tolerance
+		// 3. Handle disconnected agents during waiting/intermission — auto-leave after tolerance
 		{
 			cutoff := now.Add(-reconnectToleranceIdle)
 			var disconnected []models.RoomAgent
 			db.Joins("JOIN rooms ON rooms.id = room_agents.room_id").
 				Where("room_agents.status = ? AND room_agents.disconnected_at IS NOT NULL AND room_agents.disconnected_at < ? AND rooms.status IN ?",
-					string(models.RoomAgentDisconnected), cutoff, []string{string(models.RoomWaiting), string(models.RoomPostGame), string(models.RoomReadyCheck)}).
+					string(models.RoomAgentDisconnected), cutoff, []string{string(models.RoomWaiting), string(models.RoomIntermission), string(models.RoomReadyCheck)}).
 				Find(&disconnected)
 
 			for _, ra := range disconnected {
@@ -231,7 +231,7 @@ func runRoomTimeouts(db *gorm.DB, hub *handlers.RoomHub, waitTimeout, turnTimeou
 					var remaining int64
 					tx.Model(&models.RoomAgent{}).Where("room_id = ? AND status != ?", ra.RoomID, string(models.RoomAgentKIA)).Count(&remaining)
 					if remaining == 0 {
-						tx.Model(&models.Room{}).Where("id = ?", ra.RoomID).Update("status", string(models.RoomDead))
+						tx.Model(&models.Room{}).Where("id = ?", ra.RoomID).Update("status", string(models.RoomClosed))
 						hub.CloseRoom(ra.RoomID)
 					}
 					return nil
@@ -239,11 +239,11 @@ func runRoomTimeouts(db *gorm.DB, hub *handlers.RoomHub, waitTimeout, turnTimeou
 			}
 		}
 
-		// 4. Post-game cleanup: rooms in post_game too long with all agents disconnected → dead
+		// 4. Intermission cleanup: rooms in intermission too long with all agents disconnected → closed
 		{
 			cutoff := now.Add(-postGameTimeout)
 			var rooms []models.Room
-			db.Where("status = ? AND updated_at < ?", string(models.RoomPostGame), cutoff).Find(&rooms)
+			db.Where("status = ? AND updated_at < ?", string(models.RoomIntermission), cutoff).Find(&rooms)
 
 			for _, room := range rooms {
 				var activeCount int64
@@ -251,7 +251,7 @@ func runRoomTimeouts(db *gorm.DB, hub *handlers.RoomHub, waitTimeout, turnTimeou
 					Where("room_id = ? AND status = ?", room.ID, string(models.RoomAgentActive)).
 					Count(&activeCount)
 				if activeCount == 0 {
-					db.Model(&models.Room{}).Where("id = ?", room.ID).Update("status", string(models.RoomDead))
+					db.Model(&models.Room{}).Where("id = ?", room.ID).Update("status", string(models.RoomClosed))
 					hub.CloseRoom(room.ID)
 				}
 			}

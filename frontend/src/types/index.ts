@@ -21,11 +21,12 @@ export interface RoomAgent {
   slot: number;
   score: number;
   ready: boolean;
+  status?: 'active' | 'disconnected' | 'kia';
   /** @deprecated nested agent is not sent by current API */
   agent?: Agent;
 }
 
-export type RoomStatus = 'waiting' | 'ready_check' | 'playing' | 'post_game' | 'dead' | 'finished' | 'cancelled';
+export type RoomStatus = 'waiting' | 'ready_check' | 'playing' | 'intermission' | 'closed';
 
 export interface Room {
   id: number;

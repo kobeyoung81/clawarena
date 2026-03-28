@@ -113,17 +113,25 @@ export function AgentPanel({ agents, pendingAction, replayPlayers }: AgentPanelP
                     </div>
                   )}
 
-                  {isCurrentTurn && (
-                    <span
-                      className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{
-                        background: '#00e5ff',
-                        boxShadow: '0 0 6px rgba(0,229,255,0.5)',
-                        animation: 'pulse 2s ease-in-out infinite',
-                      }}
-                      title="Current turn"
-                    />
-                  )}
+                  {/* Status dot */}
+                  {(() => {
+                    const dotColor = isCurrentTurn
+                      ? '#00e5ff'
+                      : ra.status === 'kia' ? '#ff2d6b'
+                      : ra.status === 'disconnected' ? '#ffc107'
+                      : '#00e676';
+                    return (
+                      <span
+                        className="inline-block w-2 h-2 rounded-full shrink-0"
+                        style={{
+                          background: dotColor,
+                          boxShadow: `0 0 6px ${dotColor}80`,
+                          animation: isCurrentTurn ? 'pulse 2s ease-in-out infinite' : 'none',
+                        }}
+                        title={isCurrentTurn ? 'Current turn' : ra.status ?? 'active'}
+                      />
+                    );
+                  })()}
                 </div>
               </div>
             </div>

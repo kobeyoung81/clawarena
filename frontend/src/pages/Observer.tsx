@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getRoom } from '../api/client';
+import { getRoom, getRoomHistory } from '../api/client';
 import { useSSE } from '../hooks/useSSE';
 import { useReplay } from '../hooks/useReplay';
 import { AgentPanel } from '../components/AgentPanel';
@@ -13,7 +13,7 @@ import { StatusPulse } from '../components/effects/StatusPulse';
 import { TicTacToeBoard } from '../components/boards/TicTacToeBoard';
 import { ClawedWolfBoard } from '../components/boards/ClawedWolfBoard';
 import { useI18n } from '../i18n';
-import type { Room, GameStateResponse, ClawedWolfPlayer } from '../types';
+import type { Room, GameStateResponse, ClawedWolfPlayer, HistoryTimeline } from '../types';
 import type { BoardProps } from '../components/boards/TicTacToeBoard';
 
 const BOARD_COMPONENTS: Record<string, React.FC<BoardProps>> = {
@@ -26,11 +26,11 @@ function formatGameName(name: string): string {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  waiting:     'rgba(255,255,255,0.3)',
-  ready_check: '#ffc107',
-  playing:     '#00e676',
-  finished:    '#00e5ff',
-  cancelled:   '#ff2d6b',
+  waiting:      'rgba(255,255,255,0.3)',
+  ready_check:  '#ffc107',
+  playing:      '#00e676',
+  intermission: '#ffc107',
+  closed:       'rgba(255,255,255,0.2)',
 };
 
 // ─── Room header banner ──────────────────────────────────────────────────────
@@ -143,6 +143,55 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
   // Derive game state from SSE events (initial + subsequent)
   const [gameState, setGameState] = useState<GameStateResponse | null>(null);
   const [liveEvents, setLiveEvents] = useState<string[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  // Load existing game history on mount for full action log
+  const gameName = room.game_type?.name ?? '';
+  const BoardComponent = BOARD_COMPONENTS[gameName];
+  const { data: historyData } = useQuery({
+    queryKey: ['roomHistoryLive', roomId],
+    queryFn: () => getRoomHistory(roomId),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (historyData?.timeline && !historyLoaded) {
+      const timeline = historyData.timeline as HistoryTimeline[];
+      let historicalEvents: string[] = [];
+
+      if (gameName === 'tic_tac_toe') {
+        // TTT doesn't emit mid-game events, so generate synthetic move descriptions
+        const MARKERS = ['X', 'O'];
+        const POS_NAMES = ['top-left', 'top-center', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-center', 'bottom-right'];
+        let moveIdx = 0;
+        for (const entry of timeline) {
+          // Add real events
+          if (entry.events?.length) {
+            historicalEvents.push(...entry.events.map(e => e.message));
+          }
+          // Generate synthetic move events from actions
+          const action = entry.action as Record<string, unknown> | undefined;
+          if (action && typeof action.position === 'number') {
+            const marker = MARKERS[moveIdx % 2];
+            const posName = POS_NAMES[action.position] ?? `pos ${action.position}`;
+            historicalEvents.push(`${marker} plays ${posName} (pos ${action.position})`);
+            moveIdx++;
+          }
+        }
+      } else {
+        // For other games, extract event messages from timeline
+        historicalEvents = timeline.flatMap(
+          (entry: HistoryTimeline) => entry.events?.map(e => e.message) ?? []
+        );
+      }
+
+      if (historicalEvents.length > 0) {
+        setLiveEvents(historicalEvents);
+      }
+      setHistoryLoaded(true);
+    }
+  }, [historyData, historyLoaded, gameName]);
 
   useEffect(() => {
     if (latestEvent) {
@@ -174,8 +223,6 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
     }
   }, [latestEvent, roomId, room.status, room.agents]);
 
-  const gameName = room.game_type?.name ?? '';
-  const BoardComponent = BOARD_COMPONENTS[gameName];
   const phase = (gameState?.state as { phase?: string })?.phase ?? gameState?.phase ?? '';
 
   return (
@@ -238,9 +285,9 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
 
 // ─── Replay observer ─────────────────────────────────────────────────────────
 
-function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
+function ReplayObserver({ roomId, room, gameId }: { roomId: number; room: Room; gameId?: number }) {
   const { t } = useI18n();
-  const { history, step, total, isPlaying, speed, setSpeed, isLoading, goNext, goPrev, goTo, togglePlay } = useReplay(roomId);
+  const { history, step, total, isPlaying, speed, setSpeed, isLoading, goNext, goPrev, goTo, togglePlay } = useReplay(roomId, gameId);
   const gameName = room.game_type?.name ?? '';
   const BoardComponent = BOARD_COMPONENTS[gameName];
   const currentEntry = history?.timeline[step];
@@ -336,7 +383,9 @@ function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
 export function Observer() {
   const { t } = useI18n();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const roomId = Number(id);
+  const gameId = searchParams.get('game') ? Number(searchParams.get('game')) : undefined;
 
   const { data: room, isLoading, error } = useQuery<Room>({
     queryKey: ['room', roomId],
@@ -365,12 +414,12 @@ export function Observer() {
     );
   }
 
-  const isReplayMode = room.status === 'finished' || room.status === 'cancelled';
+  const isReplayMode = room.status === 'intermission' || room.status === 'closed';
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
       {isReplayMode ? (
-        <ReplayObserver roomId={roomId} room={room} />
+        <ReplayObserver roomId={roomId} room={room} gameId={gameId} />
       ) : (
         <LiveObserver roomId={roomId} room={room} />
       )}

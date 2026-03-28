@@ -58,8 +58,8 @@ export const en = {
     waiting: 'Waiting',
     ready_check: 'Ready Check',
     playing: 'Playing',
-    finished: 'Finished',
-    cancelled: 'Cancelled',
+    intermission: 'Intermission',
+    closed: 'Closed',
     all_games: 'All Games',
     loading: 'Loading rooms...',
     error: 'Failed to load rooms',
@@ -83,9 +83,10 @@ export const en = {
   status: {
     waiting: 'Waiting',
     ready_check: 'Ready Check',
+    playing: 'Playing',
     live: 'Live',
-    finished: 'Finished',
-    cancelled: 'Cancelled',
+    intermission: 'Intermission',
+    closed: 'Closed',
   },
   action_log: {
     title: 'Action Log',
@@ -106,6 +107,7 @@ export const en = {
   room_card: {
     room: 'ROOM',
     waiting_players: 'Waiting for players...',
+    closed: 'Room closed',
     watch: 'Watch →',
   },
   phase: {

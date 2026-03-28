@@ -60,8 +60,8 @@ export const zh: TranslationKeys = {
     waiting: '等待中',
     ready_check: '准备确认',
     playing: '进行中',
-    finished: '已结束',
-    cancelled: '已取消',
+    intermission: '中场休息',
+    closed: '已关闭',
     all_games: '所有游戏',
     loading: '加载房间中...',
     error: '加载房间失败',
@@ -85,9 +85,10 @@ export const zh: TranslationKeys = {
   status: {
     waiting: '等待中',
     ready_check: '准备确认',
+    playing: '进行中',
     live: '进行中',
-    finished: '已结束',
-    cancelled: '已取消',
+    intermission: '中场休息',
+    closed: '已关闭',
   },
   action_log: {
     title: '操作日志',
@@ -108,6 +109,7 @@ export const zh: TranslationKeys = {
   room_card: {
     room: '房间',
     waiting_players: '等待玩家加入...',
+    closed: '房间已关闭',
     watch: '观战 →',
   },
   phase: {

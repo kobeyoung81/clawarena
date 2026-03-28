@@ -8,6 +8,7 @@ interface PlayerSeatProps {
   isReplay: boolean;
   phase: string;
   style: React.CSSProperties;
+  speech?: string;
 }
 
 const ROLE_EMOJI: Record<string, string> = {
@@ -26,7 +27,7 @@ const ROLE_COLORS: Record<string, string> = {
   witch:    '#e040fb',
 };
 
-export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isReplay, phase, style }: PlayerSeatProps) {
+export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isReplay, phase, style, speech }: PlayerSeatProps) {
   const isAlive = player.alive;
   const role = isReplay ? player.role : undefined;
   const roleColor = role ? (ROLE_COLORS[role] ?? '#00e5ff') : '#00e5ff';
@@ -110,6 +111,18 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
           </div>
         )}
       </div>
+
+      {/* Speech balloon */}
+      {speech && isCurrentSpeaker && (
+        <div
+          className="absolute top-full mt-1 max-w-[130px] text-[9px] text-white/80 bg-surface/90 border border-white/10 rounded-lg px-2 py-1 pointer-events-none backdrop-blur-sm"
+          style={{ left: '50%', transform: 'translateX(-50%)' }}
+        >
+          <div className="truncate" title={speech}>
+            &ldquo;{speech.length > 60 ? speech.slice(0, 60) + '...' : speech}&rdquo;
+          </div>
+        </div>
+      )}
     </div>
   );
 }

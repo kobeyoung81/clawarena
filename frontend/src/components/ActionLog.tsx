@@ -39,7 +39,7 @@ export function ActionLog({ timeline, liveEvents, currentStep, isReplay, gameTyp
             return (
               <div
                 key={idx}
-                className="text-xs rounded px-2 py-1.5 animate-slide-in"
+                className="text-sm rounded px-2 py-1.5 animate-slide-in"
                 style={{
                   background: isCurrent ? 'rgba(0,229,255,0.08)' : 'transparent',
                   borderLeft: isCurrent ? '2px solid rgba(0,229,255,0.6)' : '2px solid transparent',
@@ -54,7 +54,7 @@ export function ActionLog({ timeline, liveEvents, currentStep, isReplay, gameTyp
           liveEvents.map((ev, idx) => (
             <div
               key={idx}
-              className="text-xs text-text-muted/70 px-2 py-0.5 animate-slide-in"
+              className="text-sm text-text-muted/70 px-2 py-0.5 animate-slide-in"
             >
               {formatEventMessage(ev)}
             </div>

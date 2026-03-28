@@ -19,8 +19,7 @@ export function Rooms() {
     { value: 'waiting', label: t('rooms.waiting') },
     { value: 'ready_check', label: t('rooms.ready_check') },
     { value: 'playing', label: t('rooms.playing') },
-    { value: 'post_game', label: t('rooms.post_game') ?? 'Post Game' },
-    { value: 'dead', label: t('rooms.dead') ?? 'Dead' },
+    { value: 'intermission', label: t('rooms.intermission') },
   ];
 
   const params: Record<string, string> = {};

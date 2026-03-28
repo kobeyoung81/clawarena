@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getRoomHistory } from '../api/client';
+import { getRoomHistory, getGameHistory } from '../api/client';
 import type { HistoryResponse } from '../types';
 
-export function useReplay(roomId: number) {
+export function useReplay(roomId: number, gameId?: number) {
   const [step, setStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const playTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: history, isLoading, error } = useQuery<HistoryResponse>({
-    queryKey: ['roomHistory', roomId],
-    queryFn: () => getRoomHistory(roomId),
+    queryKey: ['roomHistory', roomId, gameId],
+    queryFn: () => gameId ? getGameHistory(gameId) : getRoomHistory(roomId),
   });
 
   const total = history?.timeline.length ?? 0;

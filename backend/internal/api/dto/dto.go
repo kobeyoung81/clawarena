@@ -30,6 +30,7 @@ type RoomAgentInfo struct {
 	Score   int    `json:"score"`
 	Ready   bool   `json:"ready"`
 	AgentID uint   `json:"agent_id"`
+	Status  string `json:"status"`
 }
 
 type GameTypeInfo struct {
