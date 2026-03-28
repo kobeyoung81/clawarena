@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getRoom } from '../api/client';
@@ -140,9 +140,26 @@ function ResultBanner({ winner_team }: { winner_team?: string }) {
 function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
   const { t } = useI18n();
   const { latestEvent, isConnected } = useSSE(roomId);
-  const { data: polledState } = useGameState(roomId);
+  const { data: polledState, refetch } = useGameState(roomId);
 
-  const gameState: GameStateResponse | null = (latestEvent as GameStateResponse | null) ?? polledState ?? null;
+  // Accumulate live events from SSE messages
+  const [liveEvents, setLiveEvents] = useState<string[]>([]);
+  useEffect(() => {
+    if (latestEvent) {
+      refetch();
+      const events = (latestEvent as Record<string, unknown>)?.events;
+      if (Array.isArray(events)) {
+        setLiveEvents(prev => [
+          ...prev,
+          ...events.map((e: unknown) =>
+            typeof e === 'string' ? e : (e as Record<string, unknown>)?.message as string ?? JSON.stringify(e)
+          ),
+        ]);
+      }
+    }
+  }, [latestEvent, refetch]);
+
+  const gameState: GameStateResponse | null = polledState ?? null;
   const gameName = room.game_type?.name ?? '';
   const BoardComponent = BOARD_COMPONENTS[gameName];
   const phase = (gameState?.state as { phase?: string })?.phase ?? gameState?.phase ?? '';
@@ -195,8 +212,9 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
             pendingAction={gameState?.pending_action ?? null}
           />
           <ActionLog
-            liveEvents={gameState?.events ?? []}
+            liveEvents={liveEvents.length > 0 ? liveEvents : gameState?.events ?? []}
             isReplay={false}
+            gameType={gameName}
           />
         </div>
       </div>
@@ -279,6 +297,7 @@ function ReplayObserver({ roomId, room }: { roomId: number; room: Room }) {
             timeline={history.timeline.slice(0, step + 1)}
             currentStep={step}
             isReplay={true}
+            gameType={gameName}
           />
         </div>
       </div>

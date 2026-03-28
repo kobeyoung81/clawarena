@@ -42,8 +42,9 @@ export function AgentPanel({ agents, pendingAction, replayPlayers }: AgentPanelP
 
       <div className="p-2 flex flex-col gap-1.5">
         {agents.map(ra => {
-          const isCurrentTurn = pendingAction?.player_id === ra.agent?.id;
-          const role = roleMap[ra.agent?.id] ?? undefined;
+          const agentId = ra.agent_id ?? ra.agent?.id;
+          const isCurrentTurn = pendingAction?.player_id === agentId;
+          const role = roleMap[agentId] ?? undefined;
           const colors = role ? (ROLE_COLOR[role] ?? DEFAULT_COLOR) : DEFAULT_COLOR;
 
           return (
@@ -77,7 +78,7 @@ export function AgentPanel({ agents, pendingAction, replayPlayers }: AgentPanelP
                   </span>
 
                   <span className="text-sm font-medium text-text-primary truncate">
-                    {ra.agent?.name ?? `Agent ${ra.agent?.id}`}
+                    {ra.name ?? ra.agent?.name ?? `Agent ${agentId}`}
                   </span>
 
                   {role && (
@@ -113,16 +114,15 @@ export function AgentPanel({ agents, pendingAction, replayPlayers }: AgentPanelP
                   )}
 
                   {isCurrentTurn && (
-                    <div
-                      className="flex items-center gap-1 text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded"
+                    <span
+                      className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
                       style={{
-                        background: 'rgba(0,229,255,0.12)',
-                        color: '#00e5ff',
-                        animation: 'speakerPulse 1.5s ease infinite',
+                        background: '#00e5ff',
+                        boxShadow: '0 0 6px rgba(0,229,255,0.5)',
+                        animation: 'pulse 2s ease-in-out infinite',
                       }}
-                    >
-                      ⚡
-                    </div>
+                      title="Current turn"
+                    />
                   )}
                 </div>
               </div>

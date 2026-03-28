@@ -16,10 +16,13 @@ export interface GameType {
 
 export interface RoomAgent {
   id: number;
-  agent: Agent;
+  name: string;
+  agent_id: number;
   slot: number;
   score: number;
   ready: boolean;
+  /** @deprecated nested agent is not sent by current API */
+  agent?: Agent;
 }
 
 export type RoomStatus = 'waiting' | 'ready_check' | 'playing' | 'finished' | 'cancelled';
