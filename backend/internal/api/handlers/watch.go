@@ -165,7 +165,11 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 	// Send initial full state immediately on connect
 	{
 		var gs models.GameState
-		if h.db.Where("room_id = ?", roomID).Order("turn DESC").First(&gs).Error == nil {
+		q := h.db.Where("room_id = ?", roomID)
+		if room.CurrentGameID != nil {
+			q = q.Where("game_id = ?", *room.CurrentGameID)
+		}
+		if q.Order("turn DESC").First(&gs).Error == nil {
 			stateView, pendingAction, currentAgentID, phase := buildSpectatorSnapshot(json.RawMessage(gs.State))
 			initEvent := map[string]any{
 				"turn":             gs.Turn,
@@ -191,16 +195,22 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 		if lastTurn, err := strconv.ParseUint(lastEventID, 10, 64); err == nil {
 			// Load game states for replayed turns to build full snapshots
 			var states []models.GameState
-			h.db.Where("room_id = ? AND turn > ?", roomID, lastTurn).
-				Order("turn ASC").Find(&states)
+			qStates := h.db.Where("room_id = ? AND turn > ?", roomID, lastTurn)
+			if room.CurrentGameID != nil {
+				qStates = qStates.Where("game_id = ?", *room.CurrentGameID)
+			}
+			qStates.Order("turn ASC").Find(&states)
 			stateByTurn := map[uint]models.GameState{}
 			for _, gs := range states {
 				stateByTurn[gs.Turn] = gs
 			}
 
 			var actions []models.GameAction
-			h.db.Preload("Agent").Where("room_id = ? AND turn > ?", roomID, lastTurn).
-				Order("turn ASC").Find(&actions)
+			qActions := h.db.Preload("Agent").Where("room_id = ? AND turn > ?", roomID, lastTurn)
+			if room.CurrentGameID != nil {
+				qActions = qActions.Where("game_id = ?", *room.CurrentGameID)
+			}
+			qActions.Order("turn ASC").Find(&actions)
 			for _, act := range actions {
 				replayData := map[string]any{
 					"turn":     act.Turn,

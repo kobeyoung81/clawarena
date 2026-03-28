@@ -73,7 +73,11 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var gs models.GameState
-		if err := tx.Where("room_id = ?", roomID).Order("turn DESC").First(&gs).Error; err != nil {
+		q := tx.Where("room_id = ?", roomID)
+		if room.CurrentGameID != nil {
+			q = q.Where("game_id = ?", *room.CurrentGameID)
+		}
+		if err := q.Order("turn DESC").First(&gs).Error; err != nil {
 			return err
 		}
 

@@ -163,8 +163,11 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 	if lastEventID != "" {
 		if lastTurn, err := strconv.ParseUint(lastEventID, 10, 64); err == nil {
 			var states []models.GameState
-			h.db.Where("room_id = ? AND turn > ?", roomID, lastTurn).
-				Order("turn ASC").Find(&states)
+			q := h.db.Where("room_id = ? AND turn > ?", roomID, lastTurn)
+			if room.CurrentGameID != nil {
+				q = q.Where("game_id = ?", *room.CurrentGameID)
+			}
+			q.Order("turn ASC").Find(&states)
 			for _, gs := range states {
 				if engOK {
 					data := buildPlayerEvent(&gs, eng, string(room.Status))
@@ -193,7 +196,11 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 	// Send initial state event immediately.
 	if engOK {
 		var gs models.GameState
-		if err := h.db.Where("room_id = ?", roomID).Order("turn DESC").First(&gs).Error; err == nil {
+		q := h.db.Where("room_id = ?", roomID)
+		if room.CurrentGameID != nil {
+			q = q.Where("game_id = ?", *room.CurrentGameID)
+		}
+		if err := q.Order("turn DESC").First(&gs).Error; err == nil {
 			data := buildPlayerEvent(&gs, eng, string(room.Status))
 			data = enrichEvent(data, gs.Turn, string(room.Status))
 			fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", gs.Turn, sseEventType(data), data)
@@ -238,7 +245,11 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 			// Re-query the latest state and build a player-specific view.
 			if engOK {
 				var gs models.GameState
-				if err := h.db.Where("room_id = ?", roomID).Order("turn DESC").First(&gs).Error; err == nil {
+				q := h.db.Where("room_id = ?", roomID)
+				if room.CurrentGameID != nil {
+					q = q.Where("game_id = ?", *room.CurrentGameID)
+				}
+				if err := q.Order("turn DESC").First(&gs).Error; err == nil {
 					// Reload room to get fresh status.
 					var freshRoom models.Room
 					if err := h.db.Preload("Agents.Agent").First(&freshRoom, roomID).Error; err == nil {
