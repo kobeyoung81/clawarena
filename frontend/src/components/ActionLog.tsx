@@ -1,18 +1,17 @@
 import { useEffect, useRef } from 'react';
-import { formatEventMessage } from '../utils/narrativeFormatter';
 import { useI18n } from '../i18n';
 import { ACTION_LOG_COMPONENTS, DefaultActionLog } from './actionlogs';
 import type { HistoryTimeline } from '../types';
 
 interface ActionLogProps {
   timeline?: HistoryTimeline[];
-  liveEvents?: string[];
   currentStep?: number;
   isReplay?: boolean;
   gameType?: string;
+  players?: Array<{ agent_id: number; name: string }>;
 }
 
-export function ActionLog({ timeline, liveEvents, currentStep, isReplay, gameType }: ActionLogProps) {
+export function ActionLog({ timeline, currentStep, isReplay, gameType, players }: ActionLogProps) {
   const { t } = useI18n();
   const bottomRef = useRef<HTMLDivElement>(null);
   const EntryRenderer = gameType ? (ACTION_LOG_COMPONENTS[gameType] ?? DefaultActionLog) : DefaultActionLog;
@@ -21,7 +20,7 @@ export function ActionLog({ timeline, liveEvents, currentStep, isReplay, gameTyp
     if (!isReplay) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [timeline, liveEvents, isReplay]);
+  }, [timeline, isReplay]);
 
   return (
     <div className="glass rounded-xl border-white/8 flex flex-col h-64 overflow-hidden">
@@ -46,19 +45,10 @@ export function ActionLog({ timeline, liveEvents, currentStep, isReplay, gameTyp
                 }}
               >
                 <span className="text-text-muted/50 font-mono mr-2">T{entry.turn}</span>
-                <EntryRenderer entry={entry} />
+                <EntryRenderer entry={entry} players={players} />
               </div>
             );
           })
-        ) : liveEvents && liveEvents.length > 0 ? (
-          liveEvents.map((ev, idx) => (
-            <div
-              key={idx}
-              className="text-sm text-text-muted/70 px-2 py-0.5 animate-slide-in"
-            >
-              {formatEventMessage(ev)}
-            </div>
-          ))
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <span className="text-text-muted/30 text-xs font-mono italic">{t('action_log.empty')}</span>

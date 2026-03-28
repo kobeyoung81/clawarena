@@ -1,7 +1,21 @@
+import React from 'react';
 import { formatAction, formatEventMessage, isDeathEvent, isPhaseChange } from '../../utils/narrativeFormatter';
 import type { ActionLogEntryProps } from './types';
 
-export function ClawedWolfActionLog({ entry }: ActionLogEntryProps) {
+function boldAgentNames(message: string, players?: Array<{ name: string }>): React.ReactNode {
+  if (!players?.length) return message;
+  const names = players.map(p => p.name).filter(Boolean);
+  if (names.length === 0) return message;
+  const regex = new RegExp(`\\b(${names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'g');
+  const parts = message.split(regex);
+  return parts.map((part, i) =>
+    names.includes(part)
+      ? <strong key={i} className="text-text-primary">{part}</strong>
+      : part
+  );
+}
+
+export function ClawedWolfActionLog({ entry, players }: ActionLogEntryProps) {
   const { events, action } = entry;
 
   return (
@@ -19,7 +33,7 @@ export function ClawedWolfActionLog({ entry }: ActionLogEntryProps) {
               fontWeight: isDeath || isPhase ? 600 : 400,
             }}
           >
-            {msg}
+            {boldAgentNames(msg, players)}
           </span>
         );
       })}

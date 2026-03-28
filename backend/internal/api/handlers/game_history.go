@@ -167,7 +167,6 @@ func (h *GameHistoryHandler) GetGameHistory(w http.ResponseWriter, r *http.Reque
 	}
 
 	eng, hasEngine := game.Registry[g.GameType.Name]
-	isFinished := g.Status == models.GameFinished
 
 	actionByTurn := map[uint]*models.GameAction{}
 	for i := range actions {
@@ -178,11 +177,7 @@ func (h *GameHistoryHandler) GetGameHistory(w http.ResponseWriter, r *http.Reque
 	for i, gs := range states {
 		var stateView json.RawMessage
 		if hasEngine {
-			if isFinished {
-				stateView, _ = eng.GetGodView(json.RawMessage(gs.State))
-			} else {
-				stateView, _ = eng.GetSpectatorView(json.RawMessage(gs.State))
-			}
+			stateView, _ = eng.GetSpectatorView(json.RawMessage(gs.State))
 		} else {
 			stateView = json.RawMessage(gs.State)
 		}
@@ -195,7 +190,10 @@ func (h *GameHistoryHandler) GetGameHistory(w http.ResponseWriter, r *http.Reque
 		}
 		if act, ok := actionByTurn[gs.Turn]; ok {
 			entry.AgentID = &act.AgentID
-			entry.Action = json.RawMessage(act.Action)
+			// Filter out private actions (CW night phases) for spectator consistency
+			if !isPrivateAction(act.Action) {
+				entry.Action = json.RawMessage(act.Action)
+			}
 		}
 		timeline[i] = entry
 	}

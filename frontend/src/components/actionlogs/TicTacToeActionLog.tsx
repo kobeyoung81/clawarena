@@ -31,11 +31,12 @@ function MiniGrid({ position, marker }: { position: number; marker: string }) {
   );
 }
 
-export function TicTacToeActionLog({ entry }: ActionLogEntryProps) {
+export function TicTacToeActionLog({ entry, players }: ActionLogEntryProps) {
   const { turn, action, events } = entry;
 
   // Determine marker from turn (turn 0 = X, turn 1 = O, …)
   const marker = MARKERS[turn % 2] ?? 'X';
+  const agentName = players?.[turn % 2]?.name;
 
   return (
     <>
@@ -59,23 +60,25 @@ export function TicTacToeActionLog({ entry }: ActionLogEntryProps) {
       })}
 
       {/* Action */}
-      {action && renderAction(action, marker)}
+      {action && renderAction(action, marker, agentName)}
     </>
   );
 }
 
-function renderAction(action: Record<string, unknown>, marker: string) {
+function renderAction(action: Record<string, unknown>, marker: string, agentName?: string) {
   const pos = typeof action.position === 'number'
     ? action.position
     : typeof action.pos === 'number'
       ? action.pos
       : null;
 
+  const label = agentName ? `${agentName} (${marker})` : marker;
+
   if (pos !== null && pos >= 0 && pos <= 8) {
     const name = POSITION_NAMES[pos];
     return (
       <div className="text-[10px] text-accent-cyan/60 mt-0.5 font-mono flex items-center gap-1">
-        <strong className="text-text-primary/80">{marker}</strong>
+        <strong className="text-text-primary/80">{label}</strong>
         {' plays '}
         <strong className="text-text-primary/70">{name}</strong>
         <span className="text-text-muted/40"> (pos {pos})</span>

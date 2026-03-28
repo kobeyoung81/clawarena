@@ -34,3 +34,19 @@ func requireAgent(w http.ResponseWriter, r *http.Request, db *gorm.DB) (*models.
 	}
 	return agent, true
 }
+
+// isPrivateAction checks whether an action JSON is a private CW night-phase action
+// (kill_vote, investigate, protect) that should be hidden from spectators.
+func isPrivateAction(actionJSON []byte) bool {
+	var payload struct {
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(actionJSON, &payload) != nil {
+		return false
+	}
+	switch payload.Type {
+	case "kill_vote", "investigate", "protect":
+		return true
+	}
+	return false
+}

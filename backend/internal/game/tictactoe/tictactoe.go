@@ -141,6 +141,15 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 
 	var events []game.GameEvent
 
+	// Emit a move event for every action so SSE observers see live logs
+	posNames := []string{"top-left", "top-center", "top-right", "mid-left", "center", "mid-right", "bottom-left", "bottom-center", "bottom-right"}
+	posName := posNames[action.Position]
+	events = append(events, game.GameEvent{
+		Type:       "move",
+		Message:    fmt.Sprintf("%s plays %s (pos %d)", mark, posName, action.Position),
+		Visibility: "public",
+	})
+
 	// Check win
 	if winner := checkWin(s.Board, mark); winner {
 		s.Winner = &playerID

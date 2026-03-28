@@ -142,7 +142,7 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
 
   // Derive game state from SSE events (initial + subsequent)
   const [gameState, setGameState] = useState<GameStateResponse | null>(null);
-  const [liveEvents, setLiveEvents] = useState<string[]>([]);
+  const [liveTimeline, setLiveTimeline] = useState<HistoryTimeline[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
   // Load existing game history on mount for full action log
@@ -155,43 +155,16 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
     refetchOnWindowFocus: false,
   });
 
+  // Bootstrap: load historical timeline entries directly
   useEffect(() => {
     if (historyData?.timeline && !historyLoaded) {
       const timeline = historyData.timeline as HistoryTimeline[];
-      let historicalEvents: string[] = [];
-
-      if (gameName === 'tic_tac_toe') {
-        // TTT doesn't emit mid-game events, so generate synthetic move descriptions
-        const MARKERS = ['X', 'O'];
-        const POS_NAMES = ['top-left', 'top-center', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-center', 'bottom-right'];
-        let moveIdx = 0;
-        for (const entry of timeline) {
-          // Add real events
-          if (entry.events?.length) {
-            historicalEvents.push(...entry.events.map(e => e.message));
-          }
-          // Generate synthetic move events from actions
-          const action = entry.action as Record<string, unknown> | undefined;
-          if (action && typeof action.position === 'number') {
-            const marker = MARKERS[moveIdx % 2];
-            const posName = POS_NAMES[action.position] ?? `pos ${action.position}`;
-            historicalEvents.push(`${marker} plays ${posName} (pos ${action.position})`);
-            moveIdx++;
-          }
-        }
-      } else {
-        // For other games, extract event messages from timeline
-        historicalEvents = timeline.flatMap(
-          (entry: HistoryTimeline) => entry.events?.map(e => e.message) ?? []
-        );
-      }
-
-      if (historicalEvents.length > 0) {
-        setLiveEvents(historicalEvents);
+      if (timeline.length > 0) {
+        setLiveTimeline(timeline);
       }
       setHistoryLoaded(true);
     }
-  }, [historyData, historyLoaded, gameName]);
+  }, [historyData, historyLoaded]);
 
   useEffect(() => {
     if (latestEvent) {
@@ -210,18 +183,34 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
         });
       }
 
-      // Accumulate event messages
-      const events = evt.events;
-      if (Array.isArray(events)) {
-        setLiveEvents(prev => [
-          ...prev,
-          ...events.map((e: unknown) =>
-            typeof e === 'string' ? e : (e as Record<string, unknown>)?.message as string ?? JSON.stringify(e)
+      // Build structured timeline entry from SSE event
+      const evtEvents = Array.isArray(evt.events) ? (evt.events as any[]) : [];
+      if (evt.turn != null && (evtEvents.length > 0 || evt.action != null)) {
+        const entry: HistoryTimeline = {
+          turn: evt.turn as number,
+          agent_id: evt.agent_id as number | undefined,
+          action: evt.action as Record<string, unknown> | undefined,
+          state: (evt.state as Record<string, unknown>) ?? {},
+          events: evtEvents.map(e =>
+            typeof e === 'string'
+              ? { type: 'event', message: e }
+              : { type: e.type ?? 'event', message: e.message ?? JSON.stringify(e) }
           ),
-        ]);
+          created_at: new Date().toISOString(),
+        };
+        setLiveTimeline(prev => [...prev, entry]);
       }
     }
   }, [latestEvent, roomId, room.status, room.agents]);
+
+  // Build players list for action log and board from agents
+  const livePlayers = (gameState?.agents ?? room.agents ?? []).map((a, i) => ({
+    agent_id: a.agent_id,
+    name: a.name,
+    seat: i,
+    alive: true,
+    id: a.agent_id,
+  }));
 
   const phase = (gameState?.state as { phase?: string })?.phase ?? gameState?.phase ?? '';
 
@@ -235,7 +224,13 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
           {BoardComponent != null && gameState ? (
             <BoardComponent
               state={gameState.state}
-              players={(gameState.players as ClawedWolfPlayer[]) ?? []}
+              players={
+                gameName === 'tic_tac_toe'
+                  ? livePlayers.map(a => ({
+                      seat: a.seat, name: a.name, alive: true, id: a.agent_id,
+                    })) as ClawedWolfPlayer[]
+                  : (gameState.players as ClawedWolfPlayer[]) ?? []
+              }
               isReplay={false}
             />
           ) : (
@@ -273,9 +268,10 @@ function LiveObserver({ roomId, room }: { roomId: number; room: Room }) {
             pendingAction={gameState?.pending_action ?? null}
           />
           <ActionLog
-            liveEvents={liveEvents.length > 0 ? liveEvents : gameState?.events ?? []}
+            timeline={liveTimeline}
             isReplay={false}
             gameType={gameName}
+            players={livePlayers}
           />
         </div>
       </div>
@@ -310,7 +306,21 @@ function ReplayObserver({ roomId, room, gameId }: { roomId: number; room: Room; 
     );
   }
 
-  const replayAgents = room.agents.map(ra => ({ ...ra }));
+  const replayAgents = room.agents.length > 0
+    ? room.agents.map(ra => ({ ...ra }))
+    : (history?.players ?? []).map((p, i) => ({
+        id: i,
+        name: p.name,
+        agent_id: p.agent_id,
+        slot: p.slot ?? p.seat ?? i,
+        score: 0,
+        ready: false,
+      }));
+
+  const replayPlayers = (history?.players ?? []).map((p, i) => ({
+    agent_id: p.agent_id,
+    name: p.name,
+  }));
 
   return (
     <>
@@ -359,6 +369,7 @@ function ReplayObserver({ roomId, room, gameId }: { roomId: number; room: Room; 
             currentStep={step}
             isReplay={true}
             gameType={gameName}
+            players={replayPlayers}
           />
         </div>
       </div>

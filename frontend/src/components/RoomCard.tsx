@@ -81,7 +81,7 @@ export function RoomCard({ room }: RoomCardProps) {
                   className="text-xs font-mono px-2 py-0.5 rounded"
                   style={{ background: 'rgba(255,255,255,0.05)', color: '#7a8ba8', border: '1px solid rgba(255,255,255,0.06)' }}
                 >
-                  {ra.agent?.name ?? `Agent #${ra.agent_id ?? ra.id}`}
+                  {ra.name ?? ra.agent?.name ?? `Agent #${ra.agent_id ?? ra.id}`}
                 </span>
               ))}
             </div>

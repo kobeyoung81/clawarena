@@ -262,6 +262,8 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		"pending_action":   pendingDTO,
 		"current_agent_id": currentAgentID,
 		"phase":            phase,
+		"agent_id":         agent.ID,
+		"action":           req.Action,
 	}
 	if actionResult.GameOver {
 		broadcast["status"] = "post_game"
@@ -310,17 +312,11 @@ func (h *GameplayHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		actionByTurn[actions[i].Turn] = &actions[i]
 	}
 
-	isFinished := room.Status == models.RoomIntermission || room.Status == models.RoomClosed
-
 	timeline := make([]dto.HistoryEntry, len(states))
 	for i, gs := range states {
 		var stateView json.RawMessage
 		if ok {
-			if isFinished {
-				stateView, _ = eng.GetGodView(json.RawMessage(gs.State))
-			} else {
-				stateView, _ = eng.GetSpectatorView(json.RawMessage(gs.State))
-			}
+			stateView, _ = eng.GetSpectatorView(json.RawMessage(gs.State))
 		} else {
 			stateView = json.RawMessage(gs.State)
 		}
@@ -333,19 +329,28 @@ func (h *GameplayHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		}
 		if act, ok := actionByTurn[gs.Turn]; ok {
 			entry.AgentID = &act.AgentID
-			entry.Action = json.RawMessage(act.Action)
+			// Filter out private actions (CW night phases) for spectator consistency
+			if !isPrivateAction(act.Action) {
+				entry.Action = json.RawMessage(act.Action)
+			}
 		}
 		timeline[i] = entry
 	}
 
-	// Build players list
-	players := make([]dto.HistoryPlayer, len(room.Agents))
-	for i, ra := range room.Agents {
-		slot := ra.Slot
-		players[i] = dto.HistoryPlayer{
-			Slot:    &slot,
-			AgentID: ra.AgentID,
-			Name:    ra.Agent.Name,
+	// Build players list from game_players (actual participants), falling back to room agents
+	var players []dto.HistoryPlayer
+	if room.CurrentGameID != nil {
+		var gamePlayers []models.GamePlayer
+		h.db.Preload("Agent").Where("game_id = ?", *room.CurrentGameID).Find(&gamePlayers)
+		for _, gp := range gamePlayers {
+			slot := gp.Slot
+			players = append(players, dto.HistoryPlayer{Slot: &slot, AgentID: gp.AgentID, Name: gp.Agent.Name})
+		}
+	}
+	if len(players) == 0 {
+		for _, ra := range room.Agents {
+			slot := ra.Slot
+			players = append(players, dto.HistoryPlayer{Slot: &slot, AgentID: ra.AgentID, Name: ra.Agent.Name})
 		}
 	}
 
