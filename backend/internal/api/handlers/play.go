@@ -82,6 +82,21 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// sseEventType returns the SSE event type based on the payload content.
+	sseEventType := func(data []byte) string {
+		var m map[string]any
+		if err := json.Unmarshal(data, &m); err != nil {
+			return "state"
+		}
+		if gameOver, _ := m["game_over"].(bool); gameOver {
+			return "game_over"
+		}
+		if status, _ := m["status"].(string); status == "finished" || status == "post_game" || status == "dead" {
+			return "game_over"
+		}
+		return "state"
+	}
+
 	// enrichEvent injects room_id, turn, and status into every SSE event.
 	enrichEvent := func(raw []byte, turnNum uint, fallbackStatus string) []byte {
 		var m map[string]any
@@ -154,7 +169,7 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 				if engOK {
 					data := buildPlayerEvent(&gs, eng, string(room.Status))
 					data = enrichEvent(data, gs.Turn, string(room.Status))
-					fmt.Fprintf(w, "id: %d\ndata: %s\n\n", gs.Turn, data)
+					fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", gs.Turn, sseEventType(data), data)
 				}
 			}
 			flusher.Flush()
@@ -170,7 +185,7 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 			"room_id":   roomID,
 		})
 		data := enrichEvent(raw, 0, string(room.Status))
-		fmt.Fprintf(w, "data: %s\n\n", data)
+		fmt.Fprintf(w, "event: game_over\ndata: %s\n\n", data)
 		flusher.Flush()
 		return
 	}
@@ -181,7 +196,7 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 		if err := h.db.Where("room_id = ?", roomID).Order("turn DESC").First(&gs).Error; err == nil {
 			data := buildPlayerEvent(&gs, eng, string(room.Status))
 			data = enrichEvent(data, gs.Turn, string(room.Status))
-			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", gs.Turn, data)
+			fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", gs.Turn, sseEventType(data), data)
 			flusher.Flush()
 		}
 	}
@@ -214,7 +229,7 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 				turn++
 				raw, _ := json.Marshal(map[string]any{"type": "room_closed", "game_over": true})
 				data := enrichEvent(raw, turn, "dead")
-				fmt.Fprintf(w, "id: %d\ndata: %s\n\n", turn, data)
+				fmt.Fprintf(w, "id: %d\nevent: game_over\ndata: %s\n\n", turn, data)
 				flusher.Flush()
 				return
 			}
@@ -231,7 +246,7 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 					}
 					data := buildPlayerEvent(&gs, eng, string(room.Status))
 					data = enrichEvent(data, gs.Turn, string(room.Status))
-					fmt.Fprintf(w, "id: %d\ndata: %s\n\n", gs.Turn, data)
+					fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", gs.Turn, sseEventType(data), data)
 					flusher.Flush()
 					continue
 				}
@@ -239,7 +254,7 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 
 			// Fallback: forward the raw broadcast with enrichment.
 			data := enrichEvent(msg, turn, "playing")
-			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", turn, data)
+			fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", turn, sseEventType(data), data)
 			flusher.Flush()
 		}
 	}
