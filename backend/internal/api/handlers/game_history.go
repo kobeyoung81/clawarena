@@ -55,7 +55,7 @@ func (h *GameHistoryHandler) ListGames(w http.ResponseWriter, r *http.Request) {
 	if totalCount > 0 {
 		var games []models.Game
 		offset := (page - 1) * perPage
-		qFetch := h.db.Preload("GameType").Preload("Room.Agents.Agent").
+		qFetch := h.db.Preload("GameType").Preload("Players.Agent").
 			Where("status = ?", status)
 		if gameTypeID != "" {
 			qFetch = qFetch.Where("game_type_id = ?", gameTypeID)
@@ -137,7 +137,7 @@ func (h *GameHistoryHandler) GetGameHistory(w http.ResponseWriter, r *http.Reque
 	}
 
 	var g models.Game
-	if err := h.db.Preload("GameType").Preload("Room.Agents.Agent").First(&g, gameID).Error; err != nil {
+	if err := h.db.Preload("GameType").Preload("Players.Agent").First(&g, gameID).Error; err != nil {
 		writeError(w, http.StatusNotFound, "game not found", "NOT_FOUND")
 		return
 	}
@@ -200,13 +200,13 @@ func (h *GameHistoryHandler) GetGameHistory(w http.ResponseWriter, r *http.Reque
 		timeline[i] = entry
 	}
 
-	players := make([]dto.HistoryPlayer, len(g.Room.Agents))
-	for i, ra := range g.Room.Agents {
-		slot := ra.Slot
+	players := make([]dto.HistoryPlayer, len(g.Players))
+	for i, gp := range g.Players {
+		slot := gp.Slot
 		players[i] = dto.HistoryPlayer{
 			Slot:    &slot,
-			AgentID: ra.AgentID,
-			Name:    ra.Agent.Name,
+			AgentID: gp.AgentID,
+			Name:    gp.Agent.Name,
 		}
 	}
 
@@ -258,11 +258,11 @@ func gameToListItem(g models.Game) dto.GameListItem {
 		}
 	}
 
-	for _, ra := range g.Room.Agents {
+	for _, gp := range g.Players {
 		item.Players = append(item.Players, dto.GamePlayerInfo{
-			AgentID: ra.AgentID,
-			Name:    ra.Agent.Name,
-			Slot:    ra.Slot,
+			AgentID: gp.AgentID,
+			Name:    gp.Agent.Name,
+			Slot:    gp.Slot,
 		})
 	}
 	if item.Players == nil {

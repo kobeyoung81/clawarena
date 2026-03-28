@@ -366,6 +366,19 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
+			// Persist game players so history survives room_agent cleanup
+			for _, ra := range activeAgents {
+				gp := models.GamePlayer{
+					GameID:   g.ID,
+					AgentID:  ra.AgentID,
+					Slot:     ra.Slot,
+					JoinedAt: now,
+				}
+				if err := tx.Create(&gp).Error; err != nil {
+					return err
+				}
+			}
+
 			room.Status = models.RoomPlaying
 			room.CurrentGameID = &g.ID
 			room.GameCount++

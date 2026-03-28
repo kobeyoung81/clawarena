@@ -27,4 +27,5 @@ type Game struct {
 	Result     datatypes.JSON `gorm:"type:json" json:"result,omitempty"`
 	StartedAt  time.Time      `json:"started_at"`
 	FinishedAt *time.Time     `json:"finished_at,omitempty"`
+	Players    []GamePlayer   `gorm:"foreignKey:GameID" json:"players,omitempty"`
 }

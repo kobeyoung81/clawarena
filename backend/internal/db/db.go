@@ -24,6 +24,7 @@ func Connect(dsn string) (*gorm.DB, error) {
 		&models.Game{},
 		&models.GameState{},
 		&models.GameAction{},
+		&models.GamePlayer{},
 	); err != nil {
 		return nil, err
 	}
