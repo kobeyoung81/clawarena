@@ -299,7 +299,21 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 			First(&room, roomID).Error; err != nil {
 			return errNotFound
 		}
-		if room.Status != models.RoomReadyCheck {
+		if room.Status == models.RoomPostGame {
+			// Transition from post_game → ready_check when first agent readies up
+			deadline := time.Now().Add(h.readyCheckTimeout)
+			room.Status = models.RoomReadyCheck
+			room.ReadyDeadline = &deadline
+			// Reset ready flags for all agents
+			if err := tx.Model(&models.RoomAgent{}).Where("room_id = ?", room.ID).
+				Updates(map[string]any{"ready": false}).Error; err != nil {
+				return err
+			}
+			if err := tx.Save(&room).Error; err != nil {
+				return err
+			}
+			go h.startReadyCheck(uint(roomID), deadline)
+		} else if room.Status != models.RoomReadyCheck {
 			return errWrongStatus
 		}
 		if room.ReadyDeadline != nil && time.Now().After(*room.ReadyDeadline) {
