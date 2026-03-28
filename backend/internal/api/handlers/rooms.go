@@ -333,6 +333,8 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 		}
 
 		mySlot.Ready = true
+		mySlot.Status = models.RoomAgentActive
+		mySlot.DisconnectedAt = nil
 		if err := tx.Save(mySlot).Error; err != nil {
 			return err
 		}

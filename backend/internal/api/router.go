@@ -219,7 +219,7 @@ func runRoomTimeouts(db *gorm.DB, hub *handlers.RoomHub, waitTimeout, turnTimeou
 			var disconnected []models.RoomAgent
 			db.Joins("JOIN rooms ON rooms.id = room_agents.room_id").
 				Where("room_agents.status = ? AND room_agents.disconnected_at IS NOT NULL AND room_agents.disconnected_at < ? AND rooms.status IN ?",
-					string(models.RoomAgentDisconnected), cutoff, []string{string(models.RoomWaiting), string(models.RoomPostGame)}).
+					string(models.RoomAgentDisconnected), cutoff, []string{string(models.RoomWaiting), string(models.RoomPostGame), string(models.RoomReadyCheck)}).
 				Find(&disconnected)
 
 			for _, ra := range disconnected {
