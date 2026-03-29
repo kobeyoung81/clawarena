@@ -23,15 +23,21 @@ type State struct {
 
 // PlayerView is what a player sees (same as full state for TTT).
 type PlayerView struct {
-	Board         [9]string      `json:"board"`
-	Players       []uint         `json:"players"`
-	Turn          int            `json:"turn"`
-	Winner        *uint          `json:"winner"`
-	IsDraw        bool           `json:"is_draw"`
+	Board         [9]string           `json:"board"`
+	Players       []uint              `json:"players"`
+	Turn          int                 `json:"turn"`
+	Winner        *uint               `json:"winner"`
+	IsDraw        bool                `json:"is_draw"`
 	PendingAction *game.PendingAction `json:"pending_action,omitempty"`
 }
 
 type Engine struct{}
+
+func (e *Engine) Syncronym() string { return "ttt" }
+
+func (e *Engine) NewEventModel() game.GameEventRecord { return &TttGameEvent{} }
+
+func (e *Engine) GetPhaseTimeout(_ json.RawMessage) *game.PhaseTimeout { return nil }
 
 var winLines = [][3]int{
 	{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, // rows
@@ -47,15 +53,44 @@ func parseState(raw json.RawMessage) (*State, error) {
 	return &s, nil
 }
 
-func (e *Engine) InitState(config json.RawMessage, players []uint) (json.RawMessage, error) {
+func (e *Engine) InitState(config json.RawMessage, players []uint) (json.RawMessage, []game.GameEvent, error) {
 	if len(players) != 2 {
-		return nil, errors.New("tic_tac_toe requires exactly 2 players")
+		return nil, nil, errors.New("tic_tac_toe requires exactly 2 players")
 	}
 	s := State{
 		Players: players,
 		Turn:    0,
 	}
-	return json.Marshal(s)
+	stateJSON, err := json.Marshal(s)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Build player details for the init event
+	type playerInfo struct {
+		ID     uint   `json:"id"`
+		Seat   int    `json:"seat"`
+		Symbol string `json:"symbol"`
+	}
+	details := map[string]any{
+		"players": []playerInfo{
+			{ID: players[0], Seat: 0, Symbol: "X"},
+			{ID: players[1], Seat: 1, Symbol: "O"},
+		},
+	}
+	detailsJSON, _ := json.Marshal(details)
+
+	events := []game.GameEvent{
+		{
+			Source:     "system",
+			EventType:  "game_start",
+			Details:    detailsJSON,
+			StateAfter: stateJSON,
+			Visibility: "public",
+		},
+	}
+
+	return stateJSON, events, nil
 }
 
 func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMessage, error) {
@@ -110,27 +145,29 @@ type moveAction struct {
 	Position int `json:"position"`
 }
 
-func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.RawMessage) (game.ActionResult, error) {
+func intPtr(v int) *int { return &v }
+
+func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.RawMessage) (*game.ApplyResult, error) {
 	s, err := parseState(raw)
 	if err != nil {
-		return game.ActionResult{}, err
+		return nil, err
 	}
 	if s.Winner != nil || s.IsDraw {
-		return game.ActionResult{}, errors.New("game is already over")
+		return nil, errors.New("game is already over")
 	}
 	if s.Turn >= len(s.Players) || s.Players[s.Turn] != playerID {
-		return game.ActionResult{}, errors.New("not your turn")
+		return nil, errors.New("not your turn")
 	}
 
 	var action moveAction
 	if err := json.Unmarshal(actionRaw, &action); err != nil {
-		return game.ActionResult{}, fmt.Errorf("invalid action: %w", err)
+		return nil, fmt.Errorf("invalid action: %w", err)
 	}
 	if action.Position < 0 || action.Position > 8 {
-		return game.ActionResult{}, errors.New("position must be between 0 and 8")
+		return nil, errors.New("position must be between 0 and 8")
 	}
 	if s.Board[action.Position] != "" {
-		return game.ActionResult{}, errors.New("cell already occupied")
+		return nil, errors.New("cell already occupied")
 	}
 
 	mark := "X"
@@ -139,60 +176,114 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 	}
 	s.Board[action.Position] = mark
 
+	// Find the player's seat index
+	seat := 0
+	for i, pid := range s.Players {
+		if pid == playerID {
+			seat = i
+			break
+		}
+	}
+
 	var events []game.GameEvent
 
-	// Emit a move event for every action so SSE observers see live logs
-	posNames := []string{"top-left", "top-center", "top-right", "mid-left", "center", "mid-right", "bottom-left", "bottom-center", "bottom-right"}
-	posName := posNames[action.Position]
-	events = append(events, game.GameEvent{
-		Type:       "move",
-		Message:    fmt.Sprintf("%s plays %s (pos %d)", mark, posName, action.Position),
-		Visibility: "public",
+	// Build the move details
+	moveDetails, _ := json.Marshal(map[string]any{
+		"position": action.Position,
+		"symbol":   mark,
 	})
 
 	// Check win
 	if winner := checkWin(s.Board, mark); winner {
 		s.Winner = &playerID
+		stateJSON, _ := json.Marshal(s)
+
+		// Agent move event
 		events = append(events, game.GameEvent{
-			Type:       "game_over",
-			Message:    fmt.Sprintf("Player %d wins!", playerID),
+			Source:     "agent",
+			EventType:  "move",
+			Actor:     &game.EventEntity{AgentID: &playerID, Seat: intPtr(seat)},
+			Details:    moveDetails,
+			StateAfter: stateJSON,
 			Visibility: "public",
 		})
-		newState, _ := json.Marshal(s)
-		return game.ActionResult{
-			NewState: newState,
-			Events:   events,
-			GameOver: true,
+
+		// Find winning line for details
+		var winningLine []int
+		for _, line := range winLines {
+			if s.Board[line[0]] == mark && s.Board[line[1]] == mark && s.Board[line[2]] == mark {
+				winningLine = []int{line[0], line[1], line[2]}
+				break
+			}
+		}
+		gameOverDetails, _ := json.Marshal(map[string]any{
+			"winner_ids":   []uint{playerID},
+			"winner_symbol": mark,
+			"winning_line": winningLine,
+		})
+
+		// System game_over event
+		events = append(events, game.GameEvent{
+			Source:     "system",
+			EventType:  "game_over",
+			Details:    gameOverDetails,
+			StateAfter: stateJSON,
+			Visibility: "public",
+			GameOver:   true,
 			Result: &game.GameResult{
 				WinnerIDs: []uint{playerID},
 			},
-		}, nil
+		})
+
+		return &game.ApplyResult{Events: events}, nil
 	}
 
 	// Check draw
 	if isBoardFull(s.Board) {
 		s.IsDraw = true
+		stateJSON, _ := json.Marshal(s)
+
+		// Agent move event
 		events = append(events, game.GameEvent{
-			Type:       "game_over",
-			Message:    "It's a draw!",
+			Source:     "agent",
+			EventType:  "move",
+			Actor:     &game.EventEntity{AgentID: &playerID, Seat: intPtr(seat)},
+			Details:    moveDetails,
+			StateAfter: stateJSON,
 			Visibility: "public",
 		})
-		newState, _ := json.Marshal(s)
-		return game.ActionResult{
-			NewState: newState,
-			Events:   events,
-			GameOver: true,
-			Result:   &game.GameResult{WinnerIDs: []uint{}},
-		}, nil
+
+		// System game_over (draw) event
+		drawDetails, _ := json.Marshal(map[string]any{
+			"is_draw": true,
+		})
+		events = append(events, game.GameEvent{
+			Source:     "system",
+			EventType:  "game_over",
+			Details:    drawDetails,
+			StateAfter: stateJSON,
+			Visibility: "public",
+			GameOver:   true,
+			Result:     &game.GameResult{WinnerIDs: []uint{}},
+		})
+
+		return &game.ApplyResult{Events: events}, nil
 	}
 
+	// Normal move — advance turn
 	s.Turn = (s.Turn + 1) % len(s.Players)
-	newState, _ := json.Marshal(s)
-	return game.ActionResult{
-		NewState: newState,
-		Events:   events,
-		GameOver: false,
-	}, nil
+	stateJSON, _ := json.Marshal(s)
+
+	events = append(events, game.GameEvent{
+		Source:     "agent",
+		EventType:  "move",
+		Actor:     &game.EventEntity{AgentID: &playerID, Seat: intPtr(seat)},
+		Details:    moveDetails,
+		StateAfter: stateJSON,
+		Visibility: "public",
+	})
+
+	return &game.ApplyResult{Events: events}, nil
 }
 
 func checkWin(board [9]string, mark string) bool {

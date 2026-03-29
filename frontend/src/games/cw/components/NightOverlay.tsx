@@ -1,4 +1,4 @@
-import { ParticleCanvas } from '../../effects/ParticleCanvas';
+import { ParticleCanvas } from '../../../components/effects/ParticleCanvas';
 
 interface NightOverlayProps {
   isActive: boolean;

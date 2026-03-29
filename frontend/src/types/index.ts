@@ -110,3 +110,42 @@ export interface HistoryResponse {
   players: HistoryPlayer[];
   timeline: HistoryTimeline[];
 }
+
+// ─── Event-sourced types ─────────────────────────────────────────────────────
+
+export interface EventEntity {
+  agent_id?: number;
+  seat?: number;
+  team?: string;
+  role?: string;
+}
+
+export interface GameEvent {
+  seq: number;
+  game_id?: number;
+  room_id?: number;
+  source: 'agent' | 'system';
+  event_type: string;
+  actor?: EventEntity | null;
+  target?: EventEntity | null;
+  details?: Record<string, unknown>;
+  state: Record<string, unknown>;
+  visibility: string;
+  game_over?: boolean;
+  result?: { winner_ids: number[]; winner_team?: string };
+  pending_action?: PendingAction | null;
+  current_agent_id?: number;
+  agents?: RoomAgent[];
+  game_type?: string;
+  created_at?: string;
+}
+
+export interface EventHistoryResponse {
+  room_id: number;
+  game_id: number;
+  status: RoomStatus;
+  game_type: string;
+  result?: { winner_ids: number[]; winner_team?: string };
+  players: HistoryPlayer[];
+  events: GameEvent[];
+}

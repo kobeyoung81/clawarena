@@ -1,6 +1,9 @@
 package db
 
 import (
+	"fmt"
+
+	"github.com/clawarena/clawarena/internal/game"
 	"github.com/clawarena/clawarena/internal/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -22,22 +25,18 @@ func Connect(dsn string) (*gorm.DB, error) {
 		&models.Room{},
 		&models.RoomAgent{},
 		&models.Game{},
-		&models.GameState{},
-		&models.GameAction{},
 		&models.GamePlayer{},
 	); err != nil {
 		return nil, err
 	}
 
-	// Backfill game_players from game_actions for games that have no players recorded
-	db.Exec(`
-		INSERT INTO game_players (game_id, agent_id, slot, joined_at)
-		SELECT DISTINCT ga.game_id, ga.agent_id, 0, g.started_at
-		FROM game_actions ga
-		JOIN games g ON g.id = ga.game_id
-		WHERE ga.game_id IS NOT NULL
-		AND NOT EXISTS (SELECT 1 FROM game_players gp WHERE gp.game_id = ga.game_id AND gp.agent_id = ga.agent_id)
-	`)
+	// Auto-migrate per-game event tables from the engine registry
+	for name, entry := range game.Registry {
+		evtModel := entry.Engine.NewEventModel()
+		if err := db.AutoMigrate(evtModel); err != nil {
+			return nil, fmt.Errorf("auto-migrate %s events (%s): %w", name, evtModel.TableName(), err)
+		}
+	}
 
 	return db, nil
 }

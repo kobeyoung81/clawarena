@@ -7,10 +7,28 @@ import (
 	"github.com/clawarena/clawarena/internal/game"
 )
 
+// lastState extracts the final state from an ApplyResult's last event.
+func lastState(result *game.ApplyResult) json.RawMessage {
+	if len(result.Events) == 0 {
+		return nil
+	}
+	return result.Events[len(result.Events)-1].StateAfter
+}
+
+// isGameOver checks if any event in the result signals game over.
+func isGameOver(result *game.ApplyResult) bool {
+	for _, ev := range result.Events {
+		if ev.GameOver {
+			return true
+		}
+	}
+	return false
+}
+
 func initGame(t *testing.T) json.RawMessage {
 	t.Helper()
 	e := &Engine{}
-	state, err := e.InitState(nil, []uint{1, 2})
+	state, _, err := e.InitState(nil, []uint{1, 2})
 	if err != nil {
 		t.Fatalf("InitState failed: %v", err)
 	}
@@ -19,9 +37,18 @@ func initGame(t *testing.T) json.RawMessage {
 
 func TestInitState(t *testing.T) {
 	e := &Engine{}
-	state, err := e.InitState(nil, []uint{1, 2})
+	state, events, err := e.InitState(nil, []uint{1, 2})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatal("expected seed events from InitState")
+	}
+	if events[0].EventType != "game_start" {
+		t.Errorf("expected first event to be game_start, got %q", events[0].EventType)
+	}
+	if events[0].StateAfter == nil {
+		t.Error("expected StateAfter on game_start event")
 	}
 	var s State
 	if err := json.Unmarshal(state, &s); err != nil {
@@ -42,7 +69,7 @@ func TestInitState(t *testing.T) {
 
 func TestInitStateWrongPlayers(t *testing.T) {
 	e := &Engine{}
-	_, err := e.InitState(nil, []uint{1})
+	_, _, err := e.InitState(nil, []uint{1})
 	if err == nil {
 		t.Fatal("expected error for wrong player count")
 	}
@@ -56,11 +83,11 @@ func TestValidMove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.GameOver {
+	if isGameOver(result) {
 		t.Error("game should not be over after first move")
 	}
 	var s State
-	json.Unmarshal(result.NewState, &s)
+	json.Unmarshal(lastState(result), &s)
 	if s.Board[4] != "X" {
 		t.Errorf("expected X at position 4, got %q", s.Board[4])
 	}
@@ -77,7 +104,7 @@ func TestInvalidMove_OccupiedCell(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first move failed: %v", err)
 	}
-	state = r.NewState
+	state = lastState(r)
 	// Player 2 tries same cell
 	_, err = e.ApplyAction(state, 2, action)
 	if err == nil {
@@ -117,20 +144,20 @@ func TestWinDetection(t *testing.T) {
 		{1, 1}, {2, 4},
 		{1, 2}, // winning move
 	}
-	var result *game.ActionResult
+	var gameEnded bool
 	for _, m := range moves {
 		action, _ := json.Marshal(map[string]int{"position": m.pos})
 		r, err := e.ApplyAction(state, m.player, action)
 		if err != nil {
 			t.Fatalf("move (%d→%d) failed: %v", m.player, m.pos, err)
 		}
-		state = r.NewState
-		if r.GameOver {
-			result = &r
+		state = lastState(r)
+		if isGameOver(r) {
+			gameEnded = true
 			break
 		}
 	}
-	if result == nil || !result.GameOver {
+	if !gameEnded {
 		t.Fatal("expected game over after row win")
 	}
 }
@@ -147,21 +174,21 @@ func TestDrawDetection(t *testing.T) {
 		{2, 3}, {1, 4}, {2, 6},
 		{1, 5}, {2, 8}, {1, 7},
 	}
-	var lastResult *game.ActionResult
+	var lastResult *game.ApplyResult
 	for _, m := range moves {
 		action, _ := json.Marshal(map[string]int{"position": m.pos})
 		r, err := e.ApplyAction(state, m.player, action)
 		if err != nil {
 			t.Fatalf("move (%d→%d) failed: %v", m.player, m.pos, err)
 		}
-		state = r.NewState
-		lastResult = &r
+		state = lastState(r)
+		lastResult = r
 	}
-	if !lastResult.GameOver {
+	if !isGameOver(lastResult) {
 		t.Fatal("expected draw (game over)")
 	}
 	var s State
-	json.Unmarshal(lastResult.NewState, &s)
+	json.Unmarshal(lastState(lastResult), &s)
 	if !s.IsDraw {
 		t.Error("expected is_draw to be true")
 	}
@@ -242,7 +269,7 @@ func TestGetPendingActions_GameOver(t *testing.T) {
 	for _, m := range moves {
 		action, _ := json.Marshal(map[string]int{"position": m.pos})
 		r, _ := e.ApplyAction(state, m.player, action)
-		state = r.NewState
+		state = lastState(r)
 	}
 	actions, err := e.GetPendingActions(state)
 	if err != nil {
@@ -250,5 +277,35 @@ func TestGetPendingActions_GameOver(t *testing.T) {
 	}
 	if len(actions) != 0 {
 		t.Errorf("expected no pending actions after game over, got %d", len(actions))
+	}
+}
+
+func TestSyncronym(t *testing.T) {
+	e := &Engine{}
+	if e.Syncronym() != "ttt" {
+		t.Errorf("expected syncronym 'ttt', got %q", e.Syncronym())
+	}
+}
+
+func TestNewEventModel(t *testing.T) {
+	e := &Engine{}
+	m := e.NewEventModel()
+	if m.TableName() != "ttt_game_events" {
+		t.Errorf("expected table name 'ttt_game_events', got %q", m.TableName())
+	}
+}
+
+func TestEventsHaveStateAfter(t *testing.T) {
+	e := &Engine{}
+	state := initGame(t)
+	action, _ := json.Marshal(map[string]int{"position": 4})
+	result, err := e.ApplyAction(state, 1, action)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for i, ev := range result.Events {
+		if ev.StateAfter == nil {
+			t.Errorf("event %d (%s) has nil StateAfter", i, ev.EventType)
+		}
 	}
 }

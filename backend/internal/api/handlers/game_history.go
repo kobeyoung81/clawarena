@@ -128,7 +128,7 @@ func (h *GameHistoryHandler) ListGames(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetGameHistory returns the full history for a single game.
+// GetGameHistory returns the full event history for a single game.
 func (h *GameHistoryHandler) GetGameHistory(w http.ResponseWriter, r *http.Request) {
 	gameID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -142,60 +142,60 @@ func (h *GameHistoryHandler) GetGameHistory(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Try loading states/actions by game_id first, fall back to room_id
-	var states []models.GameState
-	if err := h.db.Where("game_id = ?", g.ID).Order("turn ASC").Find(&states).Error; err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load states", "INTERNAL_ERROR")
-		return
-	}
-	var actions []models.GameAction
-	if len(states) > 0 {
-		if err := h.db.Preload("Agent").Where("game_id = ?", g.ID).Order("turn ASC").Find(&actions).Error; err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to load actions", "INTERNAL_ERROR")
+	eng := game.GetEngine(g.GameType.Name)
+
+	// Load events from per-game event table
+	var events []dto.GameEventDTO
+	if eng != nil {
+		tableName := eng.NewEventModel().TableName()
+		var records []game.BaseGameEvent
+		if err := h.db.Table(tableName).
+			Where("game_id = ?", g.ID).
+			Order("seq ASC").
+			Find(&records).Error; err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load events", "INTERNAL_ERROR")
 			return
 		}
-	} else {
-		// Fallback to room_id
-		if err := h.db.Where("room_id = ?", g.RoomID).Order("turn ASC").Find(&states).Error; err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to load states", "INTERNAL_ERROR")
-			return
-		}
-		if err := h.db.Preload("Agent").Where("room_id = ?", g.RoomID).Order("turn ASC").Find(&actions).Error; err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to load actions", "INTERNAL_ERROR")
-			return
-		}
-	}
 
-	eng, hasEngine := game.Registry[g.GameType.Name]
-
-	actionByTurn := map[uint]*models.GameAction{}
-	for i := range actions {
-		actionByTurn[actions[i].Turn] = &actions[i]
-	}
-
-	timeline := make([]dto.HistoryEntry, len(states))
-	for i, gs := range states {
-		var stateView json.RawMessage
-		if hasEngine {
-			stateView, _ = eng.GetSpectatorView(json.RawMessage(gs.State))
-		} else {
-			stateView = json.RawMessage(gs.State)
-		}
-
-		entry := dto.HistoryEntry{
-			Turn:      gs.Turn,
-			State:     stateView,
-			Events:    []dto.GameEventDTO{},
-			CreatedAt: gs.CreatedAt,
-		}
-		if act, ok := actionByTurn[gs.Turn]; ok {
-			entry.AgentID = &act.AgentID
-			// Filter out private actions (CW night phases) for spectator consistency
-			if !isPrivateAction(act.Action) {
-				entry.Action = json.RawMessage(act.Action)
+		for _, rec := range records {
+			evt := rec.ToGameEvent()
+			// Filter out non-public events for spectator history
+			if evt.Visibility != "public" {
+				continue
 			}
+
+			stateView := evt.StateAfter
+			if sv, err := eng.GetSpectatorView(evt.StateAfter); err == nil {
+				stateView = sv
+			}
+
+			var resultDTO *dto.GameResultDTO
+			if evt.Result != nil {
+				resultDTO = &dto.GameResultDTO{
+					WinnerIDs:  evt.Result.WinnerIDs,
+					WinnerTeam: evt.Result.WinnerTeam,
+					Scores:     evt.Result.Scores,
+				}
+			}
+
+			events = append(events, dto.GameEventDTO{
+				Seq:        rec.Seq,
+				GameID:     rec.GameID,
+				Source:     evt.Source,
+				EventType:  evt.EventType,
+				Actor:      evt.Actor,
+				Target:     evt.Target,
+				Details:    evt.Details,
+				State:      stateView,
+				Visibility: evt.Visibility,
+				GameOver:   evt.GameOver,
+				Result:     resultDTO,
+				CreatedAt:  rec.CreatedAt,
+			})
 		}
-		timeline[i] = entry
+	}
+	if events == nil {
+		events = []dto.GameEventDTO{}
 	}
 
 	players := make([]dto.HistoryPlayer, len(g.Players))
@@ -219,13 +219,14 @@ func (h *GameHistoryHandler) GetGameHistory(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	writeJSON(w, http.StatusOK, dto.HistoryResponse{
+	writeJSON(w, http.StatusOK, dto.EventHistoryResponse{
 		RoomID:   g.RoomID,
+		GameID:   g.ID,
 		Status:   string(g.Status),
 		GameType: g.GameType.Name,
 		Result:   resultDTO,
 		Players:  players,
-		Timeline: timeline,
+		Events:   events,
 	})
 }
 

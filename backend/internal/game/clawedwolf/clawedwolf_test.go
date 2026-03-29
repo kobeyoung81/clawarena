@@ -10,11 +10,23 @@ import (
 func initClawedWolf(t *testing.T, players []uint) json.RawMessage {
 	t.Helper()
 	e := &Engine{}
-	state, err := e.InitState(nil, players)
+	state, events, err := e.InitState(nil, players)
 	if err != nil {
 		t.Fatalf("InitState failed: %v", err)
 	}
+	if len(events) == 0 {
+		t.Fatal("expected seed events from InitState")
+	}
 	return state
+}
+
+// lastState extracts the final state from an ApplyResult (last event's StateAfter).
+func lastState(t *testing.T, result *game.ApplyResult) json.RawMessage {
+	t.Helper()
+	if len(result.Events) == 0 {
+		t.Fatal("ApplyResult has no events")
+	}
+	return result.Events[len(result.Events)-1].StateAfter
 }
 
 func parseTestState(t *testing.T, raw json.RawMessage) *State {
@@ -79,11 +91,65 @@ func TestInitState_SixPlayers(t *testing.T) {
 	}
 }
 
+func TestInitState_SeedEvents(t *testing.T) {
+	e := &Engine{}
+	_, events, err := e.InitState(nil, testPlayers)
+	if err != nil {
+		t.Fatalf("InitState failed: %v", err)
+	}
+	// Expect 1 game_start + 6 roles_assigned = 7 events
+	if len(events) != 7 {
+		t.Fatalf("expected 7 seed events, got %d", len(events))
+	}
+	if events[0].EventType != "game_start" {
+		t.Errorf("first event should be game_start, got %q", events[0].EventType)
+	}
+	if events[0].Source != "system" {
+		t.Errorf("game_start source should be system, got %q", events[0].Source)
+	}
+	if events[0].Visibility != "public" {
+		t.Errorf("game_start visibility should be public, got %q", events[0].Visibility)
+	}
+	for i := 1; i <= 6; i++ {
+		if events[i].EventType != "roles_assigned" {
+			t.Errorf("event %d should be roles_assigned, got %q", i, events[i].EventType)
+		}
+		if events[i].Source != "system" {
+			t.Errorf("roles_assigned source should be system, got %q", events[i].Source)
+		}
+	}
+}
+
 func TestInitState_WrongPlayerCount(t *testing.T) {
 	e := &Engine{}
-	_, err := e.InitState(nil, []uint{1, 2, 3})
+	_, _, err := e.InitState(nil, []uint{1, 2, 3})
 	if err == nil {
 		t.Fatal("expected error for wrong player count")
+	}
+}
+
+func TestSyncronym(t *testing.T) {
+	e := &Engine{}
+	if e.Syncronym() != "cw" {
+		t.Errorf("expected syncronym 'cw', got %q", e.Syncronym())
+	}
+}
+
+func TestNewEventModel(t *testing.T) {
+	e := &Engine{}
+	m := e.NewEventModel()
+	if m == nil {
+		t.Fatal("NewEventModel should not return nil")
+	}
+	if m.TableName() != "cw_game_events" {
+		t.Errorf("expected table name 'cw_game_events', got %q", m.TableName())
+	}
+}
+
+func TestGetPhaseTimeout(t *testing.T) {
+	e := &Engine{}
+	if e.GetPhaseTimeout(nil) != nil {
+		t.Error("expected nil phase timeout")
 	}
 }
 
@@ -112,18 +178,27 @@ func TestNightClawedWolfAction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("wolf 1 kill_vote failed: %v", err)
 	}
+	state1 := lastState(t, result1)
 	// After first wolf votes, phase should still be night_clawedwolf
-	s1 := parseTestState(t, result1.NewState)
+	s1 := parseTestState(t, state1)
 	if s1.Phase != PhaseNightClawedWolf {
 		t.Logf("phase after first wolf vote: %s", s1.Phase)
 	}
+	// Verify kill_vote event
+	if result1.Events[0].EventType != "kill_vote" {
+		t.Errorf("expected kill_vote event, got %q", result1.Events[0].EventType)
+	}
+	if result1.Events[0].Source != "agent" {
+		t.Errorf("expected agent source, got %q", result1.Events[0].Source)
+	}
 
 	// Second wolf votes
-	result2, err := e.ApplyAction(result1.NewState, wolves[1], action1)
+	result2, err := e.ApplyAction(state1, wolves[1], action1)
 	if err != nil {
 		t.Fatalf("wolf 2 kill_vote failed: %v", err)
 	}
-	s2 := parseTestState(t, result2.NewState)
+	state2 := lastState(t, result2)
+	s2 := parseTestState(t, state2)
 	// After both wolves vote, night_kill_target should be set and phase advanced
 	if s2.NightKillTarget == nil {
 		t.Error("expected night_kill_target to be set after both wolves vote")
@@ -167,33 +242,48 @@ func TestSeerInvestigate(t *testing.T) {
 	}
 	action, _ := json.Marshal(map[string]interface{}{"type": "kill_vote", "target_seat": targetSeat})
 	r1, _ := e.ApplyAction(state, wolves[0], action)
-	r2, err := e.ApplyAction(r1.NewState, wolves[1], action)
+	r2, err := e.ApplyAction(lastState(t, r1), wolves[1], action)
 	if err != nil {
 		t.Fatalf("wolf phase failed: %v", err)
 	}
 
-	s2 := parseTestState(t, r2.NewState)
+	state2 := lastState(t, r2)
+	s2 := parseTestState(t, state2)
 	if s2.Phase != PhaseNightSeer {
 		t.Skipf("seer phase not reached (may be dead or skipped): got %s", s2.Phase)
 	}
 
 	// Investigate a wolf
 	invAction, _ := json.Marshal(map[string]interface{}{"type": "investigate", "target_seat": wolfSeat})
-	r3, err := e.ApplyAction(r2.NewState, seerID, invAction)
+	r3, err := e.ApplyAction(state2, seerID, invAction)
 	if err != nil {
 		t.Fatalf("seer investigate failed: %v", err)
 	}
 
-	s3 := parseTestState(t, r3.NewState)
+	state3 := lastState(t, r3)
+	s3 := parseTestState(t, state3)
 	if result, ok := s3.SeerResults[wolfSeat]; !ok {
 		t.Error("expected seer result for wolf seat")
 	} else if result != "evil" {
 		t.Errorf("expected wolf to be 'evil', got %q", result)
 	}
+
+	// Verify investigate event
+	found := false
+	for _, ev := range r3.Events {
+		if ev.EventType == "investigate" {
+			found = true
+			if ev.Source != "agent" {
+				t.Errorf("expected agent source for investigate, got %q", ev.Source)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected investigate event in result")
+	}
 }
 
 func TestWinCondition_GoodWins(t *testing.T) {
-	// Manually construct a state where good wins
 	s := &State{
 		Players: []Player{
 			{ID: 1, Seat: 0, Role: RoleClawedWolf, Alive: false},
@@ -216,6 +306,21 @@ func TestWinCondition_GoodWins(t *testing.T) {
 	}
 	if *s.Winner != "good" {
 		t.Errorf("expected winner 'good', got %q", *s.Winner)
+	}
+	// Verify game_over event
+	found := false
+	for _, ev := range events {
+		if ev.EventType == "game_over" && ev.GameOver {
+			found = true
+			if ev.Result == nil {
+				t.Error("game_over event should have a result")
+			} else if ev.Result.WinnerTeam != "good" {
+				t.Errorf("expected winner_team 'good', got %q", ev.Result.WinnerTeam)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected game_over event")
 	}
 }
 
@@ -240,6 +345,21 @@ func TestWinCondition_EvilWins(t *testing.T) {
 	}
 	if *s.Winner != "evil" {
 		t.Errorf("expected winner 'evil', got %q", *s.Winner)
+	}
+	// Verify game_over event
+	found := false
+	for _, ev := range events {
+		if ev.EventType == "game_over" && ev.GameOver {
+			found = true
+			if ev.Result == nil {
+				t.Error("game_over event should have a result")
+			} else if ev.Result.WinnerTeam != "evil" {
+				t.Errorf("expected winner_team 'evil', got %q", ev.Result.WinnerTeam)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected game_over event")
 	}
 }
 
@@ -268,7 +388,7 @@ func TestGuardSaveMechanic(t *testing.T) {
 	}
 	saved := false
 	for _, ev := range events {
-		if ev.Type == "guard_save" {
+		if ev.EventType == "guard_save" {
 			saved = true
 		}
 	}
@@ -326,7 +446,8 @@ func TestDayDiscussionRoundRobin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("speak failed: %v", err)
 	}
-	s2 := parseTestState(t, result.NewState)
+	state2 := lastState(t, result)
+	s2 := parseTestState(t, state2)
 
 	// After first speaks, the next player should be prompted
 	nextActions := pendingActionsForPhase(s2)
@@ -356,12 +477,11 @@ func TestDayVoting_Majority(t *testing.T) {
 	}
 	// Simulate 3rd vote making it majority
 	s.DayVotes["3"] = target
-	var events []game.GameEvent
-	events = resolveVote(s)
+	events := resolveVote(s)
 
 	eliminated := false
 	for _, ev := range events {
-		if ev.Type == "vote_result" {
+		if ev.EventType == "vote_result" {
 			eliminated = true
 		}
 	}
@@ -390,7 +510,7 @@ func TestDayVoting_Tie_NoElimination(t *testing.T) {
 
 	noConsensus := false
 	for _, ev := range events {
-		if ev.Type == "vote_result" {
+		if ev.EventType == "vote_result" {
 			noConsensus = true
 		}
 	}
@@ -475,6 +595,33 @@ func TestGetGodView_RevealsAllRoles(t *testing.T) {
 		pm := p.(map[string]interface{})
 		if pm["role"] == nil || pm["role"] == "" {
 			t.Errorf("god view should reveal all roles, seat %v has no role", pm["seat"])
+		}
+	}
+}
+
+func TestApplyAction_EventsHaveStateAfter(t *testing.T) {
+	state := initClawedWolf(t, testPlayers)
+	s := parseTestState(t, state)
+	e := &Engine{}
+
+	wolves := allPlayerIDsForRole(s, RoleClawedWolf)
+	var targetSeat int
+	for _, p := range s.Players {
+		if p.Role != RoleClawedWolf {
+			targetSeat = p.Seat
+			break
+		}
+	}
+
+	action, _ := json.Marshal(map[string]interface{}{"type": "kill_vote", "target_seat": targetSeat})
+	result, err := e.ApplyAction(state, wolves[0], action)
+	if err != nil {
+		t.Fatalf("ApplyAction failed: %v", err)
+	}
+
+	for i, ev := range result.Events {
+		if len(ev.StateAfter) == 0 {
+			t.Errorf("event %d (%s) has empty StateAfter", i, ev.EventType)
 		}
 	}
 }

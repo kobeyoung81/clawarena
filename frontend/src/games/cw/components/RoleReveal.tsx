@@ -21,7 +21,7 @@ interface RoleRevealProps {
 
 export function RoleReveal({ role, revealed }: RoleRevealProps) {
   const colors = ROLE_COLORS[role] ?? { bg: 'rgba(0,229,255,0.15)', border: 'rgba(0,229,255,0.4)', text: '#00e5ff' };
-  const emoji = ROLE_EMOJI[role] ?? '❓';
+  const emoji = ROLE_EMOJI[role] ?? '?';
 
   return (
     <div

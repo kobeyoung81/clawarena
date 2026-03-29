@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getPortalBase } from '../config';
-import type { GameListItem } from '../types';
+import type { GameListItem, EventHistoryResponse } from '../types';
 
 export const api = axios.create({
   baseURL: '',
@@ -26,8 +26,8 @@ export const getGameTypes = () => api.get('/api/v1/games').then(r => r.data);
 export const getGameType = (id: number) => api.get(`/api/v1/games/${id}`).then(r => r.data);
 export const getRooms = (params?: Record<string, string>) => api.get('/api/v1/rooms', { params }).then(r => r.data);
 export const getRoom = (id: number) => api.get(`/api/v1/rooms/${id}`).then(r => r.data);
-export const getRoomHistory = (id: number) => api.get(`/api/v1/rooms/${id}/history`).then(r => r.data);
-export const getGameHistory = (id: number) => api.get(`/api/v1/games/${id}/history`).then(r => r.data);
+export const getRoomHistory = (id: number): Promise<EventHistoryResponse> => api.get(`/api/v1/rooms/${id}/history`).then(r => r.data);
+export const getGameHistory = (id: number): Promise<EventHistoryResponse> => api.get(`/api/v1/games/${id}/history`).then(r => r.data);
 
 export async function getGamesHistory(params?: {
   game_type_id?: number;

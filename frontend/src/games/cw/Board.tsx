@@ -1,9 +1,9 @@
 import { useRef } from 'react';
-import { PlayerSeat } from './clawedwolf/PlayerSeat';
-import { PhaseDisplay } from './clawedwolf/PhaseDisplay';
-import { VoteOverlay } from './clawedwolf/VoteOverlay';
-import { NightOverlay } from './clawedwolf/NightOverlay';
-import { PhaseTransitionOverlay } from '../effects/PhaseTransitionOverlay';
+import { PlayerSeat } from './components/PlayerSeat';
+import { PhaseDisplay } from './components/PhaseDisplay';
+import { VoteOverlay } from './components/VoteOverlay';
+import { NightOverlay } from './components/NightOverlay';
+import { PhaseTransitionOverlay } from '../../components/effects/PhaseTransitionOverlay';
 import type { ClawedWolfPlayer } from '../../types';
 
 export interface BoardProps {
@@ -50,7 +50,7 @@ function getPhaseBackground(phase: string): React.CSSProperties {
   }
 }
 
-export function ClawedWolfBoard({ state, players: propPlayers, isReplay = false }: BoardProps) {
+export default function ClawedWolfBoard({ state, players: propPlayers, isReplay = false }: BoardProps) {
   const s = state as ClawedWolfState;
   const phase = s?.phase ?? 'night';
   const round = s?.round ?? 1;
@@ -118,7 +118,7 @@ export function ClawedWolfBoard({ state, players: propPlayers, isReplay = false 
 
       {/* Phase badge (bottom-right corner) */}
       <div className="absolute bottom-2 right-3 text-[10px] font-mono text-text-muted/40 pointer-events-none">
-        {phase.replace('_', ' ')} · Round {round}
+        {phase.replace('_', ' ')} . Round {round}
       </div>
     </div>
   );

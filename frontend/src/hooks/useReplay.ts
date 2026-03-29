@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getRoomHistory, getGameHistory } from '../api/client';
-import type { HistoryResponse } from '../types';
+import type { EventHistoryResponse } from '../types';
 
 export function useReplay(roomId: number, gameId?: number, startAtEnd = false) {
   const [step, setStep] = useState(0);
@@ -10,12 +10,12 @@ export function useReplay(roomId: number, gameId?: number, startAtEnd = false) {
   const [speed, setSpeed] = useState(1);
   const playTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data: history, isLoading, error } = useQuery<HistoryResponse>({
+  const { data: history, isLoading, error } = useQuery<EventHistoryResponse>({
     queryKey: ['roomHistory', roomId, gameId],
     queryFn: () => gameId ? getGameHistory(gameId) : getRoomHistory(roomId),
   });
 
-  const total = history?.timeline.length ?? 0;
+  const total = history?.events?.length ?? 0;
 
   useEffect(() => {
     initializedStepRef.current = false;
@@ -26,7 +26,7 @@ export function useReplay(roomId: number, gameId?: number, startAtEnd = false) {
     if (!history || initializedStepRef.current) return;
     initializedStepRef.current = true;
     if (startAtEnd) {
-      setStep(Math.max(0, (history.timeline?.length ?? 1) - 1));
+      setStep(Math.max(0, (history.events?.length ?? 1) - 1));
     } else {
       setStep(0);
     }
@@ -51,14 +51,14 @@ export function useReplay(roomId: number, gameId?: number, startAtEnd = false) {
   useEffect(() => {
     if (!isPlaying || !history) return;
 
-    const timeline = history.timeline;
+    const events = history.events;
     if (step >= total - 1) {
       setIsPlaying(false);
       return;
     }
 
-    const currentEntry = timeline[step];
-    const nextEntry = timeline[step + 1];
+    const currentEntry = events[step];
+    const nextEntry = events[step + 1];
 
     let delayMs: number;
     if (currentEntry?.created_at && nextEntry?.created_at) {

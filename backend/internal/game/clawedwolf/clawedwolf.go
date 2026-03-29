@@ -15,18 +15,18 @@ func init() {
 
 const (
 	PhaseNightClawedWolf = "night_clawedwolf"
-	PhaseNightSeer     = "night_seer"
-	PhaseNightGuard    = "night_guard"
-	PhaseDayAnnounce   = "day_announce"
-	PhaseDayDiscuss    = "day_discuss"
-	PhaseDayVote       = "day_vote"
-	PhaseDayResult     = "day_result"
-	PhaseFinished      = "finished"
+	PhaseNightSeer       = "night_seer"
+	PhaseNightGuard      = "night_guard"
+	PhaseDayAnnounce     = "day_announce"
+	PhaseDayDiscuss      = "day_discuss"
+	PhaseDayVote         = "day_vote"
+	PhaseDayResult       = "day_result"
+	PhaseFinished        = "finished"
 
 	RoleClawedWolf = "clawedwolf"
-	RoleSeer     = "seer"
-	RoleGuard    = "guard"
-	RoleVillager = "villager"
+	RoleSeer       = "seer"
+	RoleGuard      = "guard"
+	RoleVillager   = "villager"
 )
 
 type Player struct {
@@ -39,21 +39,20 @@ type Player struct {
 }
 
 type State struct {
-	Players          []Player          `json:"players"`
-	Phase            string            `json:"phase"`
-	Round            int               `json:"round"`
-	PhaseActions     map[string]int    `json:"phase_actions"` // seat -> target_seat (for night votes)
-	NightKillTarget  *int              `json:"night_kill_target"`
-	NightGuardTarget *int              `json:"night_guard_target"`
-	LastGuardTarget  *int              `json:"last_guard_target"`
-	SeerResults      map[int]string    `json:"seer_results"` // seat -> "good"/"evil"
-	DaySpeeches      []Speech          `json:"day_speeches"`
-	DayVotes         map[string]int    `json:"day_votes"` // voter seat -> target seat (-1=abstain)
-	Events           []game.GameEvent  `json:"events"`
-	Eliminated       []int             `json:"eliminated"`
-	SpeakerIndex     int               `json:"speaker_index"` // which alive player speaks next
-	SpeakStartSeat   int               `json:"speak_start_seat"`
-	Winner           *string           `json:"winner,omitempty"`
+	Players          []Player       `json:"players"`
+	Phase            string         `json:"phase"`
+	Round            int            `json:"round"`
+	PhaseActions     map[string]int `json:"phase_actions"`
+	NightKillTarget  *int           `json:"night_kill_target"`
+	NightGuardTarget *int           `json:"night_guard_target"`
+	LastGuardTarget  *int           `json:"last_guard_target"`
+	SeerResults      map[int]string `json:"seer_results"`
+	DaySpeeches      []Speech       `json:"day_speeches"`
+	DayVotes         map[string]int `json:"day_votes"`
+	Eliminated       []int          `json:"eliminated"`
+	SpeakerIndex     int            `json:"speaker_index"`
+	SpeakStartSeat   int            `json:"speak_start_seat"`
+	Winner           *string        `json:"winner,omitempty"`
 }
 
 type Speech struct {
@@ -63,6 +62,23 @@ type Speech struct {
 }
 
 type Engine struct{}
+
+// ---------------------------------------------------------------------------
+// Helper utilities
+// ---------------------------------------------------------------------------
+
+func intPtr(v int) *int       { return &v }
+func uintPtr(v uint) *uint    { return &v }
+
+func stateSnapshot(s *State) json.RawMessage {
+	b, _ := json.Marshal(s)
+	return b
+}
+
+func mustJSON(v any) json.RawMessage {
+	b, _ := json.Marshal(v)
+	return b
+}
 
 func parseState(raw json.RawMessage) (*State, error) {
 	var s State
@@ -81,9 +97,23 @@ func parseState(raw json.RawMessage) (*State, error) {
 	return &s, nil
 }
 
-func (e *Engine) InitState(config json.RawMessage, players []uint) (json.RawMessage, error) {
+// ---------------------------------------------------------------------------
+// New interface methods
+// ---------------------------------------------------------------------------
+
+func (e *Engine) Syncronym() string { return "cw" }
+
+func (e *Engine) NewEventModel() game.GameEventRecord { return &CwGameEvent{} }
+
+func (e *Engine) GetPhaseTimeout(_ json.RawMessage) *game.PhaseTimeout { return nil }
+
+// ---------------------------------------------------------------------------
+// InitState
+// ---------------------------------------------------------------------------
+
+func (e *Engine) InitState(config json.RawMessage, players []uint) (json.RawMessage, []game.GameEvent, error) {
 	if len(players) != 6 {
-		return nil, errors.New("clawedwolf requires exactly 6 players")
+		return nil, nil, errors.New("clawedwolf requires exactly 6 players")
 	}
 
 	// Extract player names from config
@@ -102,22 +132,47 @@ func (e *Engine) InitState(config json.RawMessage, players []uint) (json.RawMess
 		}
 		ps[i] = Player{ID: pid, Seat: i, Name: name, Role: roles[perm[i]], Alive: true}
 	}
+
 	s := State{
-		Players:      ps,
-		Phase:        PhaseNightClawedWolf,
-		Round:        1,
-		PhaseActions: map[string]int{},
-		SeerResults:  map[int]string{},
-		DayVotes:     map[string]int{},
-		Events: []game.GameEvent{{
-			Type:       "game_start",
-			Message:    "Game started. Night 1 begins.",
-			Visibility: "public",
-		}},
+		Players:        ps,
+		Phase:          PhaseNightClawedWolf,
+		Round:          1,
+		PhaseActions:   map[string]int{},
+		SeerResults:    map[int]string{},
+		DayVotes:       map[string]int{},
 		SpeakStartSeat: 0,
 	}
-	return json.Marshal(s)
+
+	stateJSON := stateSnapshot(&s)
+
+	// Seed events: game_start (public) + roles_assigned per player (private)
+	events := []game.GameEvent{
+		{
+			Source:     "system",
+			EventType:  "game_start",
+			Details:    mustJSON(map[string]any{"player_count": len(players)}),
+			StateAfter: stateJSON,
+			Visibility: "public",
+		},
+	}
+
+	for _, p := range s.Players {
+		events = append(events, game.GameEvent{
+			Source:     "system",
+			EventType:  "roles_assigned",
+			Target:     &game.EventEntity{AgentID: uintPtr(p.ID), Seat: intPtr(p.Seat)},
+			Details:    mustJSON(map[string]any{"role": p.Role}),
+			StateAfter: stateJSON,
+			Visibility: fmt.Sprintf("player:%d", p.ID),
+		})
+	}
+
+	return stateJSON, events, nil
 }
+
+// ---------------------------------------------------------------------------
+// View functions
+// ---------------------------------------------------------------------------
 
 func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMessage, error) {
 	s, err := parseState(raw)
@@ -158,7 +213,6 @@ func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMess
 		"players":  pubPlayers,
 		"phase":    s.Phase,
 		"round":    s.Round,
-		"events":   s.Events,
 		"speeches": s.DaySpeeches,
 		"winner":   s.Winner,
 	}
@@ -203,7 +257,6 @@ func (e *Engine) GetSpectatorView(raw json.RawMessage) (json.RawMessage, error) 
 		"players":  pubPlayers,
 		"phase":    s.Phase,
 		"round":    s.Round,
-		"events":   s.Events,
 		"speeches": s.DaySpeeches,
 		"winner":   s.Winner,
 	}
@@ -211,26 +264,28 @@ func (e *Engine) GetSpectatorView(raw json.RawMessage) (json.RawMessage, error) 
 }
 
 func (e *Engine) GetGodView(raw json.RawMessage) (json.RawMessage, error) {
-	// Return full state with all roles revealed
 	s, err := parseState(raw)
 	if err != nil {
 		return nil, err
 	}
 	view := map[string]interface{}{
-		"players":           s.Players,
-		"phase":             s.Phase,
-		"round":             s.Round,
-		"events":            s.Events,
-		"speeches":          s.DaySpeeches,
-		"day_votes":         s.DayVotes,
-		"seer_results":      s.SeerResults,
-		"night_kill_target": s.NightKillTarget,
+		"players":            s.Players,
+		"phase":              s.Phase,
+		"round":              s.Round,
+		"speeches":           s.DaySpeeches,
+		"day_votes":          s.DayVotes,
+		"seer_results":       s.SeerResults,
+		"night_kill_target":  s.NightKillTarget,
 		"night_guard_target": s.NightGuardTarget,
-		"phase_actions":     s.PhaseActions,
-		"winner":            s.Winner,
+		"phase_actions":      s.PhaseActions,
+		"winner":             s.Winner,
 	}
 	return json.Marshal(view)
 }
+
+// ---------------------------------------------------------------------------
+// GetPendingActions (unchanged logic)
+// ---------------------------------------------------------------------------
 
 func (e *Engine) GetPendingActions(raw json.RawMessage) ([]game.PendingAction, error) {
 	s, err := parseState(raw)
@@ -298,12 +353,10 @@ func pendingActionsForPhase(s *State) []game.PendingAction {
 		}
 
 	case PhaseDayDiscuss:
-		// Find next speaker (round-robin from speak_start_seat among alive players)
 		spoken := map[int]bool{}
 		for _, sp := range s.DaySpeeches {
 			spoken[sp.Seat] = true
 		}
-		// Find next alive player who hasn't spoken
 		for i := 0; i < len(s.Players); i++ {
 			seat := (s.SpeakStartSeat + s.SpeakerIndex + i) % len(s.Players)
 			_ = aliveSeats
@@ -335,6 +388,10 @@ func pendingActionsForPhase(s *State) []game.PendingAction {
 	}
 	return actions
 }
+
+// ---------------------------------------------------------------------------
+// Utility helpers (unchanged)
+// ---------------------------------------------------------------------------
 
 func alivePlayerSeats(s *State) []int {
 	var seats []int
@@ -377,24 +434,28 @@ func nameOfSeat(s *State, seat int) string {
 	return fmt.Sprintf("Seat %d", seat)
 }
 
+// ---------------------------------------------------------------------------
+// ApplyAction
+// ---------------------------------------------------------------------------
+
 type actionPayload struct {
-	Type       string  `json:"type"`
-	TargetSeat *int    `json:"target_seat"`
-	Message    string  `json:"message"`
+	Type       string `json:"type"`
+	TargetSeat *int   `json:"target_seat"`
+	Message    string `json:"message"`
 }
 
-func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.RawMessage) (game.ActionResult, error) {
+func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.RawMessage) (*game.ApplyResult, error) {
 	s, err := parseState(raw)
 	if err != nil {
-		return game.ActionResult{}, err
+		return nil, err
 	}
 	if s.Winner != nil {
-		return game.ActionResult{}, errors.New("game is already over")
+		return nil, errors.New("game is already over")
 	}
 
 	var action actionPayload
 	if err := json.Unmarshal(actionRaw, &action); err != nil {
-		return game.ActionResult{}, fmt.Errorf("invalid action: %w", err)
+		return nil, fmt.Errorf("invalid action: %w", err)
 	}
 
 	// Find the acting player
@@ -406,27 +467,43 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 		}
 	}
 	if actor == nil {
-		return game.ActionResult{}, errors.New("player not found")
+		return nil, errors.New("player not found")
 	}
 	if !actor.Alive {
-		return game.ActionResult{}, errors.New("dead players cannot act")
+		return nil, errors.New("dead players cannot act")
 	}
 
-	var newEvents []game.GameEvent
+	var events []game.GameEvent
 
 	switch s.Phase {
 	case PhaseNightClawedWolf:
 		if action.Type != "kill_vote" || actor.Role != RoleClawedWolf {
-			return game.ActionResult{}, errors.New("invalid action for this phase")
+			return nil, errors.New("invalid action for this phase")
 		}
 		if action.TargetSeat == nil {
-			return game.ActionResult{}, errors.New("target_seat is required")
+			return nil, errors.New("target_seat is required")
 		}
 		target := playerBySeat(s, *action.TargetSeat)
 		if target == nil || !target.Alive {
-			return game.ActionResult{}, errors.New("invalid target")
+			return nil, errors.New("invalid target")
 		}
 		s.PhaseActions[fmt.Sprintf("%d", actor.Seat)] = *action.TargetSeat
+
+		// Agent kill_vote event (snapshot after recording the vote)
+		events = append(events, game.GameEvent{
+			Source:    "agent",
+			EventType: "kill_vote",
+			Actor: &game.EventEntity{
+				AgentID: uintPtr(actor.ID),
+				Seat:    intPtr(actor.Seat),
+				Team:    "wolf",
+			},
+			Target: &game.EventEntity{
+				Seat: action.TargetSeat,
+			},
+			StateAfter: stateSnapshot(s),
+			Visibility: "team:wolf",
+		})
 
 		// Check if all alive wolves have voted
 		aliveWolves := aliveByRole(s, RoleClawedWolf)
@@ -439,76 +516,139 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 						if firstVote == -1 {
 							firstVote = v
 						}
-						// Check if all agree
 					}
 				}
 			}
 			s.NightKillTarget = &firstVote
 			s.PhaseActions = map[string]int{}
 			s.Phase = advanceNightPhase(s, PhaseNightSeer)
+
+			// Phase change event
+			events = append(events, game.GameEvent{
+				Source:    "system",
+				EventType: "phase_change",
+				Details:   mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
+				StateAfter: stateSnapshot(s),
+				Visibility: "public",
+			})
 		}
 
 	case PhaseNightSeer:
 		if action.Type != "investigate" || actor.Role != RoleSeer {
-			return game.ActionResult{}, errors.New("invalid action for this phase")
+			return nil, errors.New("invalid action for this phase")
 		}
 		if action.TargetSeat == nil {
-			return game.ActionResult{}, errors.New("target_seat is required")
+			return nil, errors.New("target_seat is required")
 		}
 		target := playerBySeat(s, *action.TargetSeat)
 		if target == nil || !target.Alive {
-			return game.ActionResult{}, errors.New("invalid target")
+			return nil, errors.New("invalid target")
 		}
 		alignment := "good"
 		if target.Role == RoleClawedWolf {
 			alignment = "evil"
 		}
 		s.SeerResults[*action.TargetSeat] = alignment
-		newEvents = append(newEvents, game.GameEvent{
-			Type:       "seer_result",
-			Message:    fmt.Sprintf("%s investigated %s: they are %s.", nameOfSeat(s, actor.Seat), nameOfSeat(s, *action.TargetSeat), alignment),
+		s.PhaseActions["seer"] = *action.TargetSeat
+
+		// Agent investigate event
+		events = append(events, game.GameEvent{
+			Source:    "agent",
+			EventType: "investigate",
+			Actor: &game.EventEntity{
+				AgentID: uintPtr(actor.ID),
+				Seat:    intPtr(actor.Seat),
+				Role:    RoleSeer,
+			},
+			Target: &game.EventEntity{
+				Seat: action.TargetSeat,
+			},
+			Details:    mustJSON(map[string]any{"alignment": alignment}),
+			StateAfter: stateSnapshot(s),
 			Visibility: fmt.Sprintf("player:%d", playerID),
 		})
-		s.PhaseActions["seer"] = *action.TargetSeat
+
 		s.Phase = advanceNightPhase(s, PhaseNightGuard)
+
+		// Phase change event
+		events = append(events, game.GameEvent{
+			Source:    "system",
+			EventType: "phase_change",
+			Details:   mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
+			StateAfter: stateSnapshot(s),
+			Visibility: "public",
+		})
 
 	case PhaseNightGuard:
 		if action.Type != "protect" || actor.Role != RoleGuard {
-			return game.ActionResult{}, errors.New("invalid action for this phase")
+			return nil, errors.New("invalid action for this phase")
 		}
 		if action.TargetSeat == nil {
-			return game.ActionResult{}, errors.New("target_seat is required")
+			return nil, errors.New("target_seat is required")
 		}
 		if s.LastGuardTarget != nil && *s.LastGuardTarget == *action.TargetSeat {
-			return game.ActionResult{}, errors.New("cannot protect the same player consecutively")
+			return nil, errors.New("cannot protect the same player consecutively")
 		}
 		target := playerBySeat(s, *action.TargetSeat)
 		if target == nil || !target.Alive {
-			return game.ActionResult{}, errors.New("invalid target")
+			return nil, errors.New("invalid target")
 		}
 		s.NightGuardTarget = action.TargetSeat
 		s.PhaseActions["guard"] = *action.TargetSeat
-		// Advance to day announce — resolve night
-		newEvents = append(newEvents, resolveNight(s)...)
-		s.Phase = PhaseDayAnnounce
-		// Immediately auto-advance day_announce to day_discuss
+
+		// Agent protect event
+		events = append(events, game.GameEvent{
+			Source:    "agent",
+			EventType: "protect",
+			Actor: &game.EventEntity{
+				AgentID: uintPtr(actor.ID),
+				Seat:    intPtr(actor.Seat),
+				Role:    RoleGuard,
+			},
+			Target: &game.EventEntity{
+				Seat: action.TargetSeat,
+			},
+			StateAfter: stateSnapshot(s),
+			Visibility: fmt.Sprintf("player:%d", playerID),
+		})
+
+		// Resolve night, then advance to day
+		events = append(events, resolveNight(s)...)
 		s.Phase = PhaseDayDiscuss
 		s.SpeakerIndex = 0
 
+		// Phase change to day_discuss
+		events = append(events, game.GameEvent{
+			Source:    "system",
+			EventType: "phase_change",
+			Details:   mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
+			StateAfter: stateSnapshot(s),
+			Visibility: "public",
+		})
+
 	case PhaseDayDiscuss:
 		if action.Type != "speak" {
-			return game.ActionResult{}, errors.New("invalid action for this phase")
+			return nil, errors.New("invalid action for this phase")
 		}
 		s.DaySpeeches = append(s.DaySpeeches, Speech{
 			Seat:    actor.Seat,
 			Name:    actor.Name,
 			Message: action.Message,
 		})
-		newEvents = append(newEvents, game.GameEvent{
-			Type:       "speech",
-			Message:    fmt.Sprintf("%s: %s", nameOfSeat(s, actor.Seat), action.Message),
+
+		// Agent speak event
+		events = append(events, game.GameEvent{
+			Source:    "agent",
+			EventType: "speak",
+			Actor: &game.EventEntity{
+				AgentID: uintPtr(actor.ID),
+				Seat:    intPtr(actor.Seat),
+			},
+			Details:    mustJSON(map[string]any{"content": action.Message}),
+			StateAfter: stateSnapshot(s),
 			Visibility: "public",
 		})
+
 		// Check if all alive players have spoken
 		spoken := map[int]bool{}
 		for _, sp := range s.DaySpeeches {
@@ -524,11 +664,20 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 		if allSpoken {
 			s.Phase = PhaseDayVote
 			s.DayVotes = map[string]int{}
+
+			// Phase change event
+			events = append(events, game.GameEvent{
+				Source:    "system",
+				EventType: "phase_change",
+				Details:   mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
+				StateAfter: stateSnapshot(s),
+				Visibility: "public",
+			})
 		}
 
 	case PhaseDayVote:
 		if action.Type != "vote" {
-			return game.ActionResult{}, errors.New("invalid action for this phase")
+			return nil, errors.New("invalid action for this phase")
 		}
 		targetVal := -1
 		if action.TargetSeat != nil {
@@ -537,18 +686,34 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 		if targetVal >= 0 {
 			target := playerBySeat(s, targetVal)
 			if target == nil || !target.Alive {
-				return game.ActionResult{}, errors.New("invalid vote target")
+				return nil, errors.New("invalid vote target")
 			}
 			if targetVal == actor.Seat {
-				return game.ActionResult{}, errors.New("cannot vote for yourself")
+				return nil, errors.New("cannot vote for yourself")
 			}
 		}
 		s.DayVotes[fmt.Sprintf("%d", actor.Seat)] = targetVal
 
+		// Agent vote event
+		voteEvt := game.GameEvent{
+			Source:    "agent",
+			EventType: "vote",
+			Actor: &game.EventEntity{
+				AgentID: uintPtr(actor.ID),
+				Seat:    intPtr(actor.Seat),
+			},
+			StateAfter: stateSnapshot(s),
+			Visibility: "public",
+		}
+		if targetVal >= 0 {
+			voteEvt.Target = &game.EventEntity{Seat: intPtr(targetVal)}
+		}
+		events = append(events, voteEvt)
+
 		// Check if all alive players have voted
 		aliveCount := countAlive(s)
 		if len(s.DayVotes) >= aliveCount {
-			newEvents = append(newEvents, resolveVote(s)...)
+			events = append(events, resolveVote(s)...)
 			if s.Winner != nil {
 				s.Phase = PhaseFinished
 			} else {
@@ -562,50 +727,28 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 				s.SpeakStartSeat = (s.SpeakStartSeat + 1) % len(s.Players)
 				s.SpeakerIndex = 0
 				s.Phase = PhaseNightClawedWolf
-				newEvents = append(newEvents, game.GameEvent{
-					Type:       "phase_change",
-					Message:    fmt.Sprintf("Night %d begins.", s.Round),
+
+				events = append(events, game.GameEvent{
+					Source:    "system",
+					EventType: "phase_change",
+					Details:   mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
+					StateAfter: stateSnapshot(s),
 					Visibility: "public",
 				})
 			}
 		}
 
 	default:
-		return game.ActionResult{}, fmt.Errorf("no actions expected in phase: %s", s.Phase)
+		return nil, fmt.Errorf("no actions expected in phase: %s", s.Phase)
 	}
 
-	s.Events = append(s.Events, newEvents...)
-
-	newStateRaw, err := json.Marshal(s)
-	if err != nil {
-		return game.ActionResult{}, err
-	}
-
-	result := game.ActionResult{
-		NewState: newStateRaw,
-		Events:   newEvents,
-		GameOver: s.Winner != nil,
-	}
-
-	if s.Winner != nil {
-		team := *s.Winner
-		var winnerIDs []uint
-		for _, p := range s.Players {
-			if (team == "good" && p.Role != RoleClawedWolf) ||
-				(team == "evil" && p.Role == RoleClawedWolf) {
-				winnerIDs = append(winnerIDs, p.ID)
-			}
-		}
-		result.Result = &game.GameResult{
-			WinnerIDs:  winnerIDs,
-			WinnerTeam: team,
-		}
-	}
-
-	return result, nil
+	return &game.ApplyResult{Events: events}, nil
 }
 
-// advanceNightPhase advances to the next night phase, skipping if the role is dead.
+// ---------------------------------------------------------------------------
+// Night phase advancement
+// ---------------------------------------------------------------------------
+
 func advanceNightPhase(s *State, next string) string {
 	switch next {
 	case PhaseNightSeer:
@@ -614,7 +757,10 @@ func advanceNightPhase(s *State, next string) string {
 		}
 	case PhaseNightGuard:
 		if !hasAliveRole(s, RoleGuard) {
-			resolveNight(s)
+			// Guard is dead: resolve night immediately and go to day
+			// (resolveNight is called by the caller after phase advancement,
+			// but when skipping guard we need to handle it here.)
+			// We return PhaseDayDiscuss; the caller must call resolveNight.
 			return PhaseDayDiscuss
 		}
 	}
@@ -650,46 +796,93 @@ func countAlive(s *State) int {
 	return count
 }
 
-// resolveNight applies the night kill (with guard protection check).
+// ---------------------------------------------------------------------------
+// resolveNight — applies the night kill with guard protection check.
+// Mutates state in place and returns events with progressive snapshots.
+// ---------------------------------------------------------------------------
+
 func resolveNight(s *State) []game.GameEvent {
 	var events []game.GameEvent
 	if s.NightKillTarget == nil {
+		// No kill target: emit a night_resolve event with null killed_seat
+		events = append(events, game.GameEvent{
+			Source:    "system",
+			EventType: "night_resolve",
+			Details:   mustJSON(map[string]any{"killed_seat": nil, "guarded": s.NightGuardTarget != nil}),
+			StateAfter: stateSnapshot(s),
+			Visibility: "public",
+		})
+		s.LastGuardTarget = s.NightGuardTarget
 		return events
 	}
+
 	target := *s.NightKillTarget
-	// Guard save?
 	saved := s.NightGuardTarget != nil && *s.NightGuardTarget == target
+
 	if saved {
+		// Guard save event
 		events = append(events, game.GameEvent{
-			Type:       "guard_save",
-			Message:    fmt.Sprintf("Someone was attacked but protected! %s survived.", nameOfSeat(s, target)),
+			Source:    "system",
+			EventType: "guard_save",
+			Details:   mustJSON(map[string]any{"saved_seat": target}),
+			StateAfter: stateSnapshot(s),
+			Visibility: "public",
+		})
+
+		// Night resolve event (nobody died)
+		events = append(events, game.GameEvent{
+			Source:    "system",
+			EventType: "night_resolve",
+			Details:   mustJSON(map[string]any{"killed_seat": nil, "guarded": true}),
+			StateAfter: stateSnapshot(s),
 			Visibility: "public",
 		})
 	} else {
 		p := playerBySeat(s, target)
 		if p != nil && p.Alive {
-			p.Alive = false
-			s.Eliminated = append(s.Eliminated, target)
-			events = append(events, game.GameEvent{
-				Type:       "death",
-				Message:    fmt.Sprintf("%s was killed during the night. They were a %s.", nameOfSeat(s, target), p.Role),
-				Visibility: "public",
-			})
-			// Update in slice
+			// Kill the player — mutate state first
 			for i := range s.Players {
 				if s.Players[i].Seat == target {
 					s.Players[i].Alive = false
 					break
 				}
 			}
+			s.Eliminated = append(s.Eliminated, target)
+
+			// Night resolve event
+			events = append(events, game.GameEvent{
+				Source:    "system",
+				EventType: "night_resolve",
+				Details:   mustJSON(map[string]any{"killed_seat": target, "guarded": false}),
+				StateAfter: stateSnapshot(s),
+				Visibility: "public",
+			})
+
+			// Death event
+			events = append(events, game.GameEvent{
+				Source:    "system",
+				EventType: "death",
+				Target: &game.EventEntity{
+					AgentID: uintPtr(p.ID),
+					Seat:    intPtr(target),
+				},
+				Details:    mustJSON(map[string]any{"cause": "night_kill", "role_reveal": p.Role}),
+				StateAfter: stateSnapshot(s),
+				Visibility: "public",
+			})
 		}
 	}
+
 	s.LastGuardTarget = s.NightGuardTarget
 	checkWinCondition(s, &events)
 	return events
 }
 
-// resolveVote eliminates the player with the most votes.
+// ---------------------------------------------------------------------------
+// resolveVote — eliminates the player with the most votes.
+// Mutates state in place and returns events with progressive snapshots.
+// ---------------------------------------------------------------------------
+
 func resolveVote(s *State) []game.GameEvent {
 	var events []game.GameEvent
 	tally := map[int]int{}
@@ -698,6 +891,7 @@ func resolveVote(s *State) []game.GameEvent {
 			tally[target]++
 		}
 	}
+
 	// Find max votes
 	maxVotes := 0
 	for _, count := range tally {
@@ -705,6 +899,7 @@ func resolveVote(s *State) []game.GameEvent {
 			maxVotes = count
 		}
 	}
+
 	// Find all with max votes
 	var candidates []int
 	for seat, count := range tally {
@@ -714,9 +909,12 @@ func resolveVote(s *State) []game.GameEvent {
 	}
 
 	if maxVotes == 0 || len(candidates) != 1 {
+		// No consensus
 		events = append(events, game.GameEvent{
-			Type:       "vote_result",
-			Message:    "No consensus reached. Nobody is eliminated.",
+			Source:    "system",
+			EventType: "vote_result",
+			Details:   mustJSON(map[string]any{"tally": tally, "eliminated": false}),
+			StateAfter: stateSnapshot(s),
 			Visibility: "public",
 		})
 		return events
@@ -725,6 +923,7 @@ func resolveVote(s *State) []game.GameEvent {
 	eliminated := candidates[0]
 	p := playerBySeat(s, eliminated)
 	if p != nil && p.Alive {
+		// Kill the player — mutate state first
 		for i := range s.Players {
 			if s.Players[i].Seat == eliminated {
 				s.Players[i].Alive = false
@@ -732,15 +931,41 @@ func resolveVote(s *State) []game.GameEvent {
 			}
 		}
 		s.Eliminated = append(s.Eliminated, eliminated)
+
+		// Vote result event
 		events = append(events, game.GameEvent{
-			Type:       "vote_result",
-			Message:    fmt.Sprintf("%s was voted out. They were a %s.", nameOfSeat(s, eliminated), p.Role),
+			Source:    "system",
+			EventType: "vote_result",
+			Target: &game.EventEntity{
+				AgentID: uintPtr(p.ID),
+				Seat:    intPtr(eliminated),
+			},
+			Details:    mustJSON(map[string]any{"tally": tally, "eliminated": true}),
+			StateAfter: stateSnapshot(s),
+			Visibility: "public",
+		})
+
+		// Death event
+		events = append(events, game.GameEvent{
+			Source:    "system",
+			EventType: "death",
+			Target: &game.EventEntity{
+				AgentID: uintPtr(p.ID),
+				Seat:    intPtr(eliminated),
+			},
+			Details:    mustJSON(map[string]any{"cause": "vote_elimination", "role_reveal": p.Role}),
+			StateAfter: stateSnapshot(s),
 			Visibility: "public",
 		})
 	}
+
 	checkWinCondition(s, &events)
 	return events
 }
+
+// ---------------------------------------------------------------------------
+// Win condition check — appends game_over event if the game is over.
+// ---------------------------------------------------------------------------
 
 func checkWinCondition(s *State, events *[]game.GameEvent) {
 	aliveWolves := 0
@@ -754,21 +979,54 @@ func checkWinCondition(s *State, events *[]game.GameEvent) {
 			}
 		}
 	}
+
 	if aliveWolves == 0 {
 		winner := "good"
 		s.Winner = &winner
+		s.Phase = PhaseFinished
+
+		var winnerIDs []uint
+		for _, p := range s.Players {
+			if p.Role != RoleClawedWolf {
+				winnerIDs = append(winnerIDs, p.ID)
+			}
+		}
+
 		*events = append(*events, game.GameEvent{
-			Type:       "game_over",
-			Message:    "All clawed wolves eliminated! Good team wins!",
+			Source:    "system",
+			EventType: "game_over",
+			Details:   mustJSON(map[string]any{"winner_team": "good", "winner_ids": winnerIDs}),
+			StateAfter: stateSnapshot(s),
 			Visibility: "public",
+			GameOver:  true,
+			Result: &game.GameResult{
+				WinnerIDs:  winnerIDs,
+				WinnerTeam: "good",
+			},
 		})
 	} else if aliveWolves >= aliveGood {
 		winner := "evil"
 		s.Winner = &winner
+		s.Phase = PhaseFinished
+
+		var winnerIDs []uint
+		for _, p := range s.Players {
+			if p.Role == RoleClawedWolf {
+				winnerIDs = append(winnerIDs, p.ID)
+			}
+		}
+
 		*events = append(*events, game.GameEvent{
-			Type:       "game_over",
-			Message:    "Clawed wolves outnumber the good players! Evil team wins!",
+			Source:    "system",
+			EventType: "game_over",
+			Details:   mustJSON(map[string]any{"winner_team": "evil", "winner_ids": winnerIDs}),
+			StateAfter: stateSnapshot(s),
 			Visibility: "public",
+			GameOver:  true,
+			Result: &game.GameResult{
+				WinnerIDs:  winnerIDs,
+				WinnerTeam: "evil",
+			},
 		})
 	}
 }

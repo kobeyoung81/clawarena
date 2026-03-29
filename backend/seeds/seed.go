@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/clawarena/clawarena/internal/config"
+	"github.com/clawarena/clawarena/internal/game"
 	"github.com/clawarena/clawarena/internal/models"
 	"gorm.io/gorm"
 )
@@ -22,7 +23,10 @@ func Run(db *gorm.DB) error {
 	if err := seedLanguages(db); err != nil {
 		return err
 	}
-	return seedGames(db)
+	if err := seedGames(db); err != nil {
+		return err
+	}
+	return syncSyncronyms(db)
 }
 
 func seedLanguages(db *gorm.DB) error {
@@ -73,4 +77,16 @@ func seedGames(db *gorm.DB) error {
 func mustJSON(v any) []byte {
 	b, _ := json.Marshal(v)
 	return b
+}
+
+// syncSyncronyms updates game_types.syncronym from the engine registry.
+func syncSyncronyms(db *gorm.DB) error {
+	for name, entry := range game.Registry {
+		if err := db.Model(&models.GameType{}).
+			Where("name = ?", name).
+			Update("syncronym", entry.Syncronym).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -3,6 +3,8 @@ package dto
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/clawarena/clawarena/internal/game"
 )
 
 // Agent
@@ -89,10 +91,20 @@ type PendingActionDTO struct {
 	ValidTargets []int  `json:"valid_targets,omitempty"`
 }
 
+// GameEventDTO is the event-sourced event format returned in action responses and SSE streams.
 type GameEventDTO struct {
-	Type       string `json:"type"`
-	Message    string `json:"message"`
-	Visibility string `json:"visibility"`
+	Seq        uint              `json:"seq"`
+	GameID     uint              `json:"game_id"`
+	Source     string            `json:"source"`
+	EventType  string            `json:"event_type"`
+	Actor      *game.EventEntity `json:"actor,omitempty"`
+	Target     *game.EventEntity `json:"target,omitempty"`
+	Details    json.RawMessage   `json:"details,omitempty"`
+	State      json.RawMessage   `json:"state"`
+	Visibility string            `json:"visibility"`
+	GameOver   bool              `json:"game_over"`
+	Result     *GameResultDTO    `json:"result,omitempty"`
+	CreatedAt  time.Time         `json:"created_at"`
 }
 
 type GameResultDTO struct {
@@ -101,20 +113,44 @@ type GameResultDTO struct {
 	Scores     map[uint]int `json:"scores,omitempty"`
 }
 
+// ActionResponse is returned from SubmitAction.
 type ActionResponse struct {
 	Events   []GameEventDTO `json:"events"`
 	GameOver bool           `json:"game_over"`
 	Result   *GameResultDTO `json:"result,omitempty"`
 }
 
-type GameStateResponse struct {
-	RoomID        uint              `json:"room_id"`
-	Status        string            `json:"status"`
-	Turn          uint              `json:"turn"`
-	CurrentAgentID *uint            `json:"current_agent_id,omitempty"`
-	State         json.RawMessage   `json:"state"`
-	PendingAction *PendingActionDTO `json:"pending_action,omitempty"`
-	Agents        []RoomAgentInfo   `json:"agents"`
+// EventHistoryResponse is the event-sourced history format.
+type EventHistoryResponse struct {
+	RoomID   uint           `json:"room_id"`
+	GameID   uint           `json:"game_id"`
+	Status   string         `json:"status"`
+	GameType string         `json:"game_type"`
+	Result   *GameResultDTO `json:"result,omitempty"`
+	Players  []HistoryPlayer `json:"players"`
+	Events   []GameEventDTO `json:"events"`
+}
+
+// SSEEventPayload is the enriched SSE event broadcast per game event.
+type SSEEventPayload struct {
+	Seq            uint              `json:"seq"`
+	GameID         uint              `json:"game_id"`
+	RoomID         uint              `json:"room_id"`
+	Source         string            `json:"source"`
+	EventType      string            `json:"event_type"`
+	Actor          *game.EventEntity `json:"actor,omitempty"`
+	Target         *game.EventEntity `json:"target,omitempty"`
+	Details        json.RawMessage   `json:"details,omitempty"`
+	State          json.RawMessage   `json:"state"`
+	Visibility     string            `json:"visibility"`
+	PendingAction  *PendingActionDTO `json:"pending_action,omitempty"`
+	CurrentAgentID *uint             `json:"current_agent_id,omitempty"`
+	Agents         []RoomAgentInfo   `json:"agents"`
+	GameType       string            `json:"game_type"`
+	GameOver       bool              `json:"game_over"`
+	Result         *GameResultDTO    `json:"result,omitempty"`
+	Status         string            `json:"status,omitempty"`
+	Message        string            `json:"message,omitempty"`
 }
 
 type HistoryPlayer struct {
@@ -125,15 +161,17 @@ type HistoryPlayer struct {
 	Role    string `json:"role,omitempty"`
 }
 
+// HistoryEntry is kept for backward compatibility with the legacy history endpoint.
 type HistoryEntry struct {
-	Turn      uint                   `json:"turn"`
-	AgentID   *uint                  `json:"agent_id,omitempty"`
-	Action    json.RawMessage        `json:"action,omitempty"`
-	State     json.RawMessage        `json:"state"`
-	Events    []GameEventDTO         `json:"events"`
-	CreatedAt time.Time              `json:"created_at"`
+	Turn      uint            `json:"turn"`
+	AgentID   *uint           `json:"agent_id,omitempty"`
+	Action    json.RawMessage `json:"action,omitempty"`
+	State     json.RawMessage `json:"state"`
+	Events    []GameEventDTO  `json:"events"`
+	CreatedAt time.Time       `json:"created_at"`
 }
 
+// HistoryResponse is the legacy room-based history format (kept for backward compat).
 type HistoryResponse struct {
 	RoomID   uint            `json:"room_id"`
 	Status   string          `json:"status"`

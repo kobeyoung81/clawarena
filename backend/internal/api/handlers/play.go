@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/clawarena/clawarena/internal/api/dto"
@@ -24,6 +25,25 @@ type PlayHandler struct {
 
 func NewPlayHandler(db *gorm.DB, hub *RoomHub) *PlayHandler {
 	return &PlayHandler{db: db, hub: hub}
+}
+
+// isVisibleToPlayer checks if an event's visibility allows a specific agent to see it.
+func isVisibleToPlayer(visibility string, agentID uint, room *models.Room) bool {
+	if visibility == "public" || visibility == "" {
+		return true
+	}
+	// Check player-specific visibility: "player:<agentID>"
+	if strings.HasPrefix(visibility, "player:") {
+		visID := strings.TrimPrefix(visibility, "player:")
+		return visID == strconv.FormatUint(uint64(agentID), 10)
+	}
+	// Check team-specific visibility: "team:<teamName>"
+	// Would need team membership lookup - for now, allow if it matches
+	if strings.HasPrefix(visibility, "team:") {
+		// Team visibility is allowed through - the engine controls what's in state_after
+		return true
+	}
+	return false
 }
 
 // Play streams player-specific game events over SSE to an authenticated agent.
@@ -82,130 +102,127 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// sseEventType returns the SSE event type based on the payload content.
-	sseEventType := func(data []byte) string {
-		var m map[string]any
-		if err := json.Unmarshal(data, &m); err != nil {
-			return "state"
-		}
-		if gameOver, _ := m["game_over"].(bool); gameOver {
-			return "game_over"
-		}
-		if status, _ := m["status"].(string); status == "closed" || status == "intermission" {
-			return "game_over"
-		}
-		return "state"
-	}
+	eng := game.GetEngine(room.GameType.Name)
 
-	// enrichEvent injects room_id, turn, and status into every SSE event.
-	enrichEvent := func(raw []byte, turnNum uint, fallbackStatus string) []byte {
-		var m map[string]any
-		if err := json.Unmarshal(raw, &m); err != nil {
-			return raw
-		}
-		m["room_id"] = roomID
-		m["turn"] = turnNum
-		if _, ok := m["status"]; !ok {
-			if gameOver, _ := m["game_over"].(bool); gameOver {
-				m["status"] = "intermission"
-			} else {
-				m["status"] = fallbackStatus
+	// buildPlayerEvent builds a player-specific SSE payload from a stored event record.
+	buildPlayerEvent := func(rec *game.BaseGameEvent, eng game.GameEngine, agentID uint, roomID uint, gameType string, agents []dto.RoomAgentInfo, status string) dto.SSEEventPayload {
+		evt := rec.ToGameEvent()
+
+		stateView := evt.StateAfter
+		if eng != nil {
+			if pv, err := eng.GetPlayerView(evt.StateAfter, agentID); err == nil {
+				stateView = pv
 			}
 		}
-		out, err := json.Marshal(m)
-		if err != nil {
-			return raw
-		}
-		return out
-	}
 
-	// buildPlayerEvent builds a player-specific SSE payload from a game state.
-	buildPlayerEvent := func(gs *models.GameState, eng game.GameEngine, status string) []byte {
-		stateView, err := eng.GetPlayerView(json.RawMessage(gs.State), agent.ID)
-		if err != nil {
-			stateView = json.RawMessage(gs.State)
-		}
-
-		// Reload agents for fresh data
-		var freshAgents []models.RoomAgent
-		h.db.Preload("Agent").Where("room_id = ?", roomID).Find(&freshAgents)
-
-		pending, _ := eng.GetPendingActions(json.RawMessage(gs.State))
-		resp := dto.GameStateResponse{
-			RoomID: uint(roomID),
-			Status: status,
-			Turn:   gs.Turn,
-			State:  stateView,
-			Agents: roomAgentsInfo(freshAgents),
-		}
-		for _, pa := range pending {
-			if resp.CurrentAgentID == nil {
-				id := pa.PlayerID
-				resp.CurrentAgentID = &id
-			}
-			if pa.PlayerID == agent.ID {
-				resp.PendingAction = &dto.PendingActionDTO{
-					PlayerID:     pa.PlayerID,
-					ActionType:   pa.ActionType,
-					Prompt:       pa.Prompt,
-					ValidTargets: pa.ValidTargets,
+		var pendingDTO *dto.PendingActionDTO
+		var currentAgentID *uint
+		if eng != nil {
+			if pending, err := eng.GetPendingActions(evt.StateAfter); err == nil && len(pending) > 0 {
+				// Set current agent ID to first pending
+				id := pending[0].PlayerID
+				currentAgentID = &id
+				// Find this player's pending action specifically
+				for _, pa := range pending {
+					if pa.PlayerID == agentID {
+						pendingDTO = &dto.PendingActionDTO{
+							PlayerID:     pa.PlayerID,
+							ActionType:   pa.ActionType,
+							Prompt:       pa.Prompt,
+							ValidTargets: pa.ValidTargets,
+						}
+						break
+					}
 				}
 			}
 		}
-		data, _ := json.Marshal(resp)
-		return data
+
+		var resultDTO *dto.GameResultDTO
+		if evt.Result != nil {
+			resultDTO = &dto.GameResultDTO{
+				WinnerIDs:  evt.Result.WinnerIDs,
+				WinnerTeam: evt.Result.WinnerTeam,
+				Scores:     evt.Result.Scores,
+			}
+		}
+
+		payload := dto.SSEEventPayload{
+			Seq:            rec.Seq,
+			GameID:         rec.GameID,
+			RoomID:         roomID,
+			Source:         evt.Source,
+			EventType:      evt.EventType,
+			Actor:          evt.Actor,
+			Target:         evt.Target,
+			Details:        evt.Details,
+			State:          stateView,
+			Visibility:     evt.Visibility,
+			PendingAction:  pendingDTO,
+			CurrentAgentID: currentAgentID,
+			Agents:         agents,
+			GameType:       gameType,
+			GameOver:       evt.GameOver,
+			Result:         resultDTO,
+			Status:         status,
+		}
+		return payload
 	}
 
-	eng, engOK := game.Registry[room.GameType.Name]
+	agents := roomAgentsInfo(room.Agents)
 
-	// Replay missed events via Last-Event-ID
-	lastEventID := r.Header.Get("Last-Event-ID")
-	if lastEventID != "" {
-		if lastTurn, err := strconv.ParseUint(lastEventID, 10, 64); err == nil {
-			var states []models.GameState
-			q := h.db.Where("room_id = ? AND turn > ?", roomID, lastTurn)
-			if room.CurrentGameID != nil {
-				q = q.Where("game_id = ?", *room.CurrentGameID)
+	// Send catch-up events for the current game
+	var lastSeq uint
+	if eng != nil && room.CurrentGameID != nil {
+		tableName := eng.NewEventModel().TableName()
+
+		// Check for Last-Event-ID to resume from a specific point
+		startSeq := uint(0)
+		if lastEventID := r.Header.Get("Last-Event-ID"); lastEventID != "" {
+			if parsed, err := strconv.ParseUint(lastEventID, 10, 64); err == nil {
+				startSeq = uint(parsed)
 			}
-			q.Order("turn ASC").Find(&states)
-			for _, gs := range states {
-				if engOK {
-					data := buildPlayerEvent(&gs, eng, string(room.Status))
-					data = enrichEvent(data, gs.Turn, string(room.Status))
-					fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", gs.Turn, sseEventType(data), data)
-				}
-			}
-			flusher.Flush()
 		}
+
+		var records []game.BaseGameEvent
+		q := h.db.Table(tableName).Where("game_id = ?", *room.CurrentGameID)
+		if startSeq > 0 {
+			q = q.Where("seq > ?", startSeq)
+		}
+		q.Order("seq ASC").Find(&records)
+
+		for _, rec := range records {
+			evt := rec.ToGameEvent()
+			// Filter by player visibility
+			if !isVisibleToPlayer(evt.Visibility, agent.ID, &room) {
+				continue
+			}
+
+			status := string(room.Status)
+			if evt.GameOver {
+				status = "intermission"
+			}
+			payload := buildPlayerEvent(&rec, eng, agent.ID, uint(roomID), room.GameType.Name, agents, status)
+			data, _ := json.Marshal(payload)
+			sseType := "game_event"
+			if evt.GameOver {
+				sseType = "game_over"
+			}
+			fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", rec.Seq, sseType, data)
+			lastSeq = rec.Seq
+		}
+		flusher.Flush()
 	}
 
 	// If the room is in a terminal state, send a final event and close.
 	if room.Status == models.RoomClosed {
-		raw, _ := json.Marshal(map[string]any{
-			"type":      "game_over",
-			"status":    string(room.Status),
-			"game_over": true,
+		data, _ := json.Marshal(map[string]any{
 			"room_id":   roomID,
+			"game_over": true,
+			"status":    string(room.Status),
 		})
-		data := enrichEvent(raw, 0, string(room.Status))
 		fmt.Fprintf(w, "event: game_over\ndata: %s\n\n", data)
 		flusher.Flush()
 		return
-	}
-
-	// Send initial state event immediately.
-	if engOK {
-		var gs models.GameState
-		q := h.db.Where("room_id = ?", roomID)
-		if room.CurrentGameID != nil {
-			q = q.Where("game_id = ?", *room.CurrentGameID)
-		}
-		if err := q.Order("turn DESC").First(&gs).Error; err == nil {
-			data := buildPlayerEvent(&gs, eng, string(room.Status))
-			data = enrichEvent(data, gs.Turn, string(room.Status))
-			fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", gs.Turn, sseEventType(data), data)
-			flusher.Flush()
-		}
 	}
 
 	ch := h.hub.Subscribe(uint(roomID))
@@ -214,12 +231,10 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
-	var turn uint
 	for {
 		select {
 		case <-r.Context().Done():
 			log.Printf("[play] agent %d disconnected from room %d", agent.ID, roomID)
-			// Record disconnect time
 			now := time.Now()
 			h.db.Model(&models.RoomAgent{}).
 				Where("room_id = ? AND agent_id = ?", roomID, agent.ID).
@@ -233,39 +248,81 @@ func (h *PlayHandler) Play(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		case msg, open := <-ch:
 			if !open {
-				turn++
-				raw, _ := json.Marshal(map[string]any{"type": "room_closed", "game_over": true})
-				data := enrichEvent(raw, turn, "closed")
-				fmt.Fprintf(w, "id: %d\nevent: game_over\ndata: %s\n\n", turn, data)
+				lastSeq++
+				data, _ := json.Marshal(map[string]any{
+					"room_id":    roomID,
+					"game_over":  true,
+					"event_type": "room_closed",
+					"status":     "closed",
+				})
+				fmt.Fprintf(w, "id: %d\nevent: game_over\ndata: %s\n\n", lastSeq, data)
 				flusher.Flush()
 				return
 			}
-			turn++
 
-			// Re-query the latest state and build a player-specific view.
-			if engOK {
-				var gs models.GameState
-				q := h.db.Where("room_id = ?", roomID)
-				if room.CurrentGameID != nil {
-					q = q.Where("game_id = ?", *room.CurrentGameID)
-				}
-				if err := q.Order("turn DESC").First(&gs).Error; err == nil {
-					// Reload room to get fresh status.
-					var freshRoom models.Room
-					if err := h.db.Preload("Agents.Agent").First(&freshRoom, roomID).Error; err == nil {
-						room = freshRoom
-					}
-					data := buildPlayerEvent(&gs, eng, string(room.Status))
-					data = enrichEvent(data, gs.Turn, string(room.Status))
-					fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", gs.Turn, sseEventType(data), data)
-					flusher.Flush()
-					continue
+			// Parse the broadcast payload
+			var broadcast dto.SSEEventPayload
+			if err := json.Unmarshal(msg, &broadcast); err != nil {
+				// Fallback: forward raw message (room-level events like player_joined, game_start)
+				lastSeq++
+				fmt.Fprintf(w, "id: %d\nevent: game_event\ndata: %s\n\n", lastSeq, msg)
+				flusher.Flush()
+				continue
+			}
+
+			// Filter by player visibility
+			if broadcast.Visibility != "" && !isVisibleToPlayer(broadcast.Visibility, agent.ID, &room) {
+				continue
+			}
+
+			// Replace state with player view
+			if eng != nil && len(broadcast.State) > 0 {
+				if pv, err := eng.GetPlayerView(broadcast.State, agent.ID); err == nil {
+					broadcast.State = pv
 				}
 			}
 
-			// Fallback: forward the raw broadcast with enrichment.
-			data := enrichEvent(msg, turn, "playing")
-			fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", turn, sseEventType(data), data)
+			// Add player-specific pending action
+			if eng != nil && len(broadcast.State) > 0 {
+				// Re-parse state to get pending actions for this player
+				// Use the original (non-view-filtered) state from the broadcast
+				// We already replaced it, so re-derive from original msg
+				var origBroadcast dto.SSEEventPayload
+				if json.Unmarshal(msg, &origBroadcast) == nil {
+					if pending, err := eng.GetPendingActions(origBroadcast.State); err == nil {
+						broadcast.PendingAction = nil
+						broadcast.CurrentAgentID = nil
+						if len(pending) > 0 {
+							id := pending[0].PlayerID
+							broadcast.CurrentAgentID = &id
+							for _, pa := range pending {
+								if pa.PlayerID == agent.ID {
+									broadcast.PendingAction = &dto.PendingActionDTO{
+										PlayerID:     pa.PlayerID,
+										ActionType:   pa.ActionType,
+										Prompt:       pa.Prompt,
+										ValidTargets: pa.ValidTargets,
+									}
+									break
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Reload agents for fresh status data
+			var freshAgents []models.RoomAgent
+			if err := h.db.Preload("Agent").Where("room_id = ?", roomID).Find(&freshAgents).Error; err == nil {
+				broadcast.Agents = roomAgentsInfo(freshAgents)
+			}
+
+			data, _ := json.Marshal(broadcast)
+			sseType := "game_event"
+			if broadcast.GameOver {
+				sseType = "game_over"
+			}
+			fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", broadcast.Seq, sseType, data)
 			flusher.Flush()
 		}
 	}

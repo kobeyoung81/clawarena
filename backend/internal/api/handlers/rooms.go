@@ -12,7 +12,6 @@ import (
 	"github.com/clawarena/clawarena/internal/game"
 	"github.com/clawarena/clawarena/internal/models"
 	"github.com/go-chi/chi/v5"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -303,7 +302,7 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 			return errNotFound
 		}
 		if room.Status == models.RoomIntermission {
-			// Transition from post_game → ready_check when first agent readies up
+			// Transition from post_game -> ready_check when first agent readies up
 			deadline := time.Now().Add(h.readyCheckTimeout)
 			room.Status = models.RoomReadyCheck
 			room.ReadyDeadline = &deadline
@@ -643,7 +642,7 @@ func (h *RoomHandler) evictUnready(roomID uint) {
 		if len(remaining) == 0 {
 			room.Status = models.RoomClosed
 		} else if len(remaining) >= int(room.GameType.MinPlayers) {
-			// Enough players remain — restart ready check
+			// Enough players remain -- restart ready check
 			deadline := time.Now().Add(h.readyCheckTimeout)
 			room.Status = models.RoomReadyCheck
 			room.ReadyDeadline = &deadline
@@ -670,8 +669,8 @@ func (h *RoomHandler) initGame(roomID, gameTypeID uint, playerIDs []uint) error 
 	if err := h.db.First(&gt, gameTypeID).Error; err != nil {
 		return err
 	}
-	eng, ok := game.Registry[gt.Name]
-	if !ok {
+	eng := game.GetEngine(gt.Name)
+	if eng == nil {
 		return nil
 	}
 
@@ -694,25 +693,77 @@ func (h *RoomHandler) initGame(roomID, gameTypeID uint, playerIDs []uint) error 
 	cfgMap["player_names"] = nameMap
 	configJSON, _ := json.Marshal(cfgMap)
 
-	stateRaw, err := eng.InitState(json.RawMessage(configJSON), playerIDs)
+	stateRaw, initEvents, err := eng.InitState(json.RawMessage(configJSON), playerIDs)
 	if err != nil {
 		return err
 	}
+	_ = stateRaw // state is captured in the events' StateAfter fields
 
 	// Fetch current game ID from room
 	var room models.Room
 	if err := h.db.Select("current_game_id").First(&room, roomID).Error; err != nil {
 		return err
 	}
-
-	gs := models.GameState{
-		RoomID:    roomID,
-		GameID:    room.CurrentGameID,
-		Turn:      0,
-		State:     datatypes.JSON(stateRaw),
-		CreatedAt: time.Now(),
+	if room.CurrentGameID == nil {
+		return nil
 	}
-	return h.db.Create(&gs).Error
+	gameID := *room.CurrentGameID
+
+	// Store init events in per-game event table
+	tableName := eng.NewEventModel().TableName()
+	now := time.Now()
+	for i, evt := range initEvents {
+		record := game.BaseGameEvent{}
+		record.SetFields(gameID, uint(i), evt, now)
+		if err := h.db.Table(tableName).Create(&record).Error; err != nil {
+			return err
+		}
+	}
+
+	// Broadcast init events
+	var freshAgents []models.RoomAgent
+	h.db.Preload("Agent").Where("room_id = ?", roomID).Find(&freshAgents)
+	agentsInfo := roomAgentsInfo(freshAgents)
+
+	for i, evt := range initEvents {
+		broadcast := dto.SSEEventPayload{
+			Seq:        uint(i),
+			GameID:     gameID,
+			RoomID:     roomID,
+			Source:     evt.Source,
+			EventType:  evt.EventType,
+			Actor:      evt.Actor,
+			Target:     evt.Target,
+			Details:    evt.Details,
+			State:      evt.StateAfter,
+			Visibility: evt.Visibility,
+			Agents:     agentsInfo,
+			GameType:   gt.Name,
+			GameOver:   evt.GameOver,
+		}
+		if evt.Result != nil {
+			broadcast.Result = &dto.GameResultDTO{
+				WinnerIDs:  evt.Result.WinnerIDs,
+				WinnerTeam: evt.Result.WinnerTeam,
+				Scores:     evt.Result.Scores,
+			}
+		}
+
+		// Add pending action info
+		if pending, err := eng.GetPendingActions(evt.StateAfter); err == nil && len(pending) > 0 {
+			id := pending[0].PlayerID
+			broadcast.CurrentAgentID = &id
+			broadcast.PendingAction = &dto.PendingActionDTO{
+				PlayerID:   pending[0].PlayerID,
+				ActionType: pending[0].ActionType,
+				Prompt:     pending[0].Prompt,
+			}
+		}
+
+		h.hub.Broadcast(roomID, mustMarshal(broadcast))
+	}
+
+	return nil
 }
 
 func (h *RoomHandler) agentHasActiveRoom(agentID uint) bool {

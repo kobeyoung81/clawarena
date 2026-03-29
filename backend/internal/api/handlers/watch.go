@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/clawarena/clawarena/internal/api/dto"
 	"github.com/clawarena/clawarena/internal/game"
 	"github.com/clawarena/clawarena/internal/models"
 	"github.com/go-chi/chi/v5"
@@ -67,7 +68,7 @@ func (h *RoomHub) CloseRoom(roomID uint) {
 	}
 }
 
-// WatchHandler handles SSE streams.
+// WatchHandler handles SSE streams for spectators.
 type WatchHandler struct {
 	db  *gorm.DB
 	hub *RoomHub
@@ -101,152 +102,112 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	eng := game.Registry[room.GameType.Name]
-
+	eng := game.GetEngine(room.GameType.Name)
 	agents := roomAgentsInfo(room.Agents)
 
-	// buildSpectatorSnapshot builds the enriched fields (spectator state, pending action, phase)
-	// from a raw game state. Returns spectatorView, pendingAction, currentAgentID, phase.
-	buildSpectatorSnapshot := func(rawState json.RawMessage) (json.RawMessage, *map[string]any, *uint, string) {
-		stateView := rawState
+	// buildSpectatorEvent builds an SSE event payload from a stored event record.
+	buildSpectatorEvent := func(rec *game.BaseGameEvent, eng game.GameEngine, roomID uint, gameType string, agents []dto.RoomAgentInfo, status string) dto.SSEEventPayload {
+		evt := rec.ToGameEvent()
+
+		stateView := evt.StateAfter
 		if eng != nil {
-			if sv, err := eng.GetSpectatorView(rawState); err == nil {
+			if sv, err := eng.GetSpectatorView(evt.StateAfter); err == nil {
 				stateView = sv
 			}
 		}
 
-		var pendingAction *map[string]any
+		var pendingDTO *dto.PendingActionDTO
 		var currentAgentID *uint
 		if eng != nil {
-			if pending, err := eng.GetPendingActions(rawState); err == nil && len(pending) > 0 {
+			if pending, err := eng.GetPendingActions(evt.StateAfter); err == nil && len(pending) > 0 {
 				id := pending[0].PlayerID
 				currentAgentID = &id
-				pa := map[string]any{
-					"player_id":   pending[0].PlayerID,
-					"action_type": pending[0].ActionType,
-					"prompt":      pending[0].Prompt,
+				pendingDTO = &dto.PendingActionDTO{
+					PlayerID:   pending[0].PlayerID,
+					ActionType: pending[0].ActionType,
+					Prompt:     pending[0].Prompt,
 				}
-				pendingAction = &pa
 			}
 		}
 
-		var phase string
-		var stateMap map[string]any
-		if json.Unmarshal(stateView, &stateMap) == nil {
-			if p, ok := stateMap["phase"].(string); ok {
-				phase = p
+		var resultDTO *dto.GameResultDTO
+		if evt.Result != nil {
+			resultDTO = &dto.GameResultDTO{
+				WinnerIDs:  evt.Result.WinnerIDs,
+				WinnerTeam: evt.Result.WinnerTeam,
+				Scores:     evt.Result.Scores,
 			}
 		}
-		return stateView, pendingAction, currentAgentID, phase
+
+		payload := dto.SSEEventPayload{
+			Seq:            rec.Seq,
+			GameID:         rec.GameID,
+			RoomID:         roomID,
+			Source:         evt.Source,
+			EventType:      evt.EventType,
+			Actor:          evt.Actor,
+			Target:         evt.Target,
+			Details:        evt.Details,
+			State:          stateView,
+			Visibility:     evt.Visibility,
+			PendingAction:  pendingDTO,
+			CurrentAgentID: currentAgentID,
+			Agents:         agents,
+			GameType:       gameType,
+			GameOver:       evt.GameOver,
+			Result:         resultDTO,
+			Status:         status,
+		}
+		return payload
 	}
 
-	// enrichEvent injects room_id, turn, and status into every SSE event.
-	enrichEvent := func(raw []byte, turnNum uint, fallbackStatus string) []byte {
-		var m map[string]any
-		if err := json.Unmarshal(raw, &m); err != nil {
-			return raw
-		}
-		m["room_id"] = roomID
-		m["turn"] = turnNum
-		if _, ok := m["status"]; !ok {
-			if gameOver, _ := m["game_over"].(bool); gameOver {
-				m["status"] = "closed"
-			} else {
-				m["status"] = fallbackStatus
+	// Send all events for the current game as catch-up on connect.
+	var lastSeq uint
+	if eng != nil && room.CurrentGameID != nil {
+		tableName := eng.NewEventModel().TableName()
+
+		// Check for Last-Event-ID to resume from a specific point
+		startSeq := uint(0)
+		if lastEventID := r.Header.Get("Last-Event-ID"); lastEventID != "" {
+			if parsed, err := strconv.ParseUint(lastEventID, 10, 64); err == nil {
+				startSeq = uint(parsed)
 			}
 		}
-		out, err := json.Marshal(m)
-		if err != nil {
-			return raw
+
+		var records []game.BaseGameEvent
+		q := h.db.Table(tableName).Where("game_id = ?", *room.CurrentGameID)
+		if startSeq > 0 {
+			q = q.Where("seq > ?", startSeq)
 		}
-		return out
+		q.Order("seq ASC").Find(&records)
+
+		for _, rec := range records {
+			evt := rec.ToGameEvent()
+			// Only send public events to spectators
+			if evt.Visibility != "public" {
+				continue
+			}
+			status := string(room.Status)
+			if evt.GameOver {
+				status = "intermission"
+			}
+			payload := buildSpectatorEvent(&rec, eng, uint(roomID), room.GameType.Name, agents, status)
+			data, _ := json.Marshal(payload)
+			fmt.Fprintf(w, "id: %d\nevent: game_event\ndata: %s\n\n", rec.Seq, data)
+			lastSeq = rec.Seq
+		}
+		flusher.Flush()
 	}
 
-	// Send initial full state immediately on connect
-	var currentTurn uint
-	{
-		var gs models.GameState
-		q := h.db.Where("room_id = ?", roomID)
-		if room.CurrentGameID != nil {
-			q = q.Where("game_id = ?", *room.CurrentGameID)
-		}
-		if q.Order("turn DESC").First(&gs).Error == nil {
-			currentTurn = gs.Turn
-			stateView, pendingAction, currentAgentID, phase := buildSpectatorSnapshot(json.RawMessage(gs.State))
-			initEvent := map[string]any{
-				"turn":             gs.Turn,
-				"state":            stateView,
-				"agents":           agents,
-				"pending_action":   pendingAction,
-				"current_agent_id": currentAgentID,
-				"phase":            phase,
-				"game_over":        false,
-				"status":           string(room.Status),
-				"room_id":          roomID,
-				"game_type":        room.GameType.Name,
-			}
-			data, _ := json.Marshal(initEvent)
-			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", gs.Turn, data)
-			flusher.Flush()
-		}
-	}
-
-	// Replay missed events via Last-Event-ID
-	lastEventID := r.Header.Get("Last-Event-ID")
-	if lastEventID != "" {
-		if lastTurn, err := strconv.ParseUint(lastEventID, 10, 64); err == nil {
-			// Load game states for replayed turns to build full snapshots
-			var states []models.GameState
-			qStates := h.db.Where("room_id = ? AND turn > ?", roomID, lastTurn)
-			if room.CurrentGameID != nil {
-				qStates = qStates.Where("game_id = ?", *room.CurrentGameID)
-			}
-			qStates.Order("turn ASC").Find(&states)
-			stateByTurn := map[uint]models.GameState{}
-			for _, gs := range states {
-				stateByTurn[gs.Turn] = gs
-			}
-
-			var actions []models.GameAction
-			qActions := h.db.Preload("Agent").Where("room_id = ? AND turn > ?", roomID, lastTurn)
-			if room.CurrentGameID != nil {
-				qActions = qActions.Where("game_id = ?", *room.CurrentGameID)
-			}
-			qActions.Order("turn ASC").Find(&actions)
-			for _, act := range actions {
-				replayData := map[string]any{
-					"turn":     act.Turn,
-					"agent":    act.Agent.Name,
-					"action":   json.RawMessage(act.Action),
-					"replayed": true,
-					"agents":   agents,
-				}
-				// Enrich with state snapshot if available
-				if gs, ok := stateByTurn[act.Turn]; ok {
-					stateView, pendingAction, currentAgentID, phase := buildSpectatorSnapshot(json.RawMessage(gs.State))
-					replayData["state"] = stateView
-					replayData["pending_action"] = pendingAction
-					replayData["current_agent_id"] = currentAgentID
-					replayData["phase"] = phase
-				}
-				raw, _ := json.Marshal(replayData)
-				data := enrichEvent(raw, uint(act.Turn), "playing")
-				fmt.Fprintf(w, "id: %d\ndata: %s\n\n", act.Turn, data)
-			}
-			flusher.Flush()
-		}
-	}
-
-	// If game is already in a terminal state, send a final event and close
+	// If the room is in a terminal state, close after catch-up
 	if room.Status == models.RoomClosed {
-		raw, _ := json.Marshal(map[string]any{
-			"type":      "game_over",
-			"status":    string(room.Status),
+		data, _ := json.Marshal(map[string]any{
+			"room_id":   roomID,
 			"game_over": true,
+			"status":    string(room.Status),
 			"agents":    agents,
 		})
-		data := enrichEvent(raw, 0, string(room.Status))
-		fmt.Fprintf(w, "data: %s\n\n", data)
+		fmt.Fprintf(w, "event: game_event\ndata: %s\n\n", data)
 		flusher.Flush()
 		return
 	}
@@ -254,11 +215,9 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 	ch := h.hub.Subscribe(uint(roomID))
 	defer h.hub.Unsubscribe(uint(roomID), ch)
 
-	// Send a keep-alive comment every 15 seconds
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
-	turn := currentTurn
 	for {
 		select {
 		case <-r.Context().Done():
@@ -268,16 +227,41 @@ func (h *WatchHandler) Watch(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		case msg, open := <-ch:
 			if !open {
-				turn++
-				raw, _ := json.Marshal(map[string]any{"type": "room_closed", "game_over": true})
-				data := enrichEvent(raw, turn, "cancelled")
-				fmt.Fprintf(w, "id: %d\ndata: %s\n\n", turn, data)
+				data, _ := json.Marshal(map[string]any{
+					"room_id":    roomID,
+					"game_over":  true,
+					"event_type": "room_closed",
+					"status":     "closed",
+				})
+				fmt.Fprintf(w, "event: game_event\ndata: %s\n\n", data)
 				flusher.Flush()
 				return
 			}
-			turn++
-			data := enrichEvent(msg, turn, "playing")
-			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", turn, data)
+
+			// Parse the broadcast payload
+			var broadcast dto.SSEEventPayload
+			if err := json.Unmarshal(msg, &broadcast); err != nil {
+				// Fallback: forward raw message (e.g., room-level events like player_joined)
+				lastSeq++
+				fmt.Fprintf(w, "id: %d\nevent: game_event\ndata: %s\n\n", lastSeq, msg)
+				flusher.Flush()
+				continue
+			}
+
+			// Filter: only public events for spectators
+			if broadcast.Visibility != "" && broadcast.Visibility != "public" {
+				continue
+			}
+
+			// Replace state with spectator view
+			if eng != nil && len(broadcast.State) > 0 {
+				if sv, err := eng.GetSpectatorView(broadcast.State); err == nil {
+					broadcast.State = sv
+				}
+			}
+
+			data, _ := json.Marshal(broadcast)
+			fmt.Fprintf(w, "id: %d\nevent: game_event\ndata: %s\n\n", broadcast.Seq, data)
 			flusher.Flush()
 		}
 	}

@@ -26,6 +26,25 @@ func NewGameplayHandler(db *gorm.DB, hub *RoomHub, eloKFactor float64) *Gameplay
 	return &GameplayHandler{db: db, hub: hub, eloKFactor: eloKFactor}
 }
 
+// loadLatestState loads the latest game state from the per-game event table.
+func loadLatestState(db *gorm.DB, eng game.GameEngine, gameID uint) (json.RawMessage, uint, error) {
+	tableName := eng.NewEventModel().TableName()
+	var result struct {
+		Seq        uint
+		StateAfter datatypes.JSON
+	}
+	err := db.Table(tableName).
+		Select("seq, state_after").
+		Where("game_id = ?", gameID).
+		Order("seq DESC").
+		Limit(1).
+		Scan(&result).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return json.RawMessage(result.StateAfter), result.Seq, nil
+}
+
 func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 	agent, ok := requireAgent(w, r, h.db)
 	if !ok {
@@ -43,8 +62,9 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var actionResult game.ActionResult
-	var newTurn uint
+	var applyResult *game.ApplyResult
+	var lastSeq uint
+	var gameID uint
 	var gameType string
 	var roomSnapshot models.Room
 
@@ -58,7 +78,11 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		if room.Status != models.RoomPlaying {
 			return errWrongStatus
 		}
+		if room.CurrentGameID == nil {
+			return errWrongStatus
+		}
 		gameType = room.GameType.Name
+		gameID = *room.CurrentGameID
 
 		// Check agent is in room
 		inRoom := false
@@ -72,22 +96,20 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 			return errNotInRoom
 		}
 
-		var gs models.GameState
-		q := tx.Where("room_id = ?", roomID)
-		if room.CurrentGameID != nil {
-			q = q.Where("game_id = ?", *room.CurrentGameID)
-		}
-		if err := q.Order("turn DESC").First(&gs).Error; err != nil {
-			return err
-		}
-
-		eng, ok := game.Registry[room.GameType.Name]
-		if !ok {
+		eng := game.GetEngine(room.GameType.Name)
+		if eng == nil {
 			return &appError{"game engine not found"}
 		}
 
+		// Load latest state from per-game event table
+		latestState, seq, err := loadLatestState(tx, eng, gameID)
+		if err != nil {
+			return err
+		}
+		lastSeq = seq
+
 		// Check it's the agent's turn
-		pending, err := eng.GetPendingActions(json.RawMessage(gs.State))
+		pending, err := eng.GetPendingActions(latestState)
 		if err != nil {
 			return err
 		}
@@ -102,71 +124,66 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 			return &appError{"not your turn"}
 		}
 
-		result, err := eng.ApplyAction(json.RawMessage(gs.State), agent.ID, req.Action)
+		result, err := eng.ApplyAction(latestState, agent.ID, req.Action)
 		if err != nil {
 			return &appError{err.Error()}
 		}
-		actionResult = result
+		applyResult = result
 
-		newTurn = gs.Turn + 1
-		newState := models.GameState{
-			RoomID:    room.ID,
-			GameID:    room.CurrentGameID,
-			Turn:      newTurn,
-			State:     datatypes.JSON(result.NewState),
-			CreatedAt: time.Now(),
-		}
-		if err := tx.Create(&newState).Error; err != nil {
-			return err
-		}
-		gameAction := models.GameAction{
-			RoomID:    room.ID,
-			GameID:    room.CurrentGameID,
-			AgentID:   agent.ID,
-			Turn:      newTurn,
-			Action:    datatypes.JSON(req.Action),
-			CreatedAt: time.Now(),
-		}
-		if err := tx.Create(&gameAction).Error; err != nil {
-			return err
-		}
-
-		if result.GameOver {
-			now := time.Now()
-			room.Status = models.RoomIntermission
-			if result.Result != nil && len(result.Result.WinnerIDs) > 0 {
-				room.WinnerID = &result.Result.WinnerIDs[0]
+		// Store each event in per-game event table
+		tableName := eng.NewEventModel().TableName()
+		now := time.Now()
+		for i, evt := range result.Events {
+			record := game.BaseGameEvent{}
+			record.SetFields(gameID, lastSeq+uint(i)+1, evt, now)
+			if err := tx.Table(tableName).Create(&record).Error; err != nil {
+				return err
 			}
-			resultJSON, _ := json.Marshal(result.Result)
+		}
+
+		// Check if game is over (any event with GameOver: true)
+		var gameOverResult *game.GameResult
+		for _, evt := range result.Events {
+			if evt.GameOver {
+				gameOverResult = evt.Result
+				break
+			}
+		}
+
+		if gameOverResult != nil {
+			nowTime := time.Now()
+			room.Status = models.RoomIntermission
+			if gameOverResult != nil && len(gameOverResult.WinnerIDs) > 0 {
+				room.WinnerID = &gameOverResult.WinnerIDs[0]
+			}
+			resultJSON, _ := json.Marshal(gameOverResult)
 			room.Result = resultJSON
 			if err := tx.Save(&room).Error; err != nil {
 				return err
 			}
 
 			// Update the Game record
-			if room.CurrentGameID != nil {
-				gameUpdates := map[string]any{
-					"status":      string(models.GameFinished),
-					"finished_at": now,
-				}
-				if result.Result != nil {
-					gameResultJSON, _ := json.Marshal(result.Result)
-					gameUpdates["result"] = datatypes.JSON(gameResultJSON)
-					if len(result.Result.WinnerIDs) > 0 {
-						gameUpdates["winner_id"] = result.Result.WinnerIDs[0]
-					}
-				}
-				tx.Model(&models.Game{}).Where("id = ?", *room.CurrentGameID).Updates(gameUpdates)
+			gameUpdates := map[string]any{
+				"status":      string(models.GameFinished),
+				"finished_at": nowTime,
 			}
+			if gameOverResult != nil {
+				gameResultJSON, _ := json.Marshal(gameOverResult)
+				gameUpdates["result"] = datatypes.JSON(gameResultJSON)
+				if len(gameOverResult.WinnerIDs) > 0 {
+					gameUpdates["winner_id"] = gameOverResult.WinnerIDs[0]
+				}
+			}
+			tx.Model(&models.Game{}).Where("id = ?", gameID).Updates(gameUpdates)
 
 			// Reset all agents' ready flags for next game
 			tx.Model(&models.RoomAgent{}).Where("room_id = ?", room.ID).
 				Updates(map[string]any{"ready": false})
 
-			if result.Result != nil {
+			if gameOverResult != nil {
 				var loserIDs []uint
 				winSet := map[uint]bool{}
-				for _, id := range result.Result.WinnerIDs {
+				for _, id := range gameOverResult.WinnerIDs {
 					winSet[id] = true
 				}
 				for _, ra := range room.Agents {
@@ -174,7 +191,7 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 						loserIDs = append(loserIDs, ra.AgentID)
 					}
 				}
-				updateElo(tx, result.Result.WinnerIDs, loserIDs, h.eloKFactor)
+				updateElo(tx, gameOverResult.WinnerIDs, loserIDs, h.eloKFactor)
 			}
 		}
 		roomSnapshot = room
@@ -205,78 +222,102 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Broadcast SSE event
-	events := make([]dto.GameEventDTO, len(actionResult.Events))
-	for i, e := range actionResult.Events {
-		events[i] = dto.GameEventDTO{Type: e.Type, Message: e.Message, Visibility: e.Visibility}
-	}
+	eng := game.GetEngine(gameType)
+	agents := roomAgentsInfo(roomSnapshot.Agents)
 
-	var resultDTO *dto.GameResultDTO
-	if actionResult.Result != nil {
-		resultDTO = &dto.GameResultDTO{
-			WinnerIDs:  actionResult.Result.WinnerIDs,
-			WinnerTeam: actionResult.Result.WinnerTeam,
-		}
-	}
+	// Build response events and broadcast each event individually
+	respEvents := make([]dto.GameEventDTO, 0, len(applyResult.Events))
+	var finalGameOver bool
+	var finalResult *dto.GameResultDTO
 
-	// Build spectator view for broadcast
-	broadcastState := json.RawMessage(actionResult.NewState)
-	if eng, ok := game.Registry[gameType]; ok {
-		if sv, err := eng.GetSpectatorView(json.RawMessage(actionResult.NewState)); err == nil {
-			broadcastState = sv
-		}
-	}
+	now := time.Now()
+	for i, evt := range applyResult.Events {
+		seq := lastSeq + uint(i) + 1
 
-	// Build spectator-friendly pending action (who needs to act, not details)
-	var pendingDTO *dto.PendingActionDTO
-	var currentAgentID *uint
-	if eng, ok := game.Registry[gameType]; ok {
-		if pending, err := eng.GetPendingActions(json.RawMessage(actionResult.NewState)); err == nil && len(pending) > 0 {
-			id := pending[0].PlayerID
-			currentAgentID = &id
-			pendingDTO = &dto.PendingActionDTO{
-				PlayerID:   pending[0].PlayerID,
-				ActionType: pending[0].ActionType,
-				Prompt:     pending[0].Prompt,
+		// Build spectator view for state
+		stateView := evt.StateAfter
+		if eng != nil {
+			if sv, err := eng.GetSpectatorView(evt.StateAfter); err == nil {
+				stateView = sv
 			}
 		}
-	}
 
-	// Extract phase from state if available
-	var phase string
-	var stateMap map[string]any
-	if json.Unmarshal(broadcastState, &stateMap) == nil {
-		if p, ok := stateMap["phase"].(string); ok {
-			phase = p
+		// Build pending action from state
+		var pendingDTO *dto.PendingActionDTO
+		var currentAgentID *uint
+		if eng != nil {
+			if pending, err := eng.GetPendingActions(evt.StateAfter); err == nil && len(pending) > 0 {
+				id := pending[0].PlayerID
+				currentAgentID = &id
+				pendingDTO = &dto.PendingActionDTO{
+					PlayerID:   pending[0].PlayerID,
+					ActionType: pending[0].ActionType,
+					Prompt:     pending[0].Prompt,
+				}
+			}
+		}
+
+		var evtResultDTO *dto.GameResultDTO
+		if evt.Result != nil {
+			evtResultDTO = &dto.GameResultDTO{
+				WinnerIDs:  evt.Result.WinnerIDs,
+				WinnerTeam: evt.Result.WinnerTeam,
+				Scores:     evt.Result.Scores,
+			}
+		}
+
+		// Build the SSE broadcast payload (raw state, not view-filtered)
+		broadcast := dto.SSEEventPayload{
+			Seq:            seq,
+			GameID:         gameID,
+			RoomID:         uint(roomID),
+			Source:         evt.Source,
+			EventType:      evt.EventType,
+			Actor:          evt.Actor,
+			Target:         evt.Target,
+			Details:        evt.Details,
+			State:          evt.StateAfter, // raw state; SSE handlers will filter
+			Visibility:     evt.Visibility,
+			PendingAction:  pendingDTO,
+			CurrentAgentID: currentAgentID,
+			Agents:         agents,
+			GameType:       gameType,
+			GameOver:       evt.GameOver,
+			Result:         evtResultDTO,
+		}
+		if evt.GameOver {
+			broadcast.Status = "intermission"
+			broadcast.Message = "POST /ready to play again or /leave to exit"
+		}
+		h.hub.Broadcast(uint(roomID), mustMarshal(broadcast))
+
+		// Build response event (with spectator view)
+		respEvent := dto.GameEventDTO{
+			Seq:        seq,
+			GameID:     gameID,
+			Source:     evt.Source,
+			EventType:  evt.EventType,
+			Actor:      evt.Actor,
+			Target:     evt.Target,
+			Details:    evt.Details,
+			State:      stateView,
+			Visibility: evt.Visibility,
+			GameOver:   evt.GameOver,
+			Result:     evtResultDTO,
+			CreatedAt:  now,
+		}
+		respEvents = append(respEvents, respEvent)
+
+		if evt.GameOver {
+			finalGameOver = true
+			finalResult = evtResultDTO
 		}
 	}
 
-	broadcast := map[string]any{
-		"turn":             newTurn,
-		"state":            broadcastState,
-		"events":           events,
-		"game_over":        actionResult.GameOver,
-		"result":           resultDTO,
-		"game_type":        gameType,
-		"agents":           roomAgentsInfo(roomSnapshot.Agents),
-		"pending_action":   pendingDTO,
-		"current_agent_id": currentAgentID,
-		"phase":            phase,
-		"agent_id":         agent.ID,
-		"action":           req.Action,
-	}
-	if actionResult.GameOver {
-		broadcast["status"] = "post_game"
-		broadcast["message"] = "POST /ready to play again or /leave to exit"
-	}
-	h.hub.Broadcast(uint(roomID), mustMarshal(broadcast))
-
-	// Don't close the room hub on game over — room is reusable in post_game state
-
 	writeJSON(w, http.StatusOK, dto.ActionResponse{
-		Events:   events,
-		GameOver: actionResult.GameOver,
-		Result:   resultDTO,
+		Events:   respEvents,
+		GameOver: finalGameOver,
+		Result:   finalResult,
 	})
 }
 
@@ -293,67 +334,76 @@ func (h *GameplayHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var states []models.GameState
-	qStates := h.db.Where("room_id = ?", roomID)
-	if room.CurrentGameID != nil {
-		qStates = qStates.Where("game_id = ?", *room.CurrentGameID)
-	}
-	if err := qStates.Order("turn ASC").Find(&states).Error; err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load states", "INTERNAL_ERROR")
-		return
-	}
-	var actions []models.GameAction
-	qActions := h.db.Preload("Agent").Where("room_id = ?", roomID)
-	if room.CurrentGameID != nil {
-		qActions = qActions.Where("game_id = ?", *room.CurrentGameID)
-	}
-	if err := qActions.Order("turn ASC").Find(&actions).Error; err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load actions", "INTERNAL_ERROR")
+	eng := game.GetEngine(room.GameType.Name)
+	if eng == nil || room.CurrentGameID == nil {
+		writeJSON(w, http.StatusOK, dto.EventHistoryResponse{
+			RoomID:   room.ID,
+			Status:   string(room.Status),
+			GameType: room.GameType.Name,
+			Events:   []dto.GameEventDTO{},
+			Players:  []dto.HistoryPlayer{},
+		})
 		return
 	}
 
-	eng, ok := game.Registry[room.GameType.Name]
+	gameID := *room.CurrentGameID
+	tableName := eng.NewEventModel().TableName()
 
-	// Build action map by turn
-	actionByTurn := map[uint]*models.GameAction{}
-	for i := range actions {
-		actionByTurn[actions[i].Turn] = &actions[i]
+	// Query all events for the current game
+	var records []game.BaseGameEvent
+	if err := h.db.Table(tableName).
+		Where("game_id = ?", gameID).
+		Order("seq ASC").
+		Find(&records).Error; err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load events", "INTERNAL_ERROR")
+		return
 	}
 
-	timeline := make([]dto.HistoryEntry, len(states))
-	for i, gs := range states {
-		var stateView json.RawMessage
-		if ok {
-			stateView, _ = eng.GetSpectatorView(json.RawMessage(gs.State))
-		} else {
-			stateView = json.RawMessage(gs.State)
+	events := make([]dto.GameEventDTO, 0, len(records))
+	for _, rec := range records {
+		evt := rec.ToGameEvent()
+		// Filter out non-public visibility events for spectators
+		if evt.Visibility != "public" {
+			continue
 		}
 
-		entry := dto.HistoryEntry{
-			Turn:      gs.Turn,
-			State:     stateView,
-			Events:    []dto.GameEventDTO{},
-			CreatedAt: gs.CreatedAt,
+		stateView := evt.StateAfter
+		if sv, err := eng.GetSpectatorView(evt.StateAfter); err == nil {
+			stateView = sv
 		}
-		if act, ok := actionByTurn[gs.Turn]; ok {
-			entry.AgentID = &act.AgentID
-			// Filter out private actions (CW night phases) for spectator consistency
-			if !isPrivateAction(act.Action) {
-				entry.Action = json.RawMessage(act.Action)
+
+		var resultDTO *dto.GameResultDTO
+		if evt.Result != nil {
+			resultDTO = &dto.GameResultDTO{
+				WinnerIDs:  evt.Result.WinnerIDs,
+				WinnerTeam: evt.Result.WinnerTeam,
+				Scores:     evt.Result.Scores,
 			}
 		}
-		timeline[i] = entry
+
+		events = append(events, dto.GameEventDTO{
+			Seq:        rec.Seq,
+			GameID:     rec.GameID,
+			Source:     evt.Source,
+			EventType:  evt.EventType,
+			Actor:      evt.Actor,
+			Target:     evt.Target,
+			Details:    evt.Details,
+			State:      stateView,
+			Visibility: evt.Visibility,
+			GameOver:   evt.GameOver,
+			Result:     resultDTO,
+			CreatedAt:  rec.CreatedAt,
+		})
 	}
 
-	// Build players list from game_players (actual participants), falling back to room agents
+	// Build players list
 	var players []dto.HistoryPlayer
-	if room.CurrentGameID != nil {
-		var gamePlayers []models.GamePlayer
-		h.db.Preload("Agent").Where("game_id = ?", *room.CurrentGameID).Find(&gamePlayers)
-		for _, gp := range gamePlayers {
-			slot := gp.Slot
-			players = append(players, dto.HistoryPlayer{Slot: &slot, AgentID: gp.AgentID, Name: gp.Agent.Name})
-		}
+	var gamePlayers []models.GamePlayer
+	h.db.Preload("Agent").Where("game_id = ?", gameID).Find(&gamePlayers)
+	for _, gp := range gamePlayers {
+		slot := gp.Slot
+		players = append(players, dto.HistoryPlayer{Slot: &slot, AgentID: gp.AgentID, Name: gp.Agent.Name})
 	}
 	if len(players) == 0 {
 		for _, ra := range room.Agents {
@@ -373,13 +423,14 @@ func (h *GameplayHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, dto.HistoryResponse{
+	writeJSON(w, http.StatusOK, dto.EventHistoryResponse{
 		RoomID:   room.ID,
+		GameID:   gameID,
 		Status:   string(room.Status),
 		GameType: room.GameType.Name,
 		Result:   resultDTO,
 		Players:  players,
-		Timeline: timeline,
+		Events:   events,
 	})
 }
 

@@ -26,7 +26,7 @@ function getWinningLine(board: string[]): number[] | null {
   return null;
 }
 
-export function TicTacToeBoard({ state, players }: BoardProps) {
+export default function TicTacToeBoard({ state, players }: BoardProps) {
   const { t } = useI18n();
   const s = state as unknown as TicTacToeState;
   const board = s?.board ?? Array(9).fill('');
@@ -42,7 +42,7 @@ export function TicTacToeBoard({ state, players }: BoardProps) {
   const oName = players?.[1]?.name ?? 'O';
 
   let statusMsg = '';
-  if (winner) statusMsg = winner === 'X' ? `${xName} (X) wins! 🎉` : `${oName} (O) wins! 🎉`;
+  if (winner) statusMsg = winner === 'X' ? `${xName} (X) wins!` : `${oName} (O) wins!`;
   else if (isDraw || allFilled) statusMsg = t('ttt.draw');
   else statusMsg = xCount === oCount ? `${xName}'s turn (X)` : `${oName}'s turn (O)`;
 
