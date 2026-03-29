@@ -1,5 +1,4 @@
 import React from 'react';
-import { formatEventMessage, isDeathEvent, isPhaseChange } from '../../utils/narrativeFormatter';
 import type { GameEvent } from '../../types';
 
 export interface ActionLogEntryProps {
@@ -20,52 +19,127 @@ function boldAgentNames(message: string, players?: Array<{ name: string }>): Rea
   );
 }
 
+/** Map phase names to narrative descriptions */
+function phaseNarrative(phase: string): string {
+  switch (phase) {
+    case 'night_clawedwolf': return '🐺 The wolves awaken and choose their prey...';
+    case 'night_seer':       return '👁 The seer opens their eyes...';
+    case 'night_guard':      return '🛡 The guard takes their post...';
+    case 'day_discuss':      return '🌅 The village gathers to discuss.';
+    case 'day_vote':         return '⚖️ The time for judgment is at hand.';
+    default:                 return '';
+  }
+}
+
 export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryProps) {
   const { event_type, actor, target, details } = entry;
   const statePlayers = Array.isArray((entry.state as { players?: unknown }).players)
     ? (entry.state as { players: Array<{ seat?: number; name?: string }> }).players
     : [];
 
-  // Extract message from details if present
-  const message = typeof details?.message === 'string' ? details.message : '';
+  const content = typeof details?.content === 'string' ? details.content : '';
+  const message = content || (typeof details?.message === 'string' ? details.message : '');
+
+  /** Resolve a seat number to a player name */
+  const nameForSeat = (seat: number | undefined): string => {
+    if (seat === undefined) return 'unknown';
+    // Try state players first (has name for alive players during live)
+    const fromState = statePlayers.find(p => p.seat === seat)?.name;
+    if (fromState) return fromState;
+    // Fallback to players prop using agent_id if available
+    return `seat ${seat}`;
+  };
+
+  const targetSeat = target?.seat;
+  const targetName = nameForSeat(targetSeat);
 
   const renderPublicAction = () => {
-    const targetSeat = target?.seat;
-    const targetName = targetSeat !== undefined
-      ? statePlayers.find(p => p.seat === targetSeat)?.name ?? `seat ${targetSeat}`
-      : undefined;
-
     switch (event_type) {
+      case 'game_start':
+        return <span className="text-accent-cyan font-semibold text-xs">🎮 Game Started</span>;
+
       case 'speak':
         return message
           ? <span className="text-[11px] text-text-muted/85">{boldAgentNames(message, players)}</span>
-          : null;
+          : <span className="text-[11px] text-text-muted/40 italic">(no message)</span>;
+
       case 'vote':
-        return <span className="text-[11px] text-text-muted/85">voted {targetName ?? 'unknown target'}</span>;
+        return <span className="text-[11px] text-text-muted/85">voted {targetName}</span>;
+
       case 'protect':
-        return <span className="text-[11px] text-text-muted/85">protected {targetName ?? 'unknown target'}</span>;
+        return <span className="text-[11px] text-text-muted/85">protected {targetName}</span>;
+
       case 'kill':
-        return <span className="text-[11px] text-text-muted/85">targeted {targetName ?? 'unknown target'}</span>;
+        return <span className="text-[11px] text-text-muted/85">targeted {targetName}</span>;
+
       case 'investigate':
-        return <span className="text-[11px] text-text-muted/85">investigated {targetName ?? 'unknown target'}</span>;
+        return <span className="text-[11px] text-text-muted/85">investigated {targetName}</span>;
+
       case 'phase_change': {
-        const phase = typeof details?.phase === 'string' ? details.phase : event_type;
-        const formattedMsg = formatEventMessage(`phase ${phase}`);
-        return <span className="text-yellow-400 font-semibold text-xs">{formattedMsg}</span>;
+        const phase = typeof details?.phase === 'string' ? details.phase : '';
+        const narrative = phaseNarrative(phase);
+        if (narrative) {
+          return <span className="text-yellow-400 font-semibold text-xs">{narrative}</span>;
+        }
+        return <span className="text-yellow-400 font-semibold text-xs">Phase: {phase.replace(/_/g, ' ')}</span>;
       }
+
+      case 'night_resolve': {
+        const killedSeat = details?.killed_seat;
+        const guarded = details?.guarded;
+        if (killedSeat != null && killedSeat !== false) {
+          const victimName = nameForSeat(killedSeat as number);
+          return <span className="text-accent-mag font-semibold text-xs">🐺 {victimName} was killed in the night</span>;
+        }
+        if (guarded) {
+          return <span className="text-green-400 font-semibold text-xs">☮️ A peaceful night — the guard's protection held</span>;
+        }
+        return <span className="text-green-400 font-semibold text-xs">☮️ A peaceful night — no one was killed</span>;
+      }
+
+      case 'guard_save': {
+        const savedSeat = details?.saved_seat;
+        const savedName = savedSeat != null ? nameForSeat(savedSeat as number) : 'someone';
+        return <span className="text-green-400 font-semibold text-xs">🛡 The guard saved {savedName} from the wolves!</span>;
+      }
+
+      case 'vote_result': {
+        const eliminated = details?.eliminated;
+        const tally = details?.tally as Record<string, number> | undefined;
+        if (!eliminated) {
+          return <span className="text-yellow-400 font-semibold text-xs">⚖️ No consensus reached — no one is eliminated</span>;
+        }
+        const tallyStr = tally
+          ? Object.entries(tally).map(([seat, count]) => `seat ${seat}: ${count}`).join(', ')
+          : '';
+        return (
+          <span className="text-yellow-400 font-semibold text-xs">
+            ⚖️ Vote result: {targetName} is eliminated{tallyStr ? ` (${tallyStr})` : ''}
+          </span>
+        );
+      }
+
       case 'elimination':
       case 'death': {
-        const victimName = targetSeat !== undefined
-          ? statePlayers.find(p => p.seat === targetSeat)?.name ?? `seat ${targetSeat}`
-          : 'unknown';
-        return <span className="text-accent-mag font-semibold text-xs">{victimName} was eliminated</span>;
+        const cause = typeof details?.cause === 'string' ? details.cause : '';
+        const roleReveal = typeof details?.role_reveal === 'string' ? details.role_reveal : '';
+        const causeLabel = cause === 'night_kill' ? 'killed by wolves' : cause === 'vote_elimination' ? 'voted out' : 'eliminated';
+        return (
+          <span className="text-accent-mag font-semibold text-xs">
+            💀 {targetName} was {causeLabel}{roleReveal ? ` — revealed as ${roleReveal}` : ''}
+          </span>
+        );
       }
+
       case 'game_over':
         return (
           <span className="text-accent-cyan font-semibold text-xs">
-            {entry.result?.winner_team ? `${entry.result.winner_team} wins!` : 'Game over'}
+            {entry.result?.winner_team
+              ? `🏆 ${entry.result.winner_team === 'evil' ? 'Evil' : 'Good'} team wins!`
+              : '🏁 Game over'}
           </span>
         );
+
       default:
         return null;
     }
@@ -73,9 +147,7 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
 
   const actionLine = renderPublicAction();
 
-  // If we have a specific action rendering, show it
   if (actionLine) {
-    // Build actor label
     const actorName = actor?.agent_id != null
       ? players?.find(p => p.agent_id === actor.agent_id)?.name
       : undefined;
@@ -84,28 +156,18 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
     return (
       <>
         {actorLabel && (
-          <span className="text-text-muted/50 font-mono mr-1 text-[10px]">[{actorLabel}]</span>
+          <span className="text-text-muted/50 font-mono mr-1 text-[10px]">[<strong className="text-text-muted/70">{actorLabel}</strong>]</span>
         )}
         {actionLine}
       </>
     );
   }
 
-  // Fallback: show event_type + message
-  const fallbackMsg = message || event_type;
-  const formattedMsg = formatEventMessage(fallbackMsg);
-  const isDeath = isDeathEvent(fallbackMsg);
-  const isPhase = isPhaseChange(fallbackMsg);
-
+  // Fallback: show event_type
   return (
-    <span
-      className="leading-relaxed"
-      style={{
-        color: isDeath ? '#ff2d6b' : isPhase ? '#ffc107' : '#7a8ba8',
-        fontWeight: isDeath || isPhase ? 600 : 400,
-      }}
-    >
-      {boldAgentNames(formattedMsg, players)}
+    <span className="text-text-muted/60 text-xs">
+      {event_type.replace(/_/g, ' ')}
+      {message ? `: ${message}` : ''}
     </span>
   );
 }

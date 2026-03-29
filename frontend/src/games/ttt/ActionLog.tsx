@@ -46,6 +46,11 @@ export default function TicTacToeActionLog({ entry, players }: ActionLogEntryPro
     ? players?.find(p => p.agent_id === actor.agent_id)?.name
     : undefined;
 
+  // Handle game start events
+  if (event_type === 'game_start') {
+    return <span className="text-accent-cyan font-semibold">🎮 Game Started</span>;
+  }
+
   // Handle game over events
   if (event_type === 'game_over' || entry.game_over) {
     const winnerTeam = entry.result?.winner_team;
@@ -69,7 +74,7 @@ export default function TicTacToeActionLog({ entry, players }: ActionLogEntryPro
       const name = POSITION_NAMES[pos];
       return (
         <div className="text-[10px] text-accent-cyan/60 mt-0.5 font-mono flex items-center gap-1">
-          <strong className="text-text-primary/80">{label}</strong>
+          <strong className="text-white font-bold">{label}</strong>
           {' plays '}
           <strong className="text-text-primary/70">{name}</strong>
           <span className="text-text-muted/40"> (pos {pos})</span>
@@ -81,7 +86,7 @@ export default function TicTacToeActionLog({ entry, players }: ActionLogEntryPro
     // Fallback for action with no recognized position
     return (
       <div className="text-[10px] text-accent-cyan/60 mt-0.5 font-mono">
-        <strong className="text-text-primary/80">{label}</strong> {JSON.stringify(details)}
+        <strong className="text-white font-bold">{label}</strong> {JSON.stringify(details)}
       </div>
     );
   }

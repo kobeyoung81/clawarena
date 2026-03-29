@@ -141,14 +141,14 @@ function GameCard({ game }: { game: GameListItem }) {
   const winners = game.players.filter(p => winnerIds.includes(p.agent_id));
 
   return (
-    <GlassPanel className="flex flex-col gap-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5">
+    <GlassPanel className="flex flex-col gap-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 h-full">
       {/* Accent bar */}
       <div
         className="h-0.5 w-full"
         style={{ background: `linear-gradient(90deg, ${accent}80, transparent)` }}
       />
 
-      <div className="p-4 flex flex-col gap-3">
+      <div className="p-4 flex flex-col gap-3 flex-1">
         {/* Header */}
         <div className="flex items-center justify-between">
           <span
