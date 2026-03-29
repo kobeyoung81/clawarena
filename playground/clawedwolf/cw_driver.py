@@ -124,18 +124,6 @@ def setup_room(cfg, verbose=False):
                 log(f"Resolved {agent['name']} -> agent_id {agent['agent_id']}", verbose)
 
 
-def discover_roles(agents, state):
-    """Read each agent's role from the players list in state."""
-    players = state.get("state", {}).get("players", [])
-    for player in players:
-        for agent in agents:
-            if player.get("id") == agent["agent_id"] and not agent.get("role"):
-                role = player.get("role", "")
-                if role:
-                    agent["role"] = role
-                    agent["seat"] = player.get("seat")
-
-
 def get_wolf_seats(agents):
     return {a["seat"] for a in agents if a.get("role") == "clawedwolf" and a.get("seat") is not None}
 
@@ -218,154 +206,186 @@ def play_game(cfg, verbose=False, slow=False):
                     if game_done.is_set():
                         return
 
-                    evt_type = event["event"]
+                    evt_name = event["event"]  # "game_event", "room_event", or "message"
 
-                    if evt_type == "game_start":
-                        log(f"{agent['name']} received game_start", verbose)
+                    # Handle room lifecycle events
+                    if evt_name == "room_event":
+                        try:
+                            data = json.loads(event["data"])
+                        except (json.JSONDecodeError, TypeError):
+                            continue
+                        if data.get("game_over") or data.get("type") == "room_closed":
+                            if not game_done.is_set():
+                                log("Room closed", always=True)
+                                game_done.set()
+                            return
+                        continue
+
+                    # Only process game events
+                    if evt_name != "game_event":
+                        continue  # Skip keepalives and unknown events
+
+                    try:
+                        data = json.loads(event["data"])
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+
+                    event_type = data.get("event_type", "")
+                    seq = data.get("seq", "?")
+
+                    if verbose:
+                        log(f"{agent['name']} event seq={seq} type={event_type}", always=True)
+
+                    # --- Role discovery ---
+                    # Method 1: From roles_assigned event during catch-up
+                    if event_type == "roles_assigned" and data.get("details", {}).get("role"):
+                        agent["role"] = data["details"]["role"]
+                        log(f"{agent['name']} assigned role: {agent['role']}", verbose)
+
+                    # Method 2: From player view state (more reliable)
+                    state = data.get("state", {})
+                    if state.get("your_role") and not agent.get("role"):
+                        agent["role"] = state["your_role"]
+                        agent["seat"] = state.get("your_seat")
+                        log(f"{agent['name']} discovered role: {agent['role']} seat: {agent.get('seat')}", verbose)
+
+                    # Update seat from state if not yet set
+                    if state.get("your_seat") is not None and agent.get("seat") is None:
+                        agent["seat"] = state["your_seat"]
+
+                    # Update alive status from players array in state
+                    for player in state.get("players", []):
+                        for a in agents:
+                            if a.get("seat") == player.get("seat"):
+                                a["alive"] = player.get("alive", True)
+
+                    # Check game over
+                    if data.get("game_over"):
+                        if not game_done.is_set():
+                            result = data.get("result", {}) or {}
+                            winner = (
+                                state.get("winner")
+                                or result.get("winner_team")
+                                or "unknown"
+                            )
+                            log(f"\nGAME OVER! Winner: {winner}", always=True)
+                            # Print any details from the state
+                            details = data.get("details", {})
+                            if details.get("message"):
+                                log(f"  {details['message']}", always=True)
+                            game_done.set()
+                        return
+
+                    # Check if it's my turn via pending_action
+                    pa = data.get("pending_action")
+                    if not pa or pa["player_id"] != aid:
                         retries = 0
                         backoff = 1.0
                         continue
 
-                    if evt_type == "game_over":
-                        try:
-                            data = json.loads(event["data"]) if event["data"] else {}
-                        except json.JSONDecodeError:
-                            data = {}
-                        winner = data.get("winner", data.get("state", {}).get("winner", "unknown"))
-                        log(f"\nGAME OVER! Winner: {winner}", always=True)
-                        for ev in data.get("events", data.get("state", {}).get("events", [])):
-                            log(f"  {ev.get('message', '')}", always=True)
-                        game_done.set()
-                        return
+                    phase = state.get("phase", "")
+                    cur_round = state.get("round", 0)
+                    role = agent.get("role", "villager")
+                    name = agent["name"]
+                    valid = pa.get("valid_targets", [])
 
-                    if evt_type == "state":
-                        data = json.loads(event["data"])
+                    if cur_round != shared["round_num"]:
+                        shared["round_num"] = cur_round
+                        log(f"\n{'='*50}", always=True)
+                        log(f"Round {cur_round}", always=True)
+                        log(f"{'='*50}", always=True)
 
-                        discover_roles(agents, data)
+                    action = None
 
-                        # Update alive status
-                        for player in data.get("state", {}).get("players", []):
-                            for a in agents:
-                                if a.get("seat") == player.get("seat"):
-                                    a["alive"] = player.get("alive", True)
+                    if phase == "night_clawedwolf":
+                        wolf_seats = get_wolf_seats(agents)
+                        targets = [s for s in valid if s not in wolf_seats and s != -1]
+                        if not targets:
+                            targets = [s for s in valid if s != -1] or valid
+                        target = targets[0] if targets else valid[0]
+                        action = {"action": {"type": "kill_vote", "target_seat": target}}
+                        log(f"  Wolf: {name} votes to kill seat {target}", always=True)
 
-                        if data.get("status") in ("finished", "closed", "intermission"):
-                            winner = data["state"].get("winner")
-                            log(f"\nGAME OVER! Winner: {winner}", always=True)
-                            for ev in data["state"].get("events", []):
-                                log(f"  {ev.get('message', '')}", always=True)
-                            game_done.set()
-                            return
+                    elif phase == "night_seer":
+                        targets = [s for s in valid if s not in shared["seer_investigated"]]
+                        if not targets:
+                            targets = list(valid)
+                        target = targets[0] if targets else valid[0]
+                        shared["seer_investigated"].add(target)
+                        action = {"action": {"type": "investigate", "target_seat": target}}
+                        log(f"  Seer: {name} investigates seat {target}", always=True)
 
-                        pa = data.get("pending_action")
-                        if not pa or pa["player_id"] != aid:
-                            retries = 0
-                            backoff = 1.0
-                            continue
+                    elif phase == "night_guard":
+                        targets = [s for s in valid if s != shared["guard_last_protected"]]
+                        if not targets:
+                            targets = list(valid)
+                        target = targets[0] if targets else valid[0]
+                        shared["guard_last_protected"] = target
+                        action = {"action": {"type": "protect", "target_seat": target}}
+                        log(f"  Guard: {name} protects seat {target}", always=True)
 
-                        phase = data["state"]["phase"]
-                        cur_round = data["state"].get("round", 0)
-                        role = agent.get("role", "villager")
-                        name = agent["name"]
-                        valid = pa.get("valid_targets", [])
+                    elif phase == "day_discuss":
+                        idx = shared["speech_idx"].get(aid, 0)
 
-                        if cur_round != shared["round_num"]:
-                            shared["round_num"] = cur_round
-                            log(f"\n{'='*50}", always=True)
-                            log(f"Round {cur_round}", always=True)
-                            log(f"{'='*50}", always=True)
+                        if role == "seer":
+                            sr = state.get("seer_results", {})
+                            shared["seer_results_cache"].update(sr)
+                            if shared["seer_results_cache"]:
+                                findings = ", ".join(
+                                    [f"seat {k} is {v}" for k, v in shared["seer_results_cache"].items()]
+                                )
+                                msg = f"I am the Seer. My findings: {findings}. Let us vote wisely."
+                            else:
+                                templates = SPEECH_TEMPLATES.get("seer", SPEECH_TEMPLATES["villager"])
+                                msg = templates[idx % len(templates)]
+                        else:
+                            templates = SPEECH_TEMPLATES.get(role, SPEECH_TEMPLATES["villager"])
+                            msg = templates[idx % len(templates)]
 
-                        action = None
+                        shared["speech_idx"][aid] = idx + 1
+                        action = {"action": {"type": "speak", "message": msg}}
+                        short = msg[:60] + "..." if len(msg) > 60 else msg
+                        log(f"  {name} speaks: \"{short}\"", always=True)
 
-                        if phase == "night_clawedwolf":
+                    elif phase == "day_vote":
+                        if role == "clawedwolf":
                             wolf_seats = get_wolf_seats(agents)
                             targets = [s for s in valid if s not in wolf_seats and s != -1]
-                            if not targets:
-                                targets = [s for s in valid if s != -1] or valid
-                            target = targets[0] if targets else valid[0]
-                            action = {"action": {"type": "kill_vote", "target_seat": target}}
-                            log(f"  Wolf: {name} votes to kill seat {target}", always=True)
-
-                        elif phase == "night_seer":
-                            targets = [s for s in valid if s not in shared["seer_investigated"]]
-                            if not targets:
-                                targets = list(valid)
-                            target = targets[0] if targets else valid[0]
-                            shared["seer_investigated"].add(target)
-                            action = {"action": {"type": "investigate", "target_seat": target}}
-                            log(f"  Seer: {name} investigates seat {target}", always=True)
-
-                        elif phase == "night_guard":
-                            targets = [s for s in valid if s != shared["guard_last_protected"]]
-                            if not targets:
-                                targets = list(valid)
-                            target = targets[0] if targets else valid[0]
-                            shared["guard_last_protected"] = target
-                            action = {"action": {"type": "protect", "target_seat": target}}
-                            log(f"  Guard: {name} protects seat {target}", always=True)
-
-                        elif phase == "day_discuss":
-                            idx = shared["speech_idx"].get(aid, 0)
-
-                            if role == "seer":
-                                sr = data["state"].get("seer_results", {})
-                                shared["seer_results_cache"].update(sr)
-                                if shared["seer_results_cache"]:
-                                    findings = ", ".join(
-                                        [f"seat {k} is {v}" for k, v in shared["seer_results_cache"].items()]
-                                    )
-                                    msg = f"I am the Seer. My findings: {findings}. Let us vote wisely."
-                                else:
-                                    templates = SPEECH_TEMPLATES.get("seer", SPEECH_TEMPLATES["villager"])
-                                    msg = templates[idx % len(templates)]
-                            else:
-                                templates = SPEECH_TEMPLATES.get(role, SPEECH_TEMPLATES["villager"])
-                                msg = templates[idx % len(templates)]
-
-                            shared["speech_idx"][aid] = idx + 1
-                            action = {"action": {"type": "speak", "message": msg}}
-                            short = msg[:60] + "..." if len(msg) > 60 else msg
-                            log(f"  {name} speaks: \"{short}\"", always=True)
-
-                        elif phase == "day_vote":
-                            if role == "clawedwolf":
-                                wolf_seats = get_wolf_seats(agents)
-                                targets = [s for s in valid if s not in wolf_seats and s != -1]
-                            else:
-                                targets = [s for s in valid if s != agent.get("seat") and s != -1]
-                                if role == "seer" and shared["seer_results_cache"]:
-                                    evil_seats = [
-                                        int(k) for k, v in shared["seer_results_cache"].items() if v == "evil"
-                                    ]
-                                    evil_targets = [s for s in evil_seats if s in targets]
-                                    if evil_targets:
-                                        targets = evil_targets
-
-                            target = targets[0] if targets else (valid[0] if valid else -1)
-                            action = {"action": {"type": "vote", "target_seat": target}}
-                            log(f"  {name} votes for seat {target}", always=True)
-
                         else:
-                            log(f"  Waiting: {name} in phase {phase}", always=True)
-                            retries = 0
-                            backoff = 1.0
-                            continue
+                            targets = [s for s in valid if s != agent.get("seat") and s != -1]
+                            if role == "seer" and shared["seer_results_cache"]:
+                                evil_seats = [
+                                    int(k) for k, v in shared["seer_results_cache"].items() if v == "evil"
+                                ]
+                                evil_targets = [s for s in evil_seats if s in targets]
+                                if evil_targets:
+                                    targets = evil_targets
 
-                        if action:
-                            if slow:
-                                time.sleep(3)
-                            result = api_post(
-                                f"{arena}/api/v1/rooms/{room_id}/action", token, action, verbose
-                            )
-                            if "error" in result:
-                                log(f"  Action error: {result}", always=True)
-                            if result.get("game_over"):
-                                log(f"\nGAME OVER after action!", always=True)
-                                r = result.get("result", {}) or {}
-                                winner = r.get("winner_team", "unknown")
-                                log(f"Winner: {winner}", always=True)
-                                game_done.set()
-                                return
+                        target = targets[0] if targets else (valid[0] if valid else -1)
+                        action = {"action": {"type": "vote", "target_seat": target}}
+                        log(f"  {name} votes for seat {target}", always=True)
+
+                    else:
+                        log(f"  Waiting: {name} in phase {phase}", always=True)
+                        retries = 0
+                        backoff = 1.0
+                        continue
+
+                    if action:
+                        if slow:
+                            time.sleep(3)
+                        result = api_post(
+                            f"{arena}/api/v1/rooms/{room_id}/action", token, action, verbose
+                        )
+                        if "error" in result:
+                            log(f"  Action error: {result}", always=True)
+                        if result.get("game_over"):
+                            log(f"\nGAME OVER after action!", always=True)
+                            r = result.get("result", {}) or {}
+                            winner = r.get("winner_team", "unknown")
+                            log(f"Winner: {winner}", always=True)
+                            game_done.set()
+                            return
 
                     retries = 0
                     backoff = 1.0
@@ -397,7 +417,7 @@ def play_game(cfg, verbose=False, slow=False):
     game_done.wait(timeout=600)
 
     if not game_done.is_set():
-        log("SSE game timeout (600s) — game may be stuck", always=True)
+        log("SSE game timeout (600s) -- game may be stuck", always=True)
 
     for t in threads:
         t.join(timeout=5)

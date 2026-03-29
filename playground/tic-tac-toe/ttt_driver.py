@@ -198,71 +198,77 @@ def play_game(cfg, verbose=False, slow=False):
                     if game_done.is_set():
                         return
 
-                    evt_type = event["event"]
+                    evt_name = event["event"]  # "game_event", "room_event", or "message"
 
-                    if evt_type == "game_start":
-                        log(f"{agent['name']} received game_start", verbose)
-                        continue
-
-                    if evt_type == "game_over":
+                    # Handle room lifecycle events
+                    if evt_name == "room_event":
                         try:
                             data = json.loads(event["data"])
                         except (json.JSONDecodeError, TypeError):
-                            data = {}
+                            continue
+                        if data.get("game_over") or data.get("type") == "room_closed":
+                            if not game_done.is_set():
+                                log("Room closed", always=True)
+                                game_done.set()
+                            return
+                        continue
+
+                    # Only process game events
+                    if evt_name != "game_event":
+                        continue  # Skip keepalives and unknown events
+
+                    try:
+                        data = json.loads(event["data"])
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+
+                    event_type = data.get("event_type", "")
+                    seq = data.get("seq", "?")
+
+                    if verbose:
+                        log(f"{agent['name']} event seq={seq} type={event_type}", always=True)
+
+                    # Check game over
+                    if data.get("game_over"):
                         if not game_done.is_set():
-                            gs = data.get("state", data)
-                            winner_id = gs.get("winner")
-                            is_draw = gs.get("is_draw", False)
+                            state = data.get("state", {})
+                            result = data.get("result", {}) or {}
+                            winner_id = state.get("winner")
+                            is_draw = state.get("is_draw", False)
                             if is_draw:
                                 log("Result: DRAW", always=True)
                             elif winner_id is not None:
                                 wname = by_id.get(winner_id, {}).get("name", f"agent {winner_id}")
                                 log(f"Result: {wname} ({marks.get(winner_id, '?')}) wins!", always=True)
+                            elif result.get("winner_ids"):
+                                wid = result["winner_ids"][0] if result["winner_ids"] else None
+                                wname = by_id.get(wid, {}).get("name", f"agent {wid}")
+                                log(f"Result: {wname} ({marks.get(wid, '?')}) wins!", always=True)
                             else:
                                 log("Game finished", always=True)
                             game_done.set()
                         return
 
-                    if evt_type == "state":
-                        try:
-                            data = json.loads(event["data"])
-                        except (json.JSONDecodeError, TypeError):
-                            continue
+                    # Check if it's my turn via pending_action
+                    pa = data.get("pending_action")
+                    if not pa or pa["player_id"] != aid:
+                        continue
 
-                        if data.get("status") in ("finished", "closed", "intermission"):
-                            if not game_done.is_set():
-                                gs = data.get("state", {})
-                                winner_id = gs.get("winner")
-                                is_draw = gs.get("is_draw", False)
-                                if is_draw:
-                                    log("Result: DRAW", always=True)
-                                elif winner_id is not None:
-                                    wname = by_id.get(winner_id, {}).get("name", f"agent {winner_id}")
-                                    log(f"Result: {wname} ({marks.get(winner_id, '?')}) wins!", always=True)
-                                else:
-                                    log("Game finished", always=True)
-                                game_done.set()
-                            return
+                    board = data["state"]["board"]
+                    valid = pa.get("valid_targets") or [i for i, v in enumerate(board) if v == ""]
+                    position = choose_move(board, valid, my_mark, opp_mark)
+                    log(f"{agent['name']} ({my_mark}) -> {position}", always=True)
 
-                        pa = data.get("pending_action")
-                        if not pa or pa["player_id"] != aid:
-                            continue
-
-                        board = data["state"]["board"]
-                        valid = pa.get("valid_targets") or [i for i, v in enumerate(board) if v == ""]
-                        position = choose_move(board, valid, my_mark, opp_mark)
-                        log(f"{agent['name']} ({my_mark}) -> {position}", always=True)
-
-                        if slow:
-                            time.sleep(3)
-                        result = api_post(
-                            f"{arena}/api/v1/rooms/{room_id}/action",
-                            token,
-                            {"action": {"position": position}},
-                            verbose,
-                        )
-                        if "error" in result:
-                            log(f"Action error: {result}", always=True)
+                    if slow:
+                        time.sleep(3)
+                    result = api_post(
+                        f"{arena}/api/v1/rooms/{room_id}/action",
+                        token,
+                        {"action": {"position": position}},
+                        verbose,
+                    )
+                    if "error" in result:
+                        log(f"Action error: {result}", always=True)
 
                     # Reset backoff on successful event processing
                     retries = 0

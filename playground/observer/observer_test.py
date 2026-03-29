@@ -43,9 +43,10 @@ def parse_sse_lines(line_iter):
     Yield parsed SSE events from an iterable of text lines.
     Each yielded dict has one of:
       {"type": "keepalive"}
-      {"type": "event", "id": str|None, "data": str}
+      {"type": "event", "event_name": str, "id": str|None, "data": str}
     """
     event_id = None
+    event_name = "message"
     data_parts = []
 
     for line in line_iter:
@@ -59,14 +60,24 @@ def parse_sse_lines(line_iter):
             event_id = line[3:].strip()
             continue
 
+        if line.startswith("event:"):
+            event_name = line[6:].strip()
+            continue
+
         if line.startswith("data:"):
             data_parts.append(line[5:].strip())
             continue
 
         if line == "" and data_parts:
-            yield {"type": "event", "id": event_id, "data": "\n".join(data_parts)}
+            yield {
+                "type": "event",
+                "event_name": event_name,
+                "id": event_id,
+                "data": "\n".join(data_parts),
+            }
             data_parts = []
             event_id = None
+            event_name = "message"
 
 
 def watch(url, room_id, timeout=300, output_json=False, validate=False, follow=False):
@@ -78,7 +89,7 @@ def watch(url, room_id, timeout=300, output_json=False, validate=False, follow=F
 
     total_events = 0
     errors = []
-    last_turn = -1
+    last_seq = -1
     start_time = time.time()
 
     stderr = sys.stderr
@@ -121,19 +132,48 @@ def watch(url, room_id, timeout=300, output_json=False, validate=False, follow=F
                         print(f"{GRAY}[{ts()}] keep-alive{RESET}")
                     continue
 
-                total_events += 1
-                raw_data = event["data"]
+                event_name = event.get("event_name", "message")
                 event_id = event.get("id")
 
-                # Track turn ID for reconnect and validation
+                # Handle room lifecycle events
+                if event_name == "room_event":
+                    total_events += 1
+                    raw_data = event["data"]
+                    try:
+                        parsed = json.loads(raw_data)
+                    except json.JSONDecodeError as e:
+                        errors.append(f"Invalid JSON in room_event {event_id}: {e}")
+                        continue
+
+                    if output_json:
+                        print(json.dumps(parsed), flush=True)
+                    else:
+                        room_type = parsed.get("type", "unknown")
+                        print(f"\n{BOLD}{YELLOW}[{ts()}] Room Event: {room_type.upper()}{RESET}")
+
+                    if parsed.get("game_over") or parsed.get("type") == "room_closed":
+                        if not output_json:
+                            print(f"\n{YELLOW}Room closed.{RESET}", file=stderr)
+                        _print_summary(total_events, start_time, errors, validate, output_json)
+                        return
+                    continue
+
+                # Only process game_event named events
+                if event_name != "game_event":
+                    continue
+
+                total_events += 1
+                raw_data = event["data"]
+
+                # Track seq for reconnect and validation
                 if event_id is not None:
                     try:
-                        turn = int(event_id)
-                        if validate and turn <= last_turn:
+                        seq_val = int(event_id)
+                        if validate and seq_val <= last_seq:
                             errors.append(
-                                f"Turn ID not increasing: got {turn}, last was {last_turn}"
+                                f"Seq not increasing: got {seq_val}, last was {last_seq}"
                             )
-                        last_turn = turn
+                        last_seq = seq_val
                         last_event_id = event_id
                     except ValueError:
                         pass
@@ -148,9 +188,14 @@ def watch(url, room_id, timeout=300, output_json=False, validate=False, follow=F
                         print(f"{RED}[{ts()}] Bad JSON: {raw_data[:100]}{RESET}")
                     continue
 
-                # Validate required fields: every event must have room_id, turn, status
+                # Also track seq from the payload itself
+                payload_seq = parsed.get("seq")
+                if payload_seq is not None:
+                    last_seq = max(last_seq, payload_seq)
+
+                # Validate required fields for event-sourced format
                 if validate:
-                    required = {"room_id", "turn", "status"}
+                    required = {"seq", "event_type"}
                     missing = required - set(parsed.keys())
                     if missing:
                         errors.append(f"Event {event_id} missing fields: {missing}")
@@ -161,17 +206,19 @@ def watch(url, room_id, timeout=300, output_json=False, validate=False, follow=F
                 else:
                     _pretty_print(event_id, parsed)
 
-                # Handle room lifecycle events
-                room_status = parsed.get("status", "")
-                if room_status == "intermission" or parsed.get("game_over"):
+                # Detect game over from the event payload
+                if parsed.get("game_over"):
                     if not output_json:
-                        print(f"\n{GREEN}Game finished (room entering intermission).{RESET}", file=stderr)
+                        print(f"\n{GREEN}Game finished.{RESET}", file=stderr)
                     if not follow:
                         _print_summary(total_events, start_time, errors, validate, output_json)
                         return
-                elif room_status == "closed":
+
+                # Also handle status field if present
+                room_status = parsed.get("status", "")
+                if room_status == "closed":
                     if not output_json:
-                        print(f"\n{YELLOW}Room is closed (all agents left).{RESET}", file=stderr)
+                        print(f"\n{YELLOW}Room is closed.{RESET}", file=stderr)
                     _print_summary(total_events, start_time, errors, validate, output_json)
                     return
 
@@ -189,34 +236,138 @@ def watch(url, room_id, timeout=300, output_json=False, validate=False, follow=F
 
 
 def _pretty_print(event_id, data):
-    status = data.get("status", "?")
-    turn = data.get("turn", "?")
-    events = data.get("events", [])
+    event_type = data.get("event_type", "?")
+    seq = data.get("seq", "?")
+    source = data.get("source", "?")
+    status = data.get("status", "")
+    game_over = data.get("game_over", False)
 
-    color = CYAN if status == "active" else GREEN if status == "closed" else YELLOW if status in ("intermission", "ready_check") else CYAN
-    print(f"\n{BOLD}{color}[{ts()}] Turn {turn} | {status.upper()}{RESET}")
+    # Color based on event type
+    if game_over:
+        color = GREEN
+    elif event_type in ("phase_change", "death"):
+        color = YELLOW
+    elif event_type in ("game_start", "roles_assigned"):
+        color = CYAN
+    else:
+        color = CYAN
 
-    # Room lifecycle indicators
-    if status == "ready_check":
-        print(f"  {YELLOW}⏳ Waiting for agents to ready up...{RESET}")
-    elif status == "intermission":
-        game_count = data.get("game_count", "?")
-        print(f"  {GREEN}🏁 Game #{game_count} complete. Awaiting ready for next game.{RESET}")
+    print(f"\n{BOLD}{color}[{ts()}] #{seq} {event_type.upper()} (source: {source}){RESET}")
 
-    for ev in events:
-        visibility = ev.get("visibility", "public")
-        msg = ev.get("message", "")
-        color = GRAY if visibility != "public" else RESET
-        print(f"  {color}» {msg}{RESET}")
+    # Show status if present
+    if status:
+        print(f"  Status: {status}")
 
-    if data.get("game_over"):
-        result = data.get("result") or {}
+    actor = data.get("actor", {})
+    target = data.get("target")
+    details = data.get("details", {})
+    state = data.get("state", {})
+
+    # Format output based on event_type
+    if event_type == "game_start":
+        agents = data.get("agents", [])
+        game_type = data.get("game_type", "")
+        if game_type:
+            print(f"  Game: {game_type}")
+        if agents:
+            print(f"  Agents: {len(agents)} players")
+
+    elif event_type == "move":
+        seat = actor.get("seat", "?")
+        position = details.get("position", "?")
+        symbol = details.get("symbol", "?")
+        print(f"  Move: seat {seat} -> position {position} ({symbol})")
+        # Show board if available
+        board = state.get("board")
+        if board:
+            _print_board(board)
+
+    elif event_type == "speak":
+        seat = actor.get("seat", "?")
+        content = details.get("content", details.get("message", ""))
+        short = content[:80] + "..." if len(content) > 80 else content
+        print(f"  Speech: seat {seat}: {short}")
+
+    elif event_type == "kill_vote":
+        seat = actor.get("seat", "?")
+        target_info = target or {}
+        target_seat = target_info.get("seat", details.get("target_seat", "?"))
+        print(f"  Kill vote: seat {seat} -> target seat {target_seat}")
+
+    elif event_type == "investigate":
+        seat = actor.get("seat", "?")
+        target_info = target or {}
+        target_seat = target_info.get("seat", details.get("target_seat", "?"))
+        result = details.get("result", "")
+        msg = f"  Investigate: seat {seat} -> target seat {target_seat}"
+        if result:
+            msg += f" ({result})"
+        print(msg)
+
+    elif event_type == "protect":
+        seat = actor.get("seat", "?")
+        target_info = target or {}
+        target_seat = target_info.get("seat", details.get("target_seat", "?"))
+        print(f"  Protect: seat {seat} -> target seat {target_seat}")
+
+    elif event_type == "vote":
+        seat = actor.get("seat", "?")
+        target_info = target or {}
+        target_seat = target_info.get("seat", details.get("target_seat", "?"))
+        print(f"  Vote: seat {seat} -> target seat {target_seat}")
+
+    elif event_type == "phase_change":
+        phase = details.get("phase", state.get("phase", "?"))
+        round_num = details.get("round", state.get("round", "?"))
+        print(f"  Phase: {phase} (round {round_num})")
+
+    elif event_type == "death":
+        victim_seat = details.get("seat", "?")
+        cause = details.get("cause", "?")
+        print(f"  {RED}Death: seat {victim_seat} ({cause}){RESET}")
+
+    elif event_type == "roles_assigned":
+        print(f"  Roles have been assigned")
+
+    elif event_type == "game_over":
+        result = data.get("result", {}) or {}
         winner_team = result.get("winner_team", "")
         winner_ids = result.get("winner_ids", [])
-        if winner_team:
+        winner = state.get("winner")
+        is_draw = state.get("is_draw", False)
+        if is_draw:
+            print(f"  {BOLD}{YELLOW}Result: DRAW{RESET}")
+        elif winner_team:
             print(f"  {BOLD}{GREEN}Winner: {winner_team.upper()}{RESET}")
+        elif winner is not None:
+            print(f"  {BOLD}{GREEN}Winner: agent {winner}{RESET}")
         elif winner_ids:
             print(f"  {BOLD}{GREEN}Winner IDs: {winner_ids}{RESET}")
+        else:
+            print(f"  Game ended")
+
+    else:
+        # Generic fallback for unknown event types
+        if details:
+            for k, v in details.items():
+                val_str = str(v)
+                if len(val_str) > 100:
+                    val_str = val_str[:100] + "..."
+                print(f"  {k}: {val_str}")
+
+
+def _print_board(board):
+    """Pretty-print a tic-tac-toe board."""
+    if len(board) != 9:
+        return
+    for row in range(3):
+        cells = []
+        for col in range(3):
+            v = board[row * 3 + col]
+            cells.append(v if v else ".")
+        print(f"    {' | '.join(cells)}")
+        if row < 2:
+            print(f"    --+---+--")
 
 
 def _print_summary(total_events, start_time, errors, validate, output_json):
