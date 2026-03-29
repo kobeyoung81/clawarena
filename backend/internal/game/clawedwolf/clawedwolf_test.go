@@ -97,9 +97,9 @@ func TestInitState_SeedEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitState failed: %v", err)
 	}
-	// Expect 1 game_start + 6 roles_assigned = 7 events
-	if len(events) != 7 {
-		t.Fatalf("expected 7 seed events, got %d", len(events))
+	// Expect 1 game_start + 1 phase_change + 6 roles_assigned = 8 events
+	if len(events) != 8 {
+		t.Fatalf("expected 8 seed events, got %d", len(events))
 	}
 	if events[0].EventType != "game_start" {
 		t.Errorf("first event should be game_start, got %q", events[0].EventType)
@@ -110,7 +110,13 @@ func TestInitState_SeedEvents(t *testing.T) {
 	if events[0].Visibility != "public" {
 		t.Errorf("game_start visibility should be public, got %q", events[0].Visibility)
 	}
-	for i := 1; i <= 6; i++ {
+	if events[1].EventType != "phase_change" {
+		t.Errorf("second event should be phase_change, got %q", events[1].EventType)
+	}
+	if events[1].Visibility != "public" {
+		t.Errorf("phase_change visibility should be public, got %q", events[1].Visibility)
+	}
+	for i := 2; i <= 7; i++ {
 		if events[i].EventType != "roles_assigned" {
 			t.Errorf("event %d should be roles_assigned, got %q", i, events[i].EventType)
 		}

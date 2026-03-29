@@ -156,6 +156,15 @@ func (e *Engine) InitState(config json.RawMessage, players []uint) (json.RawMess
 		},
 	}
 
+	// Public phase_change for the first night
+	events = append(events, game.GameEvent{
+		Source:     "system",
+		EventType:  "phase_change",
+		Details:    mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
+		StateAfter: stateJSON,
+		Visibility: "public",
+	})
+
 	for _, p := range s.Players {
 		events = append(events, game.GameEvent{
 			Source:     "system",
@@ -614,17 +623,21 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 
 		// Resolve night, then advance to day
 		events = append(events, resolveNight(s)...)
-		s.Phase = PhaseDayDiscuss
-		s.SpeakerIndex = 0
 
-		// Phase change to day_discuss
-		events = append(events, game.GameEvent{
-			Source:    "system",
-			EventType: "phase_change",
-			Details:   mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
-			StateAfter: stateSnapshot(s),
-			Visibility: "public",
-		})
+		// Only transition to day if the game hasn't ended
+		if s.Winner == nil {
+			s.Phase = PhaseDayDiscuss
+			s.SpeakerIndex = 0
+
+			// Phase change to day_discuss
+			events = append(events, game.GameEvent{
+				Source:    "system",
+				EventType: "phase_change",
+				Details:   mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
+				StateAfter: stateSnapshot(s),
+				Visibility: "public",
+			})
+		}
 
 	case PhaseDayDiscuss:
 		if action.Type != "speak" {

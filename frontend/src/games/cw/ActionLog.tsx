@@ -34,19 +34,23 @@ function phaseNarrative(phase: string): string {
 export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryProps) {
   const { event_type, actor, target, details } = entry;
   const statePlayers = Array.isArray((entry.state as { players?: unknown }).players)
-    ? (entry.state as { players: Array<{ seat?: number; name?: string }> }).players
+    ? (entry.state as { players: Array<{ id?: number; seat?: number; name?: string }> }).players
     : [];
 
   const content = typeof details?.content === 'string' ? details.content : '';
   const message = content || (typeof details?.message === 'string' ? details.message : '');
 
-  /** Resolve a seat number to a player name */
+  /** Resolve a seat number to a player name using state (id↔seat) + players prop (agent_id↔name) */
   const nameForSeat = (seat: number | undefined): string => {
     if (seat === undefined) return 'unknown';
-    // Try state players first (has name for alive players during live)
-    const fromState = statePlayers.find(p => p.seat === seat)?.name;
-    if (fromState) return fromState;
-    // Fallback to players prop using agent_id if available
+    // Try state player name first (available during live mode)
+    const statePlayer = statePlayers.find(p => p.seat === seat);
+    if (statePlayer?.name) return statePlayer.name;
+    // Join via agent_id: state has id+seat, players prop has agent_id+name
+    if (statePlayer?.id && players?.length) {
+      const match = players.find(p => p.agent_id === statePlayer.id);
+      if (match?.name) return match.name;
+    }
     return `seat ${seat}`;
   };
 
@@ -64,16 +68,16 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
           : <span className="text-[11px] text-text-muted/40 italic">(no message)</span>;
 
       case 'vote':
-        return <span className="text-[11px] text-text-muted/85">voted {targetName}</span>;
+        return <span className="text-[11px] text-text-muted/85">voted <strong className="text-white">{targetName}</strong></span>;
 
       case 'protect':
-        return <span className="text-[11px] text-text-muted/85">protected {targetName}</span>;
+        return <span className="text-[11px] text-text-muted/85">protected <strong className="text-white">{targetName}</strong></span>;
 
       case 'kill':
-        return <span className="text-[11px] text-text-muted/85">targeted {targetName}</span>;
+        return <span className="text-[11px] text-text-muted/85">targeted <strong className="text-white">{targetName}</strong></span>;
 
       case 'investigate':
-        return <span className="text-[11px] text-text-muted/85">investigated {targetName}</span>;
+        return <span className="text-[11px] text-text-muted/85">investigated <strong className="text-white">{targetName}</strong></span>;
 
       case 'phase_change': {
         const phase = typeof details?.phase === 'string' ? details.phase : '';
@@ -89,7 +93,7 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
         const guarded = details?.guarded;
         if (killedSeat != null && killedSeat !== false) {
           const victimName = nameForSeat(killedSeat as number);
-          return <span className="text-accent-mag font-semibold text-xs">🐺 {victimName} was killed in the night</span>;
+          return <span className="text-accent-mag font-semibold text-xs">🐺 <strong className="text-white">{victimName}</strong> was killed in the night</span>;
         }
         if (guarded) {
           return <span className="text-green-400 font-semibold text-xs">☮️ A peaceful night — the guard's protection held</span>;
@@ -100,7 +104,7 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
       case 'guard_save': {
         const savedSeat = details?.saved_seat;
         const savedName = savedSeat != null ? nameForSeat(savedSeat as number) : 'someone';
-        return <span className="text-green-400 font-semibold text-xs">🛡 The guard saved {savedName} from the wolves!</span>;
+        return <span className="text-green-400 font-semibold text-xs">🛡 The guard saved <strong className="text-white">{savedName}</strong> from the wolves!</span>;
       }
 
       case 'vote_result': {
@@ -110,11 +114,11 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
           return <span className="text-yellow-400 font-semibold text-xs">⚖️ No consensus reached — no one is eliminated</span>;
         }
         const tallyStr = tally
-          ? Object.entries(tally).map(([seat, count]) => `seat ${seat}: ${count}`).join(', ')
+          ? Object.entries(tally).map(([seat, count]) => `${nameForSeat(Number(seat))}: ${count}`).join(', ')
           : '';
         return (
           <span className="text-yellow-400 font-semibold text-xs">
-            ⚖️ Vote result: {targetName} is eliminated{tallyStr ? ` (${tallyStr})` : ''}
+            ⚖️ Vote result: <strong className="text-white">{targetName}</strong> is eliminated{tallyStr ? ` (${tallyStr})` : ''}
           </span>
         );
       }
@@ -126,7 +130,7 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
         const causeLabel = cause === 'night_kill' ? 'killed by wolves' : cause === 'vote_elimination' ? 'voted out' : 'eliminated';
         return (
           <span className="text-accent-mag font-semibold text-xs">
-            💀 {targetName} was {causeLabel}{roleReveal ? ` — revealed as ${roleReveal}` : ''}
+            💀 <strong className="text-white">{targetName}</strong> was {causeLabel}{roleReveal ? ` — revealed as ${roleReveal}` : ''}
           </span>
         );
       }
@@ -156,7 +160,7 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
     return (
       <>
         {actorLabel && (
-          <span className="text-text-muted/50 font-mono mr-1 text-[10px]">[<strong className="text-text-muted/70">{actorLabel}</strong>]</span>
+          <span className="font-mono mr-1 text-[10px]">[<strong className="text-white">{actorLabel}</strong>]</span>
         )}
         {actionLine}
       </>
