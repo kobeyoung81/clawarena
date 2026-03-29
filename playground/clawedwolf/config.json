@@ -1,0 +1,64 @@
+{
+  "arena_url": "https://arena.kobeyoung81.cn",
+  "auth_base_url": "https://losclaws.kobeyoung81.cn",
+  "sse_url": "{arena_url}/api/v1/rooms/{room_id}/play",
+  "room_id": 9,
+  "game_type_id": 4,
+  "agents": [
+    {
+      "name": "Puck",
+      "agent_id": "usr_VK96RGVT676BS42PBWP4",
+      "api_key": "",
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfVks5NlJHVlQ2NzZCUzQyUEJXUDQiLCJ0eXBlIjoiYWdlbnQiLCJuYW1lIjoiUHVjay0xNzc0NzE2MTM2IiwiaXNzIjoibG9zY2xhd3Mua29iZXlvdW5nODEuY24iLCJhdWQiOlsiKi5rb2JleW91bmc4MS5jbiJdLCJpYXQiOjE3NzQ3MTYxMzYsImV4cCI6MTc3NDgwMjUzNn0.m9LvzJnA1rpAsG5X977K7jr2IR2SGVWoAWSqgNDvsj3b290rA0g6-jPF9x1o4QqBsdYRlAp1hFjqSAm3BF_5QleIDEwytRfbvvghyzhF1HmbPWfDYYnDhG2qhBwwv8DBZ7ZE4ub7sVY-QijRSZNCxkmzjxbwd35SttDYlcTBVSJx9UwHnN0gC3X2vQO2l70vTyM2mhYf8GLGsue504Sae6nvNxeJ708_xJbSeuu9jrpbowmzqLkBstJ1rSznxhKIpvlXU-ZTXvSQKANguU6m6jbIPyFIv-YMdkXTGknPBr_QY7_bU_-HsUHk5wqY-ig9ZFuWMvmd7NXf_StGcTXy0w",
+      "seat": null,
+      "role": "",
+      "alive": true
+    },
+    {
+      "name": "Hermia",
+      "agent_id": "usr_502BJ61V20BZQV0VRETH",
+      "api_key": "",
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNTAyQko2MVYyMEJaUVYwVlJFVEgiLCJ0eXBlIjoiYWdlbnQiLCJuYW1lIjoiSGVybWlhLTE3NzQ3MTYxMzYiLCJpc3MiOiJsb3NjbGF3cy5rb2JleW91bmc4MS5jbiIsImF1ZCI6WyIqLmtvYmV5b3VuZzgxLmNuIl0sImlhdCI6MTc3NDcxNjEzNiwiZXhwIjoxNzc0ODAyNTM2fQ.YDquieY0s9CoOp7lROBSx7NMvrnUq5gTXrIbXscX_qSZZ51ltx4-v7gYzTZ12i0eYcMAeKIaab6LyVSwogCIiUjiL97Ru1MXJ66oCgjGhHSyCokIDHgA0xm0L3zeZ2w2NNj3xJ5rdbRwz5JCBhsPkCUyD6j3_fttKeTpCnaeN9n4KnaiowuBXTmBZy_e_9fQN2gT6lmF61slSAyFO-MbQ0GXmfq0SUvt2whn_pXsQJNSESPIfceI2Ssk4WyHNqtHZXMnJDuz4fBROYjhbfiWVPjOoVH_sucU42yAqIlwuJrWPYNMMiUa2saE3pCu0PyyOsFdCSbMcqBsuNIul5kHjg",
+      "seat": null,
+      "role": "",
+      "alive": true
+    },
+    {
+      "name": "Lysander",
+      "agent_id": "usr_ZX8HJPKT20AA8WWYRW01",
+      "api_key": "",
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfWlg4SEpQS1QyMEFBOFdXWVJXMDEiLCJ0eXBlIjoiYWdlbnQiLCJuYW1lIjoiTHlzYW5kZXItMTc3NDcxNjEzNiIsImlzcyI6Imxvc2NsYXdzLmtvYmV5b3VuZzgxLmNuIiwiYXVkIjpbIioua29iZXlvdW5nODEuY24iXSwiaWF0IjoxNzc0NzE2MTM2LCJleHAiOjE3NzQ4MDI1MzZ9.QL4nP9W__7luGAsy6mhWqOHiE0Q98bWaacZtEE0DCS-_1WUQtNkjjfi8GCLNa-8S_yvcnc5mgzaejnqKA3zvEv5a4EUk1OM470905R-s5mSrsC5GyHkqprBAZHkZ1dha8s7ApX6JCqNA7bSNVLgHwcJEBBIlFUkLhqQhPJG26KXweUDjCnkbdNS8fQEzjMxJ8lx8HI7UWkQn0Xp1w45abePnT20Ou5fkZ-bOqR7mf6kKENlyk9P60VH-9qIQAC2Z3-6Fw_Zrbc_S2DxgD-IZ5iRY07wOzU3ov_VlPVtwyEygELNzsGv5nh4WvYr3iqIEgbCeengxkkeF6BOxMpHceA",
+      "seat": null,
+      "role": "",
+      "alive": true
+    },
+    {
+      "name": "Helena",
+      "agent_id": "usr_WHZFF6PGFFN7KHHNJR0D",
+      "api_key": "",
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfV0haRkY2UEdGRk43S0hITkpSMEQiLCJ0eXBlIjoiYWdlbnQiLCJuYW1lIjoiSGVsZW5hLTE3NzQ3MTYxMzYiLCJpc3MiOiJsb3NjbGF3cy5rb2JleW91bmc4MS5jbiIsImF1ZCI6WyIqLmtvYmV5b3VuZzgxLmNuIl0sImlhdCI6MTc3NDcxNjEzNiwiZXhwIjoxNzc0ODAyNTM2fQ.bncuaU1G7H8mRg3b1pDdJXYYtu01Uz0W9C8goNqCfaFtexQrkSs2W4B0KzyqCTB448N588NQIbiKqsnqikrAuo4RU3QMeam4dFbGaaqyNRLNpBCgEWuJXUe1ckL9e-EgfyXMMz4JuF4p_syqkv-onUF5tE2LEjgLdOFTpXew4Lw3ZsrT76t-SRZ8k7hxThVsRewqkX6eQypC7yZ0teVU-Km6RVLr1u1aDWFKG5R2h7KnVZq4PKxodMSoex2m9Uf0E4N3G72vxZboAiXBEXsl6q7DwTgute1Lctm4XDveR-Bz92Dn7GauqBLiUsj5ZdGoPpHKLO9sXxuJPyLyaIGO3A",
+      "seat": null,
+      "role": "",
+      "alive": true
+    },
+    {
+      "name": "Demetrius",
+      "agent_id": "usr_V9YN2R37G4AGSEKCH3H2",
+      "api_key": "",
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfVjlZTjJSMzdHNEFHU0VLQ0gzSDIiLCJ0eXBlIjoiYWdlbnQiLCJuYW1lIjoiRGVtZXRyaXVzLTE3NzQ3MTYxMzYiLCJpc3MiOiJsb3NjbGF3cy5rb2JleW91bmc4MS5jbiIsImF1ZCI6WyIqLmtvYmV5b3VuZzgxLmNuIl0sImlhdCI6MTc3NDcxNjEzNiwiZXhwIjoxNzc0ODAyNTM2fQ.g61A3JpfdVXVnPOkLCj4fM08FobKoFViRRlS0ChwdI71qlqdDOrXYp_-cOT8AUYIhlo8hc2Wc1VKhSxsEeiMu1pE54pmf0cyxwSPIUQBhGXiJJ6NRwlBRmXfjDEAJ3zGhIa74Oa7s2ELWjuA3E6yc05VX3sppwxUkd5LV-h6Y0eLVvZehTbAGDsaFKDu553HzAnUUqRQlRbPmmzm2hA3CjkZNeoZuGozqCSZlKJSQRi78TmCtBDh9fv8dYRjbySwydTz1kitPor5Q0z0846v78IkvI05vzqjgFzFhwT1qU9o3on9_TAQwIlAhFittq04eY_hJzuWT9pG-2j2K6twBw",
+      "seat": null,
+      "role": "",
+      "alive": true
+    },
+    {
+      "name": "Bottom",
+      "agent_id": "usr_24NXP53009FGEB86D6M6",
+      "api_key": "",
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMjROWFA1MzAwOUZHRUI4NkQ2TTYiLCJ0eXBlIjoiYWdlbnQiLCJuYW1lIjoiQm90dG9tLTE3NzQ3MTYxMzYiLCJpc3MiOiJsb3NjbGF3cy5rb2JleW91bmc4MS5jbiIsImF1ZCI6WyIqLmtvYmV5b3VuZzgxLmNuIl0sImlhdCI6MTc3NDcxNjEzNywiZXhwIjoxNzc0ODAyNTM3fQ.k8hormLX3mBWsbfg56fIotgqcC_n6_IP_W4Q1qVJVmFXpYou0YFV9uJ9jpLOJDO97CAZEqRGOKgaprLXUU1hOLVGIu6ZVFx_4utfPdn6PVk101Je-cpLCLXkJLiT62fLLwFOTzgI7qAIUR5BAmq6bg6__FwvyeoxlJ8F2jYpRJZBzrO1TWPxrA9FLOomELuXvpdvlD-q1cveaoUTtIE6D8ySOh6XwQWUMXEKDAG93c3Cdmca0d-cM-H0yjNL6JCW_Eqd2kvVjAAivS7SczlmXSmxxaMUI58mmBN_JMGV3_XNA8WZOXXN4vTY93ZaUwZacNOJvR0JAUFw1KC1A-q1gw",
+      "seat": null,
+      "role": "",
+      "alive": true
+    }
+  ],
+  "delay": 2.0
+}

@@ -1,0 +1,24 @@
+{
+  "arena_url": "https://arena.kobeyoung81.cn",
+  "auth_base_url": "https://losclaws.kobeyoung81.cn",
+  "sse_url": "{arena_url}/api/v1/rooms/{room_id}/play",
+  "room_id": 13,
+  "game_type_id": 1,
+  "agents": [
+    {
+      "name": "Oberon",
+      "agent_id": "usr_GBVNKPHAC81ADT17SF39",
+      "api_key": "",
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfR0JWTktQSEFDODFBRFQxN1NGMzkiLCJ0eXBlIjoiYWdlbnQiLCJuYW1lIjoiT2Jlcm9uLTE3NzQ3MTYxMjQiLCJpc3MiOiJsb3NjbGF3cy5rb2JleW91bmc4MS5jbiIsImF1ZCI6WyIqLmtvYmV5b3VuZzgxLmNuIl0sImlhdCI6MTc3NDcxNjEyNCwiZXhwIjoxNzc0ODAyNTI0fQ.Slwdt7n1TINumPkr4NbVBDpGE_xYBc4dwsVJ0zbp8aU56eiVczG0ePKKiXYlLJEAgWTf1a4BsjdvMMHiwHPCCVJRYCtSAq4erKKdNIZmP_rk-TFFlHxwJWRdguv1Q5PVvnTY5ThOkeoCgF7lrxU6hDRmR4xIjRTL25KzStY1gS95syOOY0p87NTvnR-n4WnycgfZ0O0X6oJPp4JhKyNMKJBlft9B89Q0tbDyYF3Vdhr9eN2sLOaa1OmSmYHAQR3RyyVBMdzvXI7isjOy5K7lDNAR9A-kQlvFa2dfhwKK3dyecKCXgZserHz1sEkNBufSNkzjAtjA2LXOlAGZM-j-HA",
+      "mark": "X"
+    },
+    {
+      "name": "Titania",
+      "agent_id": "usr_JV5Q782R6GQ0VR3F5E9X",
+      "api_key": "",
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfSlY1UTc4MlI2R1EwVlIzRjVFOVgiLCJ0eXBlIjoiYWdlbnQiLCJuYW1lIjoiVGl0YW5pYS0xNzc0NzE2MTI0IiwiaXNzIjoibG9zY2xhd3Mua29iZXlvdW5nODEuY24iLCJhdWQiOlsiKi5rb2JleW91bmc4MS5jbiJdLCJpYXQiOjE3NzQ3MTYxMjQsImV4cCI6MTc3NDgwMjUyNH0.IeQMYlhR7QTCkR-tdMiwfHUhJfiB4JV8kGff7Qxo_MjXW3eIfyK0Na2vW3MRU4FytQsdAqeIXdnBInbjAw913hw6h_9yMFtrnxVkr0GWLGELmgaCni_nudDlg9axfwrP0TTeZOeR3F2vG0M6z_RSJ4irRo-gDnkLKxekVj0u8WTIAGNS8PpW8Ve0AY2G3E448Nf4QDqZGNpx2x_CyVO-67W4hloSxF4HLy2GUO_bYSEOXqOUYFlFiqBWaiffxyuckOIQkaXCcayZ4nyZ7zudY2_zGDxzpcg7oE258w8gP9W1n7mNvq-kHXMT5fROiwFLmhVKnNk95tb7WSpkFuvehg",
+      "mark": "O"
+    }
+  ],
+  "delay": 2.0
+}
