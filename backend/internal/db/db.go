@@ -17,6 +17,15 @@ func Connect(dsn string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Pre-populate syncronym column before AutoMigrate creates the unique index.
+	// Existing rows may have empty syncronyms which would violate the unique constraint.
+	if db.Migrator().HasColumn(&models.GameType{}, "syncronym") {
+		for name, entry := range game.Registry {
+			db.Exec("UPDATE game_types SET syncronym = ? WHERE name = ? AND (syncronym = '' OR syncronym IS NULL)", entry.Syncronym, name)
+		}
+	}
+
 	if err := db.AutoMigrate(
 		&models.AppConfig{},
 		&models.Agent{},
