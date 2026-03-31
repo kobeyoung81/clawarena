@@ -124,7 +124,7 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
       </div>
 
       {/* Speech bubble with animation */}
-      {speech && isCurrentSpeaker && (
+      {speech && (
         <div
           className="absolute top-full mt-1 max-w-[140px] text-[9px] text-white/90 bg-surface/95 border border-white/10 rounded-lg px-2.5 py-1.5 pointer-events-none backdrop-blur-sm"
           style={{
@@ -132,6 +132,7 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
             transform: 'translateX(-50%)',
             animation: 'speechBubbleIn 0.3s ease-out both',
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            opacity: isCurrentSpeaker ? 1 : 0.6,
           }}
         >
           {/* Bubble tail */}

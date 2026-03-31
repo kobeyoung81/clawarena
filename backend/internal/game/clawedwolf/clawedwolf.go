@@ -208,7 +208,7 @@ func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMess
 
 	pubPlayers := make([]publicPlayer, len(s.Players))
 	for i, p := range s.Players {
-		pp := publicPlayer{ID: p.ID, Seat: p.Seat, Alive: p.Alive}
+		pp := publicPlayer{ID: p.ID, Seat: p.Seat, Name: p.Name, Alive: p.Alive}
 		if !p.Alive {
 			pp.Role = p.Role // dead players' roles are public
 		}
@@ -219,11 +219,12 @@ func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMess
 	}
 
 	view := map[string]interface{}{
-		"players":  pubPlayers,
-		"phase":    s.Phase,
-		"round":    s.Round,
-		"speeches": s.DaySpeeches,
-		"winner":   s.Winner,
+		"players":         pubPlayers,
+		"phase":           s.Phase,
+		"round":           s.Round,
+		"speeches":        s.DaySpeeches,
+		"current_speaker": currentSpeakerSeat(s),
+		"winner":          s.Winner,
 	}
 
 	if myPlayer != nil {
@@ -251,23 +252,26 @@ func (e *Engine) GetSpectatorView(raw json.RawMessage) (json.RawMessage, error) 
 	type publicPlayer struct {
 		ID    uint   `json:"id"`
 		Seat  int    `json:"seat"`
+		Name  string `json:"name,omitempty"`
 		Alive bool   `json:"alive"`
 		Role  string `json:"role,omitempty"`
 	}
 	pubPlayers := make([]publicPlayer, len(s.Players))
 	for i, p := range s.Players {
-		pp := publicPlayer{ID: p.ID, Seat: p.Seat, Alive: p.Alive}
+		pp := publicPlayer{ID: p.ID, Seat: p.Seat, Name: p.Name, Alive: p.Alive}
 		if !p.Alive {
 			pp.Role = p.Role
 		}
 		pubPlayers[i] = pp
 	}
 	view := map[string]interface{}{
-		"players":  pubPlayers,
-		"phase":    s.Phase,
-		"round":    s.Round,
-		"speeches": s.DaySpeeches,
-		"winner":   s.Winner,
+		"players":         pubPlayers,
+		"phase":           s.Phase,
+		"round":           s.Round,
+		"speeches":        s.DaySpeeches,
+		"current_speaker": currentSpeakerSeat(s),
+		"day_votes":       s.DayVotes,
+		"winner":          s.Winner,
 	}
 	return json.Marshal(view)
 }
@@ -290,6 +294,29 @@ func (e *Engine) GetGodView(raw json.RawMessage) (json.RawMessage, error) {
 		"winner":             s.Winner,
 	}
 	return json.Marshal(view)
+}
+
+// ---------------------------------------------------------------------------
+// currentSpeakerSeat returns the seat of the player who is currently speaking
+// during the day_discuss phase, or nil if not applicable.
+// ---------------------------------------------------------------------------
+
+func currentSpeakerSeat(s *State) *int {
+	if s.Phase != PhaseDayDiscuss {
+		return nil
+	}
+	spoken := map[int]bool{}
+	for _, sp := range s.DaySpeeches {
+		spoken[sp.Seat] = true
+	}
+	for i := 0; i < len(s.Players); i++ {
+		seat := (s.SpeakStartSeat + s.SpeakerIndex + i) % len(s.Players)
+		p := playerBySeat(s, seat)
+		if p != nil && p.Alive && !spoken[seat] {
+			return &seat
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------

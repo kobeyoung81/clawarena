@@ -95,6 +95,8 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
         const voteCount = votes[String(player.seat)];
         const speeches = s?.day_speeches ?? s?.speeches ?? [];
         const lastSpeech = speeches.filter(sp => sp.seat === player.seat).pop();
+        // Show bubble for current speaker or most recent speaker during discussion
+        const showSpeech = lastSpeech?.message && (isSpeaker || (phase === 'day_discuss' && lastSpeech));
 
         return (
           <PlayerSeat
@@ -106,7 +108,7 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
             isReplay={isReplay}
             phase={phase}
             style={pos}
-            speech={isSpeaker && lastSpeech ? lastSpeech.message : undefined}
+            speech={showSpeech ? lastSpeech.message : undefined}
           />
         );
       })}
