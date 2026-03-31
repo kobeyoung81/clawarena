@@ -7,8 +7,8 @@ interface PlayerSeatProps {
   isNight: boolean;
   isReplay: boolean;
   phase: string;
-  style: React.CSSProperties;
-  speech?: string;
+  style?: React.CSSProperties;
+  className?: string;
 }
 
 const ROLE_EMOJI: Record<string, string> = {
@@ -30,13 +30,12 @@ const ROLE_COLORS: Record<string, string> = {
 /** Get a short display label for the avatar circle */
 function avatarLabel(player: ClawedWolfPlayer): string {
   if (player.name) {
-    // Use first 2 characters of the name
     return player.name.slice(0, 2).toUpperCase();
   }
   return `P${player.seat}`;
 }
 
-export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isReplay, phase, style, speech }: PlayerSeatProps) {
+export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isReplay, phase, style, className }: PlayerSeatProps) {
   const isAlive = player.alive;
   const role = isReplay ? player.role : undefined;
   const roleColor = role ? (ROLE_COLORS[role] ?? '#00e5ff') : '#00e5ff';
@@ -58,7 +57,7 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
 
   return (
     <div
-      className="absolute flex flex-col items-center gap-1 cursor-default group"
+      className={`flex flex-col items-center gap-1 cursor-default group ${className ?? ''}`}
       style={style}
     >
       {/* Speaker spotlight */}
@@ -74,7 +73,7 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
       {/* Avatar circle */}
       <div
         className={`
-          relative w-14 h-14 rounded-full flex items-center justify-center text-xl
+          relative w-12 h-12 rounded-full flex items-center justify-center text-lg
           ${bgStyle} ${ringStyle}
           transition-all duration-500
           ${!isAlive ? 'opacity-40' : isAlive && isCurrentSpeaker ? 'scale-110' : 'animate-breathe'}
@@ -92,24 +91,24 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
             {avatarLabel(player)}
           </span>
         )}
+
+        {/* Vote count badge */}
+        {voteCount !== undefined && voteCount > 0 && (
+          <div
+            className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
+            style={{
+              background: '#ff2d6b',
+              boxShadow: '0 0 6px rgba(255,45,107,0.6)',
+              animation: 'voteReveal 0.4s ease both',
+            }}
+          >
+            {voteCount}
+          </div>
+        )}
       </div>
 
-      {/* Vote count badge */}
-      {voteCount !== undefined && voteCount > 0 && (
-        <div
-          className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
-          style={{
-            background: '#ff2d6b',
-            boxShadow: '0 0 6px rgba(255,45,107,0.6)',
-            animation: 'voteReveal 0.4s ease both',
-          }}
-        >
-          {voteCount}
-        </div>
-      )}
-
-      {/* Name label */}
-      <div className="text-center max-w-[70px]">
+      {/* Name label — supports up to 20 characters */}
+      <div className="text-center max-w-[140px]">
         <div
           className={`text-[11px] font-medium truncate ${isAlive ? 'text-white' : 'text-gray-600'}`}
           title={player.name}
@@ -122,33 +121,6 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
           </div>
         )}
       </div>
-
-      {/* Speech bubble with animation */}
-      {speech && (
-        <div
-          className="absolute top-full mt-1 max-w-[140px] text-[9px] text-white/90 bg-surface/95 border border-white/10 rounded-lg px-2.5 py-1.5 pointer-events-none backdrop-blur-sm"
-          style={{
-            left: '50%',
-            transform: 'translateX(-50%)',
-            animation: 'speechBubbleIn 0.3s ease-out both',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-            opacity: isCurrentSpeaker ? 1 : 0.6,
-          }}
-        >
-          {/* Bubble tail */}
-          <div
-            className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-0 h-0"
-            style={{
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderBottom: '6px solid rgba(255,255,255,0.1)',
-            }}
-          />
-          <div className="line-clamp-3 leading-relaxed" title={speech}>
-            &ldquo;{speech.length > 80 ? speech.slice(0, 80) + '...' : speech}&rdquo;
-          </div>
-        </div>
-      )}
     </div>
   );
 }

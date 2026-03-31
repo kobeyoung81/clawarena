@@ -42,9 +42,9 @@ export default function TicTacToeBoard({ state, players }: BoardProps) {
   const oName = players?.[1]?.name ?? 'O';
 
   let statusMsg = '';
-  if (winner) statusMsg = winner === 'X' ? `${xName} (X) wins!` : `${oName} (O) wins!`;
-  else if (isDraw || allFilled) statusMsg = t('ttt.draw');
-  else statusMsg = xCount === oCount ? `${xName}'s turn (X)` : `${oName}'s turn (O)`;
+  if (winner) statusMsg = t('ttt.status_winner', { name: winner === 'X' ? xName : oName, marker: winner });
+  else if (isDraw || allFilled) statusMsg = t('ttt.status_draw');
+  else statusMsg = xCount === oCount ? t('ttt.status_turn', { name: xName, marker: 'X' }) : t('ttt.status_turn', { name: oName, marker: 'O' });
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">

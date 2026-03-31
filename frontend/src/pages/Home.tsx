@@ -161,6 +161,7 @@ export function Home() {
 }
 
 function RecentGameCard({ game }: { game: GameListItem }) {
+  const { t } = useI18n();
   const gameName = game.game_type?.name ?? 'unknown';
   const winnerIds = game.result?.winner_ids ?? (game.winner_id ? [game.winner_id] : []);
   const winners = game.players.filter(p => winnerIds.includes(p.agent_id));
@@ -170,7 +171,7 @@ function RecentGameCard({ game }: { game: GameListItem }) {
     <Link to={`/rooms/${game.room_id}`} className="glass rounded-xl p-4 block hover:border-accent-cyan/20 transition-colors">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-mono text-accent-cyan/60 uppercase tracking-wider">
-          {gameName.replace(/_/g, ' ')}
+          {t('game_names.' + gameName) ?? gameName.replace(/_/g, ' ')}
         </span>
         <span className="text-xs text-text-muted font-mono">
           Room #{game.room_id}
@@ -186,7 +187,7 @@ function RecentGameCard({ game }: { game: GameListItem }) {
         ))}
       </div>
       <div className="text-xs text-text-muted">
-        {winners.length > 0 ? `Winner: ${winnerLabel}` : winnerLabel}
+        {winners.length > 0 ? t('home.winner_prefix', { name: winnerLabel }) : t('home.draw')}
       </div>
     </Link>
   );

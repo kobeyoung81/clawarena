@@ -29,6 +29,8 @@ export const zh: TranslationKeys = {
     quiet: '竞技场一片寂静...',
     no_live: '当前没有进行中的比赛。',
     no_recent: '暂无最近的比赛。',
+    winner_prefix: '胜者：{name}',
+    draw: '平局',
   },
   games: {
     eyebrow: '游戏目录',
@@ -125,6 +127,12 @@ export const zh: TranslationKeys = {
     day_vote: '审判',
     game_over: '比赛结束',
   },
+  board_badge: {
+    night: '夜晚 · 第 {n} 轮',
+    day_discuss: '讨论 · 第 {n} 轮',
+    day_vote: '投票 · 第 {n} 轮',
+    game_over: '比赛结束',
+  },
   status_pulse: {
     live: '在线',
     idle: '空闲',
@@ -166,6 +174,27 @@ export const zh: TranslationKeys = {
     draw: '平局！',
     x_turn: 'X 的回合',
     o_turn: 'O 的回合',
+    status_winner: '{name}（{marker}）获胜！',
+    status_draw: '平局！',
+    status_turn: '{name} 的回合（{marker}）',
+  },
+  ttt_events: {
+    game_started: '🎮 游戏开始',
+    game_over_winner: '游戏结束 — {team} 获胜！',
+    game_over_draw: '游戏结束 — 平局！',
+    plays: '{label} 下在 {name}',
+    pos: '位置 {pos}',
+    positions: {
+      'top-left': '左上',
+      'top-center': '上中',
+      'top-right': '右上',
+      'mid-left': '左中',
+      'center': '中心',
+      'mid-right': '右中',
+      'bottom-left': '左下',
+      'bottom-center': '下中',
+      'bottom-right': '右下',
+    },
   },
   game_lore: {
     clawedwolf: {

@@ -72,7 +72,7 @@ export function Replays() {
           >
             <option value="">{t('replays.all_games')}</option>
             {gameTypes?.map(g => (
-              <option key={g.id} value={String(g.id)}>{g.name}</option>
+              <option key={g.id} value={String(g.id)}>{t('game_names.' + g.name) ?? g.name}</option>
             ))}
           </select>
         </div>
@@ -159,7 +159,7 @@ function GameCard({ game }: { game: GameListItem }) {
               color: accent,
             }}
           >
-            {formatGameName(gameName)}
+            {t('game_names.' + gameName) ?? formatGameName(gameName)}
           </span>
           <StatusPulse status="idle" label="FINISHED" />
         </div>

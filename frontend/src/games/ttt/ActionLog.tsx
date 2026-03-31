@@ -1,11 +1,12 @@
 import type { GameEvent } from '../../types';
+import { useI18n } from '../../i18n';
 
 export interface ActionLogEntryProps {
   entry: GameEvent;
   players?: Array<{ agent_id: number; name: string }>;
 }
 
-const POSITION_NAMES = [
+const POSITION_KEYS = [
   'top-left', 'top-center', 'top-right',
   'mid-left', 'center', 'mid-right',
   'bottom-left', 'bottom-center', 'bottom-right',
@@ -37,30 +38,27 @@ function MiniGrid({ position, marker }: { position: number; marker: string }) {
 }
 
 export default function TicTacToeActionLog({ entry, players }: ActionLogEntryProps) {
+  const { t } = useI18n();
   const { event_type, actor, details } = entry;
 
-  // Determine marker from actor seat (seat 0 = X, seat 1 = O)
   const seatIdx = actor?.seat ?? 0;
   const marker = MARKERS[seatIdx] ?? 'X';
   const agentName = actor?.agent_id != null
     ? players?.find(p => p.agent_id === actor.agent_id)?.name
     : undefined;
 
-  // Handle game start events
   if (event_type === 'game_start') {
-    return <span className="text-accent-cyan font-semibold">🎮 Game Started</span>;
+    return <span className="text-accent-cyan font-semibold">{t('ttt_events.game_started')}</span>;
   }
 
-  // Handle game over events
   if (event_type === 'game_over' || entry.game_over) {
     const winnerTeam = entry.result?.winner_team;
     if (winnerTeam) {
-      return <span className="text-accent-cyan font-semibold">Game over - {winnerTeam} wins!</span>;
+      return <span className="text-accent-cyan font-semibold">{t('ttt_events.game_over_winner', { team: winnerTeam })}</span>;
     }
-    return <span className="text-yellow-400 font-semibold">Game over - Draw!</span>;
+    return <span className="text-yellow-400 font-semibold">{t('ttt_events.game_over_draw')}</span>;
   }
 
-  // Handle move events
   if (event_type === 'move' || event_type === 'action') {
     const pos = typeof details?.position === 'number'
       ? details.position
@@ -71,19 +69,19 @@ export default function TicTacToeActionLog({ entry, players }: ActionLogEntryPro
     const label = agentName ? `${agentName} (${marker})` : marker;
 
     if (pos !== null && pos >= 0 && pos <= 8) {
-      const name = POSITION_NAMES[pos];
+      const posKey = POSITION_KEYS[pos];
+      const posName = t('ttt_events.positions.' + posKey) ?? posKey;
       return (
         <div className="text-[10px] text-accent-cyan/60 mt-0.5 font-mono flex items-center gap-1">
-          <strong className="text-white font-bold">{label}</strong>
-          {' plays '}
-          <strong className="text-text-primary/70">{name}</strong>
-          <span className="text-text-muted/40"> (pos {pos})</span>
+          <span dangerouslySetInnerHTML={{ __html:
+            t('ttt_events.plays', { label: `<strong class="text-white font-bold">${label}</strong>`, name: `<strong class="text-text-primary/70">${posName}</strong>` })
+          }} />
+          <span className="text-text-muted/40"> ({t('ttt_events.pos', { pos: String(pos) })})</span>
           <MiniGrid position={pos} marker={marker} />
         </div>
       );
     }
 
-    // Fallback for action with no recognized position
     return (
       <div className="text-[10px] text-accent-cyan/60 mt-0.5 font-mono">
         <strong className="text-white font-bold">{label}</strong> {JSON.stringify(details)}
@@ -91,7 +89,6 @@ export default function TicTacToeActionLog({ entry, players }: ActionLogEntryPro
     );
   }
 
-  // Generic event fallback
   const message = typeof details?.message === 'string' ? details.message : event_type;
   return <span className="text-text-muted/70 text-xs">{message}</span>;
 }

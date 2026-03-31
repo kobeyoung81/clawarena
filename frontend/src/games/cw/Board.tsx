@@ -4,6 +4,7 @@ import { PhaseDisplay } from './components/PhaseDisplay';
 import { VoteOverlay } from './components/VoteOverlay';
 import { NightOverlay } from './components/NightOverlay';
 import { PhaseTransitionOverlay } from '../../components/effects/PhaseTransitionOverlay';
+import { useI18n } from '../../i18n';
 import type { ClawedWolfPlayer } from '../../types';
 
 export interface BoardProps {
@@ -11,19 +12,6 @@ export interface BoardProps {
   players?: ClawedWolfPlayer[];
   isReplay?: boolean;
 }
-
-const SEAT_POSITIONS: React.CSSProperties[] = [
-  // Top two (symmetric)
-  { top: '8%',  left: '35%', transform: 'translate(-50%, 0)' },
-  { top: '8%',  left: '65%', transform: 'translate(-50%, 0)' },
-  // Right (vertically centered)
-  { top: '45%', left: '88%', transform: 'translate(-50%, -50%)' },
-  // Bottom two (symmetric)
-  { top: '82%', left: '65%', transform: 'translate(-50%, -50%)' },
-  { top: '82%', left: '35%', transform: 'translate(-50%, -50%)' },
-  // Left (vertically centered)
-  { top: '45%', left: '12%', transform: 'translate(-50%, -50%)' },
-];
 
 interface ClawedWolfState {
   phase?: string;
@@ -50,7 +38,38 @@ function getPhaseBackground(phase: string): React.CSSProperties {
   }
 }
 
+/** Shared speech bubble for a row of players */
+function RowBubble({ speech, speakerName, isActive }: { speech?: string; speakerName?: string; isActive: boolean }) {
+  if (!speech) return null;
+  return (
+    <div
+      className={`
+        w-full rounded-lg px-3 py-2 text-xs leading-relaxed pointer-events-none backdrop-blur-sm
+        transition-all duration-300 border
+        ${isActive
+          ? 'bg-surface/95 border-accent-cyan/30 text-white/90'
+          : 'bg-surface/70 border-white/5 text-white/50'}
+      `}
+      style={{
+        animation: isActive ? 'speechBubbleIn 0.3s ease-out both' : undefined,
+        boxShadow: isActive ? '0 0 16px rgba(0,229,255,0.15), 0 4px 12px rgba(0,0,0,0.4)' : '0 2px 8px rgba(0,0,0,0.3)',
+        minHeight: 36,
+      }}
+    >
+      {speakerName && (
+        <span className={`font-semibold mr-1 ${isActive ? 'text-accent-cyan' : 'text-accent-cyan/50'}`}>
+          {speakerName}:
+        </span>
+      )}
+      <span className="line-clamp-3" title={speech}>
+        &ldquo;{speech.length > 140 ? speech.slice(0, 140) + '…' : speech}&rdquo;
+      </span>
+    </div>
+  );
+}
+
 export default function ClawedWolfBoard({ state, players: propPlayers, isReplay = false }: BoardProps) {
+  const { t } = useI18n();
   const s = state as ClawedWolfState;
   const phase = s?.phase ?? 'night';
   const round = s?.round ?? 1;
@@ -70,13 +89,37 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
     game_over:  'rgba(100,100,100,0.2)',
   }[phase] ?? 'rgba(0,229,255,0.2)';
 
+  // Two-row layout: upper = seats 0,2,4 ; lower = seats 1,3,5
+  const upperSeats = [0, 2, 4];
+  const lowerSeats = [1, 3, 5];
+
+  const speeches = s?.day_speeches ?? s?.speeches ?? [];
+
+  // Find latest speech per row
+  const latestUpperSpeech = speeches.filter(sp => upperSeats.includes(sp.seat)).pop();
+  const latestLowerSpeech = speeches.filter(sp => lowerSeats.includes(sp.seat)).pop();
+
+  const isUpperActive = currentSpeaker != null && upperSeats.includes(currentSpeaker);
+  const isLowerActive = currentSpeaker != null && lowerSeats.includes(currentSpeaker);
+
+  // Resolve speaker name
+  const speakerNameFor = (sp?: { seat: number; name?: string }) => {
+    if (!sp) return undefined;
+    if (sp.name) return sp.name;
+    const p = statePlayers.find(pl => pl.seat === sp.seat);
+    return p?.name ?? `P${sp.seat}`;
+  };
+
+  const badgeText = t('board_badge.' + phase, { n: String(round) }) ?? `${phase} · Round ${round}`;
+
   return (
     <div
-      className="relative w-full h-96 rounded-xl overflow-hidden"
+      className="relative w-full rounded-xl overflow-hidden flex flex-col"
       style={{
         ...getPhaseBackground(phase),
         border: `1px solid ${borderColor}`,
         transition: 'background 0.8s ease',
+        minHeight: 380,
       }}
     >
       {/* Night atmosphere */}
@@ -88,30 +131,66 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
       {/* Center phase indicator */}
       <PhaseDisplay phase={phase} round={round} />
 
-      {/* Player seats arranged symmetrically */}
-      {statePlayers.slice(0, 6).map((player, idx) => {
-        const pos = SEAT_POSITIONS[idx];
-        const isSpeaker = currentSpeaker === player.seat;
-        const voteCount = votes[String(player.seat)];
-        const speeches = s?.day_speeches ?? s?.speeches ?? [];
-        const lastSpeech = speeches.filter(sp => sp.seat === player.seat).pop();
-        // Show bubble for current speaker or most recent speaker during discussion
-        const showSpeech = lastSpeech?.message && (isSpeaker || (phase === 'day_discuss' && lastSpeech));
+      {/* Content area */}
+      <div className="relative z-10 flex flex-col flex-1 px-4 py-3 gap-1">
+        {/* Upper row: seats 0, 2, 4 */}
+        <div className="flex justify-center items-end gap-6">
+          {upperSeats.map(seat => {
+            const player = statePlayers.find(p => p.seat === seat);
+            if (!player) return <div key={seat} className="w-20" />;
+            return (
+              <PlayerSeat
+                key={player.seat}
+                player={player}
+                isCurrentSpeaker={currentSpeaker === player.seat}
+                voteCount={votes[String(player.seat)]}
+                isNight={isNight}
+                isReplay={isReplay}
+                phase={phase}
+                className="relative"
+              />
+            );
+          })}
+        </div>
 
-        return (
-          <PlayerSeat
-            key={player.seat ?? idx}
-            player={player}
-            isCurrentSpeaker={isSpeaker}
-            voteCount={voteCount}
-            isNight={isNight}
-            isReplay={isReplay}
-            phase={phase}
-            style={pos}
-            speech={showSpeech ? lastSpeech.message : undefined}
+        {/* Upper row speech bubble */}
+        <div className="px-4">
+          <RowBubble
+            speech={phase === 'day_discuss' ? latestUpperSpeech?.message : undefined}
+            speakerName={speakerNameFor(latestUpperSpeech)}
+            isActive={isUpperActive}
           />
-        );
-      })}
+        </div>
+
+        {/* Lower row: seats 1, 3, 5 */}
+        <div className="flex justify-center items-end gap-6 mt-1">
+          {lowerSeats.map(seat => {
+            const player = statePlayers.find(p => p.seat === seat);
+            if (!player) return <div key={seat} className="w-20" />;
+            return (
+              <PlayerSeat
+                key={player.seat}
+                player={player}
+                isCurrentSpeaker={currentSpeaker === player.seat}
+                voteCount={votes[String(player.seat)]}
+                isNight={isNight}
+                isReplay={isReplay}
+                phase={phase}
+                className="relative"
+              />
+            );
+          })}
+        </div>
+
+        {/* Lower row speech bubble */}
+        <div className="px-4">
+          <RowBubble
+            speech={phase === 'day_discuss' ? latestLowerSpeech?.message : undefined}
+            speakerName={speakerNameFor(latestLowerSpeech)}
+            isActive={isLowerActive}
+          />
+        </div>
+      </div>
 
       {/* Vote overlay (bottom bar) */}
       {phase === 'day_vote' && Object.keys(votes).length > 0 && (
@@ -120,7 +199,7 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
 
       {/* Phase badge (bottom-right corner) */}
       <div className="absolute bottom-2 right-3 text-[10px] font-mono text-text-muted/40 pointer-events-none">
-        {phase.replace('_', ' ')} . Round {round}
+        {badgeText}
       </div>
     </div>
   );

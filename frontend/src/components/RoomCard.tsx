@@ -60,7 +60,7 @@ export function RoomCard({ room }: RoomCardProps) {
               color: accent,
             }}
           >
-            {formatGameName(gameName)}
+            {t('game_names.' + gameName) ?? formatGameName(gameName)}
           </span>
           <StatusPulse status={pulseStatus} />
         </div>

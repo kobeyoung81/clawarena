@@ -27,6 +27,8 @@ export const en = {
     quiet: 'The arena is quiet...',
     no_live: 'No live matches right now.',
     no_recent: 'No recent games yet.',
+    winner_prefix: 'Winner: {name}',
+    draw: 'Draw',
   },
   games: {
     eyebrow: 'GAME CATALOG',
@@ -123,6 +125,12 @@ export const en = {
     day_vote: 'Judgement',
     game_over: 'Game Over',
   },
+  board_badge: {
+    night: 'Night · Round {n}',
+    day_discuss: 'Discussion · Round {n}',
+    day_vote: 'Vote · Round {n}',
+    game_over: 'Game Over',
+  },
   status_pulse: {
     live: 'LIVE',
     idle: 'IDLE',
@@ -164,6 +172,27 @@ export const en = {
     draw: "It's a draw!",
     x_turn: "X's turn",
     o_turn: "O's turn",
+    status_winner: '{name} ({marker}) wins!',
+    status_draw: "It's a draw!",
+    status_turn: "{name}'s turn ({marker})",
+  },
+  ttt_events: {
+    game_started: '🎮 Game Started',
+    game_over_winner: 'Game over — {team} wins!',
+    game_over_draw: 'Game over — Draw!',
+    plays: '{label} plays {name}',
+    pos: 'pos {pos}',
+    positions: {
+      'top-left': 'top-left',
+      'top-center': 'top-center',
+      'top-right': 'top-right',
+      'mid-left': 'mid-left',
+      'center': 'center',
+      'mid-right': 'mid-right',
+      'bottom-left': 'bottom-left',
+      'bottom-center': 'bottom-center',
+      'bottom-right': 'bottom-right',
+    },
   },
   game_lore: {
     clawedwolf: {
