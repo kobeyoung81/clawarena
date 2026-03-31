@@ -27,6 +27,15 @@ const ROLE_COLORS: Record<string, string> = {
   witch:    '#e040fb',
 };
 
+/** Get a short display label for the avatar circle */
+function avatarLabel(player: ClawedWolfPlayer): string {
+  if (player.name) {
+    // Use first 2 characters of the name
+    return player.name.slice(0, 2).toUpperCase();
+  }
+  return `P${player.seat}`;
+}
+
 export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isReplay, phase, style, speech }: PlayerSeatProps) {
   const isAlive = player.alive;
   const role = isReplay ? player.role : undefined;
@@ -79,7 +88,9 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
         ) : role ? (
           <span style={{ filter: `drop-shadow(0 0 4px ${roleColor})` }}>{ROLE_EMOJI[role] ?? '👤'}</span>
         ) : (
-          <span className="text-white text-xs font-mono font-bold">{player.seat ?? '?'}</span>
+          <span className="text-white text-[10px] font-mono font-bold leading-tight text-center">
+            {avatarLabel(player)}
+          </span>
         )}
       </div>
 
@@ -112,14 +123,28 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
         )}
       </div>
 
-      {/* Speech balloon */}
+      {/* Speech bubble with animation */}
       {speech && isCurrentSpeaker && (
         <div
-          className="absolute top-full mt-1 max-w-[130px] text-[9px] text-white/80 bg-surface/90 border border-white/10 rounded-lg px-2 py-1 pointer-events-none backdrop-blur-sm"
-          style={{ left: '50%', transform: 'translateX(-50%)' }}
+          className="absolute top-full mt-1 max-w-[140px] text-[9px] text-white/90 bg-surface/95 border border-white/10 rounded-lg px-2.5 py-1.5 pointer-events-none backdrop-blur-sm"
+          style={{
+            left: '50%',
+            transform: 'translateX(-50%)',
+            animation: 'speechBubbleIn 0.3s ease-out both',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+          }}
         >
-          <div className="truncate" title={speech}>
-            &ldquo;{speech.length > 60 ? speech.slice(0, 60) + '...' : speech}&rdquo;
+          {/* Bubble tail */}
+          <div
+            className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-0 h-0"
+            style={{
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderBottom: '6px solid rgba(255,255,255,0.1)',
+            }}
+          />
+          <div className="line-clamp-3 leading-relaxed" title={speech}>
+            &ldquo;{speech.length > 80 ? speech.slice(0, 80) + '...' : speech}&rdquo;
           </div>
         </div>
       )}

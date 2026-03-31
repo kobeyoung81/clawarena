@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../i18n';
 import type { GameEvent } from '../../types';
 
 export interface ActionLogEntryProps {
@@ -19,19 +20,8 @@ function boldAgentNames(message: string, players?: Array<{ name: string }>): Rea
   );
 }
 
-/** Map phase names to narrative descriptions */
-function phaseNarrative(phase: string): string {
-  switch (phase) {
-    case 'night_clawedwolf': return '🐺 The wolves awaken and choose their prey...';
-    case 'night_seer':       return '👁 The seer opens their eyes...';
-    case 'night_guard':      return '🛡 The guard takes their post...';
-    case 'day_discuss':      return '🌅 The village gathers to discuss.';
-    case 'day_vote':         return '⚖️ The time for judgment is at hand.';
-    default:                 return '';
-  }
-}
-
 export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryProps) {
+  const { t } = useI18n();
   const { event_type, actor, target, details } = entry;
   const statePlayers = Array.isArray((entry.state as { players?: unknown }).players)
     ? (entry.state as { players: Array<{ id?: number; seat?: number; name?: string }> }).players
@@ -43,10 +33,8 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
   /** Resolve a seat number to a player name using state (id↔seat) + players prop (agent_id↔name) */
   const nameForSeat = (seat: number | undefined): string => {
     if (seat === undefined) return 'unknown';
-    // Try state player name first (available during live mode)
     const statePlayer = statePlayers.find(p => p.seat === seat);
     if (statePlayer?.name) return statePlayer.name;
-    // Join via agent_id: state has id+seat, players prop has agent_id+name
     if (statePlayer?.id && players?.length) {
       const match = players.find(p => p.agent_id === statePlayer.id);
       if (match?.name) return match.name;
@@ -57,27 +45,39 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
   const targetSeat = target?.seat;
   const targetName = nameForSeat(targetSeat);
 
+  /** Map phase names to narrative descriptions */
+  const phaseNarrative = (phase: string): string => {
+    switch (phase) {
+      case 'night_clawedwolf': return t('cw_events.phase_wolves');
+      case 'night_seer':       return t('cw_events.phase_seer');
+      case 'night_guard':      return t('cw_events.phase_guard');
+      case 'day_discuss':      return t('cw_events.phase_discuss');
+      case 'day_vote':         return t('cw_events.phase_vote');
+      default:                 return '';
+    }
+  };
+
   const renderPublicAction = () => {
     switch (event_type) {
       case 'game_start':
-        return <span className="text-accent-cyan font-semibold text-xs">🎮 Game Started</span>;
+        return <span className="text-accent-cyan font-semibold text-xs">{t('cw_events.game_started')}</span>;
 
       case 'speak':
         return message
           ? <span className="text-[11px] text-text-muted/85">{boldAgentNames(message, players)}</span>
-          : <span className="text-[11px] text-text-muted/40 italic">(no message)</span>;
+          : <span className="text-[11px] text-text-muted/40 italic">{t('cw_events.no_message')}</span>;
 
       case 'vote':
-        return <span className="text-[11px] text-text-muted/85">voted <strong className="text-white">{targetName}</strong></span>;
+        return <span className="text-[11px] text-text-muted/85">{t('cw_events.voted')} <strong className="text-white">{targetName}</strong></span>;
 
       case 'protect':
-        return <span className="text-[11px] text-text-muted/85">protected <strong className="text-white">{targetName}</strong></span>;
+        return <span className="text-[11px] text-text-muted/85">{t('cw_events.protected')} <strong className="text-white">{targetName}</strong></span>;
 
       case 'kill':
-        return <span className="text-[11px] text-text-muted/85">targeted <strong className="text-white">{targetName}</strong></span>;
+        return <span className="text-[11px] text-text-muted/85">{t('cw_events.targeted')} <strong className="text-white">{targetName}</strong></span>;
 
       case 'investigate':
-        return <span className="text-[11px] text-text-muted/85">investigated <strong className="text-white">{targetName}</strong></span>;
+        return <span className="text-[11px] text-text-muted/85">{t('cw_events.investigated')} <strong className="text-white">{targetName}</strong></span>;
 
       case 'phase_change': {
         const phase = typeof details?.phase === 'string' ? details.phase : '';
@@ -85,7 +85,7 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
         if (narrative) {
           return <span className="text-yellow-400 font-semibold text-xs">{narrative}</span>;
         }
-        return <span className="text-yellow-400 font-semibold text-xs">Phase: {phase.replace(/_/g, ' ')}</span>;
+        return <span className="text-yellow-400 font-semibold text-xs">{t('cw_events.phase_label', { phase: phase.replace(/_/g, ' ') })}</span>;
       }
 
       case 'night_resolve': {
@@ -93,32 +93,33 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
         const guarded = details?.guarded;
         if (killedSeat != null && killedSeat !== false) {
           const victimName = nameForSeat(killedSeat as number);
-          return <span className="text-accent-mag font-semibold text-xs">🐺 <strong className="text-white">{victimName}</strong> was killed in the night</span>;
+          return <span className="text-accent-mag font-semibold text-xs">{t('cw_events.killed_in_night', { name: victimName })}</span>;
         }
         if (guarded) {
-          return <span className="text-green-400 font-semibold text-xs">☮️ A peaceful night — the guard's protection held</span>;
+          return <span className="text-green-400 font-semibold text-xs">{t('cw_events.peaceful_night_guarded')}</span>;
         }
-        return <span className="text-green-400 font-semibold text-xs">☮️ A peaceful night — no one was killed</span>;
+        return <span className="text-green-400 font-semibold text-xs">{t('cw_events.peaceful_night')}</span>;
       }
 
       case 'guard_save': {
-        const savedSeat = details?.saved_seat;
-        const savedName = savedSeat != null ? nameForSeat(savedSeat as number) : 'someone';
-        return <span className="text-green-400 font-semibold text-xs">🛡 The guard saved <strong className="text-white">{savedName}</strong> from the wolves!</span>;
+        return <span className="text-green-400 font-semibold text-xs">{t('cw_events.guard_saved_someone')}</span>;
       }
 
       case 'vote_result': {
         const eliminated = details?.eliminated;
         const tally = details?.tally as Record<string, number> | undefined;
         if (!eliminated) {
-          return <span className="text-yellow-400 font-semibold text-xs">⚖️ No consensus reached — no one is eliminated</span>;
+          return <span className="text-yellow-400 font-semibold text-xs">{t('cw_events.no_consensus')}</span>;
         }
         const tallyStr = tally
           ? Object.entries(tally).map(([seat, count]) => `${nameForSeat(Number(seat))}: ${count}`).join(', ')
           : '';
         return (
           <span className="text-yellow-400 font-semibold text-xs">
-            ⚖️ Vote result: <strong className="text-white">{targetName}</strong> is eliminated{tallyStr ? ` (${tallyStr})` : ''}
+            {tallyStr
+              ? t('cw_events.vote_result_tally', { name: targetName, tally: tallyStr })
+              : t('cw_events.vote_result', { name: targetName })
+            }
           </span>
         );
       }
@@ -127,10 +128,13 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
       case 'death': {
         const cause = typeof details?.cause === 'string' ? details.cause : '';
         const roleReveal = typeof details?.role_reveal === 'string' ? details.role_reveal : '';
-        const causeLabel = cause === 'night_kill' ? 'killed by wolves' : cause === 'vote_elimination' ? 'voted out' : 'eliminated';
+        const causeLabel = cause === 'night_kill' ? t('cw_events.killed_by_wolves') : cause === 'vote_elimination' ? t('cw_events.voted_out') : t('cw_events.eliminated');
         return (
           <span className="text-accent-mag font-semibold text-xs">
-            💀 <strong className="text-white">{targetName}</strong> was {causeLabel}{roleReveal ? ` — revealed as ${roleReveal}` : ''}
+            {roleReveal
+              ? t('cw_events.death_message_role', { name: targetName, cause: causeLabel, role: roleReveal })
+              : t('cw_events.death_message', { name: targetName, cause: causeLabel })
+            }
           </span>
         );
       }
@@ -139,8 +143,8 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
         return (
           <span className="text-accent-cyan font-semibold text-xs">
             {entry.result?.winner_team
-              ? `🏆 ${entry.result.winner_team === 'evil' ? 'Evil' : 'Good'} team wins!`
-              : '🏁 Game over'}
+              ? (entry.result.winner_team === 'evil' ? t('cw_events.evil_wins') : t('cw_events.good_wins'))
+              : t('cw_events.game_over_generic')}
           </span>
         );
 

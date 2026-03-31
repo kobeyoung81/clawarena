@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { NavLink, Routes, Route, useParams, useSearchParams } from 'react-router-dom';
+import { lazy, Suspense, useState, useEffect, useRef, useCallback } from 'react';
+import { NavLink, Routes, Route, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { Home } from './pages/Home';
 import { Games } from './pages/Games';
@@ -62,6 +62,28 @@ function Navbar() {
   const { t } = useI18n();
   const { user, isLoading, logout } = useAuth();
   const portalBase = getPortalBase();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+
+  // Close menu on navigation
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  // Close menu on outside click
+  const handleClickOutside = useCallback((e: MouseEvent) => {
+    if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      setMobileOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mobileOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [mobileOpen, handleClickOutside]);
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cn(
@@ -70,8 +92,15 @@ function Navbar() {
       isActive ? "text-accent-cyan" : "text-text-muted"
     );
 
+  const mobileLinkClass = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      "block px-4 py-3 text-sm font-medium transition-all duration-200 border-b border-white/5",
+      "hover:text-accent-cyan hover:bg-white/5",
+      isActive ? "text-accent-cyan bg-accent-cyan/5" : "text-text-muted"
+    );
+
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0a0e1a]/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0a0e1a]/80 backdrop-blur-md" ref={menuRef}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
           <a href={portalBase} className="group flex items-center gap-2">
@@ -103,7 +132,7 @@ function Navbar() {
            {isLoading ? (
               <span className="text-xs font-mono text-text-muted">...</span>
             ) : user ? (
-               <div className="flex items-center gap-2">
+               <div className="hidden md:flex items-center gap-2">
                  <a
                    href={`${portalBase}/user.html`}
                    className="text-xs font-mono text-accent-cyan hover:opacity-80 transition-opacity"
@@ -120,18 +149,64 @@ function Navbar() {
              ) : (
                <a
                  href={`${portalBase}/auth.html?redirect=${encodeURIComponent(window.location.href)}`}
-                 className="block text-xs font-mono text-text-muted hover:text-white transition-colors"
+                 className="hidden md:block text-xs font-mono text-text-muted hover:text-white transition-colors"
                >
                  {t('nav.sign_in')}
                </a>
              )}
-           <button className="md:hidden text-text-muted hover:text-white">
+           <button
+             className="md:hidden text-text-muted hover:text-white transition-colors"
+             onClick={() => setMobileOpen(prev => !prev)}
+             aria-label="Toggle menu"
+           >
              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+               {mobileOpen ? (
+                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+               ) : (
+                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+               )}
              </svg>
            </button>
         </div>
       </div>
+
+      {/* Mobile dropdown menu */}
+      {mobileOpen && (
+        <div className="md:hidden border-t border-white/10 bg-[#0a0e1a]/95 backdrop-blur-md animate-slide-in">
+          <div className="flex flex-col">
+            <NavLink to="/" className={mobileLinkClass}>{t('nav.overview')}</NavLink>
+            <NavLink to="/games" className={mobileLinkClass}>{t('nav.games')}</NavLink>
+            <NavLink to="/rooms" className={mobileLinkClass}>{t('nav.arena')}</NavLink>
+            <NavLink to="/replays" className={mobileLinkClass}>{t('nav.replays')}</NavLink>
+          </div>
+          <div className="px-4 py-3 border-t border-white/5 flex items-center justify-between">
+            <LangToggle />
+            {!isLoading && user ? (
+              <div className="flex items-center gap-2">
+                <a
+                  href={`${portalBase}/user.html`}
+                  className="text-xs font-mono text-accent-cyan hover:opacity-80 transition-opacity"
+                >
+                  {user.name}
+                </a>
+                <button
+                  onClick={logout}
+                  className="text-xs font-mono px-2 py-1 border border-accent-mag/30 text-text-muted hover:text-accent-mag hover:border-accent-mag transition-all"
+                >
+                  {t('nav.logout')}
+                </button>
+              </div>
+            ) : !isLoading ? (
+              <a
+                href={`${portalBase}/auth.html?redirect=${encodeURIComponent(window.location.href)}`}
+                className="text-xs font-mono text-text-muted hover:text-white transition-colors"
+              >
+                {t('nav.sign_in')}
+              </a>
+            ) : null}
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

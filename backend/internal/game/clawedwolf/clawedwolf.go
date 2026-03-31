@@ -833,11 +833,11 @@ func resolveNight(s *State) []game.GameEvent {
 	saved := s.NightGuardTarget != nil && *s.NightGuardTarget == target
 
 	if saved {
-		// Guard save event
+		// Guard save event — do not reveal who was saved (public information)
 		events = append(events, game.GameEvent{
 			Source:    "system",
 			EventType: "guard_save",
-			Details:   mustJSON(map[string]any{"saved_seat": target}),
+			Details:   mustJSON(map[string]any{"guarded": true}),
 			StateAfter: stateSnapshot(s),
 			Visibility: "public",
 		})
