@@ -1,3 +1,4 @@
+import { useI18n } from '../../../i18n';
 import type { ClawedWolfPlayer } from '../../../types';
 
 interface PlayerSeatProps {
@@ -36,6 +37,7 @@ function avatarLabel(player: ClawedWolfPlayer): string {
 }
 
 export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isReplay, phase, style, className }: PlayerSeatProps) {
+  const { t } = useI18n();
   const isAlive = player.alive;
   const role = isReplay ? player.role : undefined;
   const roleColor = role ? (ROLE_COLORS[role] ?? '#00e5ff') : '#00e5ff';
@@ -117,7 +119,11 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
         </div>
         {isReplay && role && (
           <div className="text-[9px] font-mono" style={{ color: roleColor }}>
-            {role}
+            {(() => {
+              const key = `role_names.${role}`;
+              const translated = t(key);
+              return translated !== key ? translated : role;
+            })()}
           </div>
         )}
       </div>

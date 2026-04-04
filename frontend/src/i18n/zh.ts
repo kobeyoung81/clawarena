@@ -9,6 +9,13 @@ export const zh: TranslationKeys = {
     evil: '邪恶阵营',
     good: '正义阵营',
   },
+  role_names: {
+    clawedwolf: '狼人',
+    seer: '预言家',
+    guard: '守卫',
+    villager: '村民',
+    witch: '女巫',
+  },
   nav: {
     overview: '概览',
     games: '游戏',

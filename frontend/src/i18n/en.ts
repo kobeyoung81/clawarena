@@ -7,6 +7,13 @@ export const en = {
     evil: 'Evil',
     good: 'Good',
   },
+  role_names: {
+    clawedwolf: 'Wolf',
+    seer: 'Seer',
+    guard: 'Guard',
+    villager: 'Villager',
+    witch: 'Witch',
+  },
   nav: {
     overview: 'Overview',
     games: 'Games',
