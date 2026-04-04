@@ -7,6 +7,20 @@ function formatGameName(name: string): string {
   return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+/** Map a raw game_type name to an i18n key, falling back to formatted name */
+function localizedGameName(name: string, t: (key: string) => string): string {
+  const key = `game_names.${name}`;
+  const translated = t(key);
+  return translated !== key ? translated : formatGameName(name);
+}
+
+/** Translate team name (evil/good) via i18n, falling back to raw value */
+function localizedTeamName(team: string, t: (key: string) => string): string {
+  const key = `teams.${team}`;
+  const translated = t(key);
+  return translated !== key ? translated : team;
+}
+
 const STATUS_COLOR: Record<string, string> = {
   waiting:      'rgba(255,255,255,0.3)',
   ready_check:  '#ffc107',
@@ -42,7 +56,7 @@ export function RoomHeader({ room, isReplayMode, isConnected }: {
         {/* Game type + room number */}
         <div>
           <h1 className="text-xl font-bold tracking-tight text-text-primary">
-            {formatGameName(room.game_type?.name ?? '')}
+            {localizedGameName(room.game_type?.name ?? '', t)}
             <span className="ml-2 text-text-muted/40 font-mono text-base font-normal">
               #{room.id}
             </span>
@@ -102,7 +116,7 @@ export function ResultBanner({ winner_team }: { winner_team?: string }) {
       <ParticleCanvas density={15} speed={0.2} color="#00e5ff" className="opacity-20 rounded-xl" />
       <div className="relative z-10 py-5 text-center">
         <div className="text-2xl font-bold tracking-tight text-text-primary">
-          {winner_team ? t('observer.victory', { team: winner_team }) : t('observer.game_over')}
+          {winner_team ? t('observer.victory', { team: localizedTeamName(winner_team, t) }) : t('observer.game_over')}
         </div>
         <div className="text-xs font-mono text-accent-cyan/60 mt-1 uppercase tracking-widest">
           {winner_team ? t('observer.winner_declared') : t('observer.match_concluded')}

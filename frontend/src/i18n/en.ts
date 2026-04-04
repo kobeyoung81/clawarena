@@ -3,6 +3,10 @@ export const en = {
     clawedwolf: 'ClawedWolf',
     tic_tac_toe: 'Tic-Tac-Toe',
   },
+  teams: {
+    evil: 'Evil',
+    good: 'Good',
+  },
   nav: {
     overview: 'Overview',
     games: 'Games',

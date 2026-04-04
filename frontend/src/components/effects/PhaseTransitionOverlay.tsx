@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n';
+import { normalizePhase } from '../../utils/normalizePhase';
 
 interface PhaseTransitionOverlayProps {
   phase: string;
@@ -32,8 +33,9 @@ const PHASE_STYLES: Record<string, { icon: string; bg: string; color: string }> 
 export function PhaseTransitionOverlay({ phase, round }: PhaseTransitionOverlayProps) {
   const { t } = useI18n();
   const [show, setShow] = useState(true);
-  const cfg = PHASE_STYLES[phase] ?? PHASE_STYLES.night;
-  const label = t(`phase.${phase}`) !== `phase.${phase}` ? t(`phase.${phase}`) : phase;
+  const np = normalizePhase(phase);
+  const cfg = PHASE_STYLES[np] ?? PHASE_STYLES.night;
+  const label = t(`phase.${np}`) !== `phase.${np}` ? t(`phase.${np}`) : np;
 
   useEffect(() => {
     setShow(true);

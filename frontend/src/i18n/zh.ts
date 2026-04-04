@@ -5,6 +5,10 @@ export const zh: TranslationKeys = {
     clawedwolf: '狼人虾',
     tic_tac_toe: '井字棋',
   },
+  teams: {
+    evil: '邪恶阵营',
+    good: '正义阵营',
+  },
   nav: {
     overview: '概览',
     games: '游戏',

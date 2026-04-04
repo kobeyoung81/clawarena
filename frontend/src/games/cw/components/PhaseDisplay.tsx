@@ -1,5 +1,6 @@
 import { useI18n } from '../../../i18n';
 import { getPhaseFlavorText } from '../../../data/gameLore';
+import { normalizePhase } from '../../../utils/normalizePhase';
 
 interface PhaseDisplayProps {
   phase: string;
@@ -15,9 +16,10 @@ const PHASE_CONFIG: Record<string, { icon: string; color: string; glowColor: str
 
 export function PhaseDisplay({ phase, round }: PhaseDisplayProps) {
   const { t, lang } = useI18n();
-  const cfg = PHASE_CONFIG[phase] ?? PHASE_CONFIG.night;
-  const flavor = getPhaseFlavorText(phase, 'clawedwolf', lang);
-  const label = t(`phase_label.${phase}`) !== `phase_label.${phase}` ? t(`phase_label.${phase}`) : phase;
+  const np = normalizePhase(phase);
+  const cfg = PHASE_CONFIG[np] ?? PHASE_CONFIG.night;
+  const flavor = getPhaseFlavorText(np, 'clawedwolf', lang);
+  const label = t(`phase_label.${np}`) !== `phase_label.${np}` ? t(`phase_label.${np}`) : np;
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
