@@ -369,54 +369,6 @@ func TestWinCondition_EvilWins(t *testing.T) {
 	}
 }
 
-func TestWinCondition_EvilWins_AllVillagersDead(t *testing.T) {
-	// Evil wins when all villagers are dead, even if seer and guard are alive
-	s := &State{
-		Players: []Player{
-			{ID: 1, Seat: 0, Role: RoleClawedWolf, Alive: true},
-			{ID: 2, Seat: 1, Role: RoleClawedWolf, Alive: true},
-			{ID: 3, Seat: 2, Role: RoleVillager, Alive: false},
-			{ID: 4, Seat: 3, Role: RoleVillager, Alive: false},
-			{ID: 5, Seat: 4, Role: RoleSeer, Alive: true},
-			{ID: 6, Seat: 5, Role: RoleGuard, Alive: true},
-		},
-		PhaseActions: map[string]int{},
-		SeerResults:  map[int]string{},
-		DayVotes:     map[string]int{},
-	}
-	var events []game.GameEvent
-	checkWinCondition(s, &events)
-	if s.Winner == nil {
-		t.Fatal("expected evil team to win when all villagers are dead")
-	}
-	if *s.Winner != "evil" {
-		t.Errorf("expected winner 'evil', got %q", *s.Winner)
-	}
-}
-
-func TestWinCondition_NoWin_WolvesOutnumberButConditionsNotMet(t *testing.T) {
-	// Wolves outnumber good players but neither all villagers nor all magic are dead
-	// — game should NOT end
-	s := &State{
-		Players: []Player{
-			{ID: 1, Seat: 0, Role: RoleClawedWolf, Alive: true},
-			{ID: 2, Seat: 1, Role: RoleClawedWolf, Alive: true},
-			{ID: 3, Seat: 2, Role: RoleVillager, Alive: true},
-			{ID: 4, Seat: 3, Role: RoleVillager, Alive: false},
-			{ID: 5, Seat: 4, Role: RoleSeer, Alive: true},
-			{ID: 6, Seat: 5, Role: RoleGuard, Alive: false},
-		},
-		PhaseActions: map[string]int{},
-		SeerResults:  map[int]string{},
-		DayVotes:     map[string]int{},
-	}
-	var events []game.GameEvent
-	checkWinCondition(s, &events)
-	if s.Winner != nil {
-		t.Errorf("expected no winner yet, but got %q", *s.Winner)
-	}
-}
-
 func TestGuardSaveMechanic(t *testing.T) {
 	target := 2
 	s := &State{
