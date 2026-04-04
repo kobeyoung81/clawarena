@@ -122,7 +122,7 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
         ...getPhaseBackground(phase),
         border: `1px solid ${borderColor}`,
         transition: 'background 0.8s ease',
-        minHeight: 380,
+        minHeight: 480,
       }}
     >
       {/* Night atmosphere */}
@@ -135,63 +135,69 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
       <PhaseDisplay phase={phase} round={round} />
 
       {/* Content area */}
-      <div className="relative z-10 flex flex-col flex-1 px-6 py-4 gap-3">
-        {/* Upper row: seats 0, 2, 4 */}
-        <div className="flex justify-center items-end gap-10">
-          {upperSeats.map(seat => {
-            const player = statePlayers.find(p => p.seat === seat);
-            if (!player) return <div key={seat} className="w-24" />;
-            return (
-              <PlayerSeat
-                key={player.seat}
-                player={player}
-                isCurrentSpeaker={currentSpeaker === player.seat}
-                voteCount={votes[String(player.seat)]}
-                isNight={isNight}
-                isReplay={isReplay}
-                phase={phase}
-                className="relative"
-              />
-            );
-          })}
+      <div className="relative z-10 flex flex-col flex-1 px-6 py-6 justify-between">
+        {/* Upper section: row + bubble */}
+        <div className="flex flex-col gap-2">
+          {/* Upper row: seats 0, 2, 4 */}
+          <div className="flex justify-center items-end gap-10">
+            {upperSeats.map(seat => {
+              const player = statePlayers.find(p => p.seat === seat);
+              if (!player) return <div key={seat} className="w-24" />;
+              return (
+                <PlayerSeat
+                  key={player.seat}
+                  player={player}
+                  isCurrentSpeaker={currentSpeaker === player.seat}
+                  voteCount={votes[String(player.seat)]}
+                  isNight={isNight}
+                  isReplay={isReplay}
+                  phase={phase}
+                  className="relative"
+                />
+              );
+            })}
+          </div>
+
+          {/* Upper row speech bubble */}
+          <div className="overflow-hidden">
+            <RowBubble
+              speech={np === 'day_discuss' ? latestUpperSpeech?.message : undefined}
+              speakerName={speakerNameFor(latestUpperSpeech)}
+              isActive={isUpperActive}
+            />
+          </div>
         </div>
 
-        {/* Upper row speech bubble */}
-        <div className="px-2">
-          <RowBubble
-            speech={np === 'day_discuss' ? latestUpperSpeech?.message : undefined}
-            speakerName={speakerNameFor(latestUpperSpeech)}
-            isActive={isUpperActive}
-          />
-        </div>
+        {/* Lower section: bubble + row */}
+        <div className="flex flex-col gap-2">
+          {/* Lower row speech bubble */}
+          <div className="overflow-hidden">
+            <RowBubble
+              speech={np === 'day_discuss' ? latestLowerSpeech?.message : undefined}
+              speakerName={speakerNameFor(latestLowerSpeech)}
+              isActive={isLowerActive}
+            />
+          </div>
 
-        {/* Lower row speech bubble */}
-        <div className="px-2">
-          <RowBubble
-            speech={np === 'day_discuss' ? latestLowerSpeech?.message : undefined}
-            speakerName={speakerNameFor(latestLowerSpeech)}
-            isActive={isLowerActive}
-          />
-        </div>
-
-        {/* Lower row: seats 1, 3, 5 */}
-        <div className="flex justify-center items-end gap-10">
-          {lowerSeats.map(seat => {
-            const player = statePlayers.find(p => p.seat === seat);
-            if (!player) return <div key={seat} className="w-24" />;
-            return (
-              <PlayerSeat
-                key={player.seat}
-                player={player}
-                isCurrentSpeaker={currentSpeaker === player.seat}
-                voteCount={votes[String(player.seat)]}
-                isNight={isNight}
-                isReplay={isReplay}
-                phase={phase}
-                className="relative"
-              />
-            );
-          })}
+          {/* Lower row: seats 1, 3, 5 */}
+          <div className="flex justify-center items-end gap-10">
+            {lowerSeats.map(seat => {
+              const player = statePlayers.find(p => p.seat === seat);
+              if (!player) return <div key={seat} className="w-24" />;
+              return (
+                <PlayerSeat
+                  key={player.seat}
+                  player={player}
+                  isCurrentSpeaker={currentSpeaker === player.seat}
+                  voteCount={votes[String(player.seat)]}
+                  isNight={isNight}
+                  isReplay={isReplay}
+                  phase={phase}
+                  className="relative"
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
 
