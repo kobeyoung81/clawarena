@@ -631,3 +631,162 @@ func TestApplyAction_EventsHaveStateAfter(t *testing.T) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Wolf deliberation tests
+// ---------------------------------------------------------------------------
+
+// helper: makes both wolves vote for different targets, returns final state
+func wolvesDisagree(t *testing.T, e *Engine, state json.RawMessage) (json.RawMessage, *State) {
+	t.Helper()
+	s := parseTestState(t, state)
+	wolves := allPlayerIDsForRole(s, RoleClawedWolf)
+	if len(wolves) != 2 {
+		t.Fatalf("expected 2 wolves, got %d", len(wolves))
+	}
+
+	// Find two distinct non-wolf targets
+	var targets []int
+	for _, p := range s.Players {
+		if p.Role != RoleClawedWolf && p.Alive {
+			targets = append(targets, p.Seat)
+		}
+	}
+	if len(targets) < 2 {
+		t.Fatal("need at least 2 non-wolf targets")
+	}
+
+	action1, _ := json.Marshal(map[string]interface{}{"type": "kill_vote", "target_seat": targets[0]})
+	result1, err := e.ApplyAction(state, wolves[0], action1)
+	if err != nil {
+		t.Fatalf("wolf 1 kill_vote failed: %v", err)
+	}
+	state = lastState(t, result1)
+
+	action2, _ := json.Marshal(map[string]interface{}{"type": "kill_vote", "target_seat": targets[1]})
+	result2, err := e.ApplyAction(state, wolves[1], action2)
+	if err != nil {
+		t.Fatalf("wolf 2 kill_vote failed: %v", err)
+	}
+	state = lastState(t, result2)
+	return state, parseTestState(t, state)
+}
+
+// helper: makes all alive wolves speak in the wolf discuss phase
+func wolvesSpeak(t *testing.T, e *Engine, state json.RawMessage) json.RawMessage {
+	t.Helper()
+	s := parseTestState(t, state)
+	for _, p := range s.Players {
+		if p.Alive && p.Role == RoleClawedWolf {
+			action, _ := json.Marshal(map[string]interface{}{"type": "wolf_speak", "message": "let's coordinate"})
+			result, err := e.ApplyAction(state, p.ID, action)
+			if err != nil {
+				t.Fatalf("wolf_speak failed for player %d: %v", p.ID, err)
+			}
+			state = lastState(t, result)
+		}
+	}
+	return state
+}
+
+func TestWolfDisagree_EntersDiscussPhase(t *testing.T) {
+	state := initClawedWolf(t, testPlayers)
+	e := &Engine{}
+
+	state, s := wolvesDisagree(t, e, state)
+	if s.Phase != PhaseNightWolfDiscuss {
+		t.Errorf("expected phase %q after disagreement, got %q", PhaseNightWolfDiscuss, s.Phase)
+	}
+
+	// wolf_vote_disagree event should have been emitted
+	// WolfVoteRound should still be 1 (discuss hasn't incremented yet)
+	if s.wolfVoteRound() != 1 {
+		t.Errorf("expected wolf_vote_round 1, got %d", s.wolfVoteRound())
+	}
+}
+
+func TestWolfDisagree_DiscussThenAgree(t *testing.T) {
+	state := initClawedWolf(t, testPlayers)
+	e := &Engine{}
+
+	// Round 1: disagree
+	state, _ = wolvesDisagree(t, e, state)
+
+	// Wolves discuss
+	state = wolvesSpeak(t, e, state)
+	s := parseTestState(t, state)
+
+	// After discussion, should be back in vote phase with round 2
+	if s.Phase != PhaseNightClawedWolf {
+		t.Errorf("expected phase %q after discussion, got %q", PhaseNightClawedWolf, s.Phase)
+	}
+	if s.WolfVoteRound != 2 {
+		t.Errorf("expected wolf_vote_round 2, got %d", s.WolfVoteRound)
+	}
+
+	// Round 2: wolves agree
+	wolves := allPlayerIDsForRole(s, RoleClawedWolf)
+	var targetSeat int
+	for _, p := range s.Players {
+		if p.Role != RoleClawedWolf && p.Alive {
+			targetSeat = p.Seat
+			break
+		}
+	}
+	sameVote, _ := json.Marshal(map[string]interface{}{"type": "kill_vote", "target_seat": targetSeat})
+	result1, err := e.ApplyAction(state, wolves[0], sameVote)
+	if err != nil {
+		t.Fatalf("wolf 1 vote round 2 failed: %v", err)
+	}
+	state = lastState(t, result1)
+	result2, err := e.ApplyAction(state, wolves[1], sameVote)
+	if err != nil {
+		t.Fatalf("wolf 2 vote round 2 failed: %v", err)
+	}
+	state = lastState(t, result2)
+	s = parseTestState(t, state)
+
+	// Should have resolved and advanced past wolf phase
+	if s.NightKillTarget == nil {
+		t.Error("expected night_kill_target to be set")
+	}
+	if s.Phase == PhaseNightClawedWolf || s.Phase == PhaseNightWolfDiscuss {
+		t.Errorf("expected phase to advance past wolf phases, got %q", s.Phase)
+	}
+	// WolfVoteRound should be reset
+	if s.WolfVoteRound != 1 {
+		t.Errorf("expected wolf_vote_round reset to 1, got %d", s.WolfVoteRound)
+	}
+}
+
+func TestWolfDisagree_RandomAfter3Rounds(t *testing.T) {
+	state := initClawedWolf(t, testPlayers)
+	e := &Engine{}
+
+	// Round 1: disagree → discuss
+	state, _ = wolvesDisagree(t, e, state)
+	state = wolvesSpeak(t, e, state)
+
+	// Round 2: disagree → discuss
+	state, _ = wolvesDisagree(t, e, state)
+	state = wolvesSpeak(t, e, state)
+
+	// Round 3: disagree → random pick (no more discussion)
+	state, s := wolvesDisagree(t, e, state)
+
+	// Should NOT enter discuss again — should resolve with random pick
+	if s.Phase == PhaseNightWolfDiscuss {
+		t.Error("should not enter wolf discuss after 3rd vote round")
+	}
+	if s.NightKillTarget == nil {
+		t.Error("expected night_kill_target to be set via random pick")
+	}
+	// Phase should have advanced past wolf
+	if s.Phase == PhaseNightClawedWolf {
+		t.Errorf("expected phase to advance past wolf, got %q", s.Phase)
+	}
+	// WolfVoteRound should be reset
+	if s.WolfVoteRound != 1 {
+		t.Errorf("expected wolf_vote_round reset to 1 after resolution, got %d", s.WolfVoteRound)
+	}
+}

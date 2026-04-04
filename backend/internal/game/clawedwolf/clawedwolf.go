@@ -14,14 +14,17 @@ func init() {
 }
 
 const (
-	PhaseNightClawedWolf = "night_clawedwolf"
-	PhaseNightSeer       = "night_seer"
-	PhaseNightGuard      = "night_guard"
-	PhaseDayAnnounce     = "day_announce"
-	PhaseDayDiscuss      = "day_discuss"
-	PhaseDayVote         = "day_vote"
-	PhaseDayResult       = "day_result"
-	PhaseFinished        = "finished"
+	PhaseNightClawedWolf  = "night_clawedwolf"
+	PhaseNightWolfDiscuss = "night_wolf_discuss"
+	PhaseNightSeer        = "night_seer"
+	PhaseNightGuard       = "night_guard"
+	PhaseDayAnnounce      = "day_announce"
+	PhaseDayDiscuss       = "day_discuss"
+	PhaseDayVote          = "day_vote"
+	PhaseDayResult        = "day_result"
+	PhaseFinished         = "finished"
+
+	maxWolfVoteRounds = 3
 
 	RoleClawedWolf = "clawedwolf"
 	RoleSeer       = "seer"
@@ -52,6 +55,8 @@ type State struct {
 	Eliminated       []int          `json:"eliminated"`
 	SpeakerIndex     int            `json:"speaker_index"`
 	SpeakStartSeat   int            `json:"speak_start_seat"`
+	WolfSpeeches     []Speech       `json:"wolf_speeches,omitempty"`
+	WolfVoteRound    int            `json:"wolf_vote_round"`
 	Winner           *string        `json:"winner,omitempty"`
 }
 
@@ -69,6 +74,15 @@ type Engine struct{}
 
 func intPtr(v int) *int       { return &v }
 func uintPtr(v uint) *uint    { return &v }
+
+// wolfVoteRound returns the current wolf vote round (1-based), treating 0 as 1
+// for backward compatibility with states serialized before this field existed.
+func (s *State) wolfVoteRound() int {
+	if s.WolfVoteRound < 1 {
+		return 1
+	}
+	return s.WolfVoteRound
+}
 
 func stateSnapshot(s *State) json.RawMessage {
 	b, _ := json.Marshal(s)
@@ -141,6 +155,7 @@ func (e *Engine) InitState(config json.RawMessage, players []uint) (json.RawMess
 		SeerResults:    map[int]string{},
 		DayVotes:       map[string]int{},
 		SpeakStartSeat: 0,
+		WolfVoteRound:  1,
 	}
 
 	stateJSON := stateSnapshot(&s)
@@ -234,6 +249,10 @@ func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMess
 		if myPlayer.Role == RoleSeer {
 			view["seer_results"] = s.SeerResults
 		}
+		if myPlayer.Role == RoleClawedWolf {
+			view["wolf_speeches"] = s.WolfSpeeches
+			view["wolf_vote_round"] = s.WolfVoteRound
+		}
 	}
 
 	// Add public vote results if in day_result or later
@@ -291,6 +310,8 @@ func (e *Engine) GetGodView(raw json.RawMessage) (json.RawMessage, error) {
 		"night_kill_target":  s.NightKillTarget,
 		"night_guard_target": s.NightGuardTarget,
 		"phase_actions":      s.PhaseActions,
+		"wolf_speeches":      s.WolfSpeeches,
+		"wolf_vote_round":    s.WolfVoteRound,
 		"winner":             s.Winner,
 	}
 	return json.Marshal(view)
@@ -347,10 +368,26 @@ func pendingActionsForPhase(s *State) []game.PendingAction {
 					actions = append(actions, game.PendingAction{
 						PlayerID:     p.ID,
 						ActionType:   "kill_vote",
-						Prompt:       "Choose a player to kill tonight.",
+						Prompt:       fmt.Sprintf("Choose a player to kill tonight (vote round %d/%d).", s.wolfVoteRound(), maxWolfVoteRounds),
 						ValidTargets: targets,
 					})
 				}
+			}
+		}
+
+	case PhaseNightWolfDiscuss:
+		spoken := map[int]bool{}
+		for _, sp := range s.WolfSpeeches {
+			spoken[sp.Seat] = true
+		}
+		for _, p := range s.Players {
+			if p.Alive && p.Role == RoleClawedWolf && !spoken[p.Seat] {
+				actions = append(actions, game.PendingAction{
+					PlayerID:   p.ID,
+					ActionType: "wolf_speak",
+					Prompt:     fmt.Sprintf("Discuss with your partner who to kill (round %d/%d). You disagreed on the target.", s.wolfVoteRound()-1, maxWolfVoteRounds),
+				})
+				break
 			}
 		}
 
@@ -544,28 +581,124 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 		// Check if all alive wolves have voted
 		aliveWolves := aliveByRole(s, RoleClawedWolf)
 		if len(s.PhaseActions) >= len(aliveWolves) {
-			// Resolve: first wolf's choice wins on disagreement
-			firstVote := -1
+			// Collect distinct votes
+			votes := map[int]bool{}
 			for _, p := range s.Players {
 				if p.Alive && p.Role == RoleClawedWolf {
 					if v, ok := s.PhaseActions[fmt.Sprintf("%d", p.Seat)]; ok {
-						if firstVote == -1 {
-							firstVote = v
-						}
+						votes[v] = true
 					}
 				}
 			}
-			s.NightKillTarget = &firstVote
-			s.PhaseActions = map[string]int{}
-			s.Phase = advanceNightPhase(s, PhaseNightSeer)
 
-			// Phase change event
+			if len(votes) == 1 {
+				// Wolves agree — set target and advance
+				for target := range votes {
+					s.NightKillTarget = &target
+				}
+				s.PhaseActions = map[string]int{}
+				s.WolfSpeeches = nil
+				s.WolfVoteRound = 1
+				s.Phase = advanceNightPhase(s, PhaseNightSeer)
+
+				events = append(events, game.GameEvent{
+					Source:     "system",
+					EventType:  "phase_change",
+					Details:    mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
+					StateAfter: stateSnapshot(s),
+					Visibility: "public",
+				})
+			} else if s.wolfVoteRound() >= maxWolfVoteRounds {
+				// Max rounds reached — random pick from the votes
+				targets := make([]int, 0, len(votes))
+				for t := range votes {
+					targets = append(targets, t)
+				}
+				picked := targets[rand.Intn(len(targets))]
+				s.NightKillTarget = &picked
+				s.PhaseActions = map[string]int{}
+				s.WolfSpeeches = nil
+				s.WolfVoteRound = 1
+				s.Phase = advanceNightPhase(s, PhaseNightSeer)
+
+				events = append(events, game.GameEvent{
+					Source:     "system",
+					EventType:  "wolf_vote_random",
+					Details:    mustJSON(map[string]any{"picked_seat": picked, "candidates": targets}),
+					StateAfter: stateSnapshot(s),
+					Visibility: "team:wolf",
+				})
+				events = append(events, game.GameEvent{
+					Source:     "system",
+					EventType:  "phase_change",
+					Details:    mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
+					StateAfter: stateSnapshot(s),
+					Visibility: "public",
+				})
+			} else {
+				// Disagree — enter wolf discussion phase
+				s.PhaseActions = map[string]int{}
+				s.WolfSpeeches = nil
+				s.Phase = PhaseNightWolfDiscuss
+
+				events = append(events, game.GameEvent{
+					Source:     "system",
+					EventType:  "wolf_vote_disagree",
+					Details:    mustJSON(map[string]any{"vote_round": s.wolfVoteRound(), "max_rounds": maxWolfVoteRounds}),
+					StateAfter: stateSnapshot(s),
+					Visibility: "team:wolf",
+				})
+			}
+		}
+
+	case PhaseNightWolfDiscuss:
+		if action.Type != "wolf_speak" || actor.Role != RoleClawedWolf {
+			return nil, errors.New("invalid action for this phase")
+		}
+		s.WolfSpeeches = append(s.WolfSpeeches, Speech{
+			Seat:    actor.Seat,
+			Name:    actor.Name,
+			Message: action.Message,
+		})
+
+		events = append(events, game.GameEvent{
+			Source:    "agent",
+			EventType: "wolf_speak",
+			Actor: &game.EventEntity{
+				AgentID: uintPtr(actor.ID),
+				Seat:    intPtr(actor.Seat),
+				Team:    "wolf",
+			},
+			Details:    mustJSON(map[string]any{"content": action.Message}),
+			StateAfter: stateSnapshot(s),
+			Visibility: "team:wolf",
+		})
+
+		// Check if all alive wolves have spoken
+		spoken := map[int]bool{}
+		for _, sp := range s.WolfSpeeches {
+			spoken[sp.Seat] = true
+		}
+		allSpoken := true
+		for _, p := range s.Players {
+			if p.Alive && p.Role == RoleClawedWolf && !spoken[p.Seat] {
+				allSpoken = false
+				break
+			}
+		}
+		if allSpoken {
+			// Move to next vote round
+			s.WolfVoteRound++
+			s.WolfSpeeches = nil
+			s.PhaseActions = map[string]int{}
+			s.Phase = PhaseNightClawedWolf
+
 			events = append(events, game.GameEvent{
-				Source:    "system",
-				EventType: "phase_change",
-				Details:   mustJSON(map[string]any{"phase": s.Phase, "round": s.Round}),
+				Source:     "system",
+				EventType:  "phase_change",
+				Details:    mustJSON(map[string]any{"phase": s.Phase, "round": s.Round, "wolf_vote_round": s.WolfVoteRound}),
 				StateAfter: stateSnapshot(s),
-				Visibility: "public",
+				Visibility: "team:wolf",
 			})
 		}
 
@@ -764,6 +897,8 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 				s.PhaseActions = map[string]int{}
 				s.NightKillTarget = nil
 				s.NightGuardTarget = nil
+				s.WolfSpeeches = nil
+				s.WolfVoteRound = 1
 				s.SpeakStartSeat = (s.SpeakStartSeat + 1) % len(s.Players)
 				s.SpeakerIndex = 0
 				s.Phase = PhaseNightClawedWolf
