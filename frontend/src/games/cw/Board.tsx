@@ -175,10 +175,8 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
           </div>
         )}
 
-        {/* Spacer to push lower row down when no bubbles */}
-        {!(np === 'day_discuss' && (latestUpperSpeech || latestLowerSpeech)) && (
-          <div className="flex-1 min-h-[60px]" />
-        )}
+        {/* Spacer — always pushes lower row to the bottom */}
+        <div className="flex-1 min-h-[60px]" />
 
         {/* Lower row: seats 1, 3, 5 */}
         <div className="flex justify-center items-end gap-10">
