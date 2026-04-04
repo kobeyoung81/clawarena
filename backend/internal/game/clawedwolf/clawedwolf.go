@@ -1009,13 +1009,18 @@ func resolveVote(s *State) []game.GameEvent {
 
 func checkWinCondition(s *State, events *[]game.GameEvent) {
 	aliveWolves := 0
-	aliveGood := 0
+	aliveVillagers := 0
+	aliveMagicGood := 0 // seer + guard
 	for _, p := range s.Players {
 		if p.Alive {
-			if p.Role == RoleClawedWolf {
+			switch p.Role {
+			case RoleClawedWolf:
 				aliveWolves++
-			} else {
-				aliveGood++
+			case RoleVillager:
+				aliveVillagers++
+			default:
+				// seer, guard (magic good roles)
+				aliveMagicGood++
 			}
 		}
 	}
@@ -1044,7 +1049,7 @@ func checkWinCondition(s *State, events *[]game.GameEvent) {
 				WinnerTeam: "good",
 			},
 		})
-	} else if aliveWolves >= aliveGood {
+	} else if aliveVillagers == 0 || aliveMagicGood == 0 {
 		winner := "evil"
 		s.Winner = &winner
 		s.Phase = PhaseFinished
