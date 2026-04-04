@@ -76,6 +76,7 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
   const phase = s?.phase ?? 'night';
   const round = s?.round ?? 1;
   const statePlayers = s?.players ?? propPlayers ?? [];
+  const np = normalizePhase(phase);
   const isNight = np === 'night';
   const currentSpeaker = s?.current_speaker;
   const votes = s?.votes ?? {};
@@ -83,8 +84,6 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
   const prevPhaseRef = useRef(phase);
   const phaseChanged = prevPhaseRef.current !== phase;
   if (phaseChanged) prevPhaseRef.current = phase;
-
-  const np = normalizePhase(phase);
 
   const borderColor = {
     night:      'rgba(0,229,255,0.25)',
