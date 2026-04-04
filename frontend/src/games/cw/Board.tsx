@@ -155,28 +155,26 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
           })}
         </div>
 
-        {/* Speech slots — between the two rows, grow with text */}
-        {np === 'day_discuss' && (latestUpperSpeech || latestLowerSpeech) && (
-          <div className="flex flex-col gap-2 flex-shrink-0">
-            {latestUpperSpeech && (
-              <SpeechSlot
-                speech={latestUpperSpeech.message}
-                speakerName={speakerNameFor(latestUpperSpeech)}
-                isActive={isUpperActive}
-              />
-            )}
-            {latestLowerSpeech && (
-              <SpeechSlot
-                speech={latestLowerSpeech.message}
-                speakerName={speakerNameFor(latestLowerSpeech)}
-                isActive={isLowerActive}
-              />
-            )}
-          </div>
+        {/* Upper speech slot */}
+        {np === 'day_discuss' && latestUpperSpeech && (
+          <SpeechSlot
+            speech={latestUpperSpeech.message}
+            speakerName={speakerNameFor(latestUpperSpeech)}
+            isActive={isUpperActive}
+          />
         )}
 
         {/* Spacer — always pushes lower row to the bottom */}
         <div className="flex-1 min-h-[60px]" />
+
+        {/* Lower speech slot */}
+        {np === 'day_discuss' && latestLowerSpeech && (
+          <SpeechSlot
+            speech={latestLowerSpeech.message}
+            speakerName={speakerNameFor(latestLowerSpeech)}
+            isActive={isLowerActive}
+          />
+        )}
 
         {/* Lower row: seats 1, 3, 5 */}
         <div className="flex justify-center items-end gap-10">
