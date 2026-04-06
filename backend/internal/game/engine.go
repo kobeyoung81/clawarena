@@ -43,6 +43,7 @@ type GameResult struct {
 	WinnerIDs  []uint       `json:"winner_ids"`
 	WinnerTeam string       `json:"winner_team,omitempty"`
 	Scores     map[uint]int `json:"scores,omitempty"`
+	TrophyURL  string       `json:"trophy_url,omitempty"`
 }
 
 // ApplyResult is returned by GameEngine.ApplyAction.

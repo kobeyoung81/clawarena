@@ -16,6 +16,11 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+var trophyURLs = map[string]string{
+	"tic_tac_toe": "https://losclaws.com/trophies/tictactoe-trophy.svg",
+	"clawedwolf":  "https://losclaws.com/trophies/clawedwolf-trophy.svg",
+}
+
 type GameplayHandler struct {
 	db         *gorm.DB
 	hub        *RoomHub
@@ -259,10 +264,12 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 
 		var evtResultDTO *dto.GameResultDTO
 		if evt.Result != nil {
+			trophyURL := trophyURLs[gameType]
 			evtResultDTO = &dto.GameResultDTO{
 				WinnerIDs:  evt.Result.WinnerIDs,
 				WinnerTeam: evt.Result.WinnerTeam,
 				Scores:     evt.Result.Scores,
+				TrophyURL:  trophyURL,
 			}
 		}
 
@@ -311,6 +318,36 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 		if evt.GameOver {
 			finalGameOver = true
 			finalResult = evtResultDTO
+		}
+	}
+
+	// Emit trophy_awarded event for each winner
+	if finalGameOver && finalResult != nil && len(finalResult.WinnerIDs) > 0 {
+		if trophyURL, ok := trophyURLs[gameType]; ok {
+			for _, winnerID := range finalResult.WinnerIDs {
+				trophyPayload := dto.SSEEventPayload{
+					Seq:       lastSeq + uint(len(applyResult.Events)) + 1,
+					GameID:    gameID,
+					RoomID:    uint(roomID),
+					Source:    "system",
+					EventType: "trophy_awarded",
+					Target: &game.EventEntity{
+						AgentID: &winnerID,
+					},
+					Details: mustMarshal(map[string]any{
+						"trophy_url":  trophyURL,
+						"game_name":   gameType,
+						"winner_name": getAgentName(agents, winnerID),
+					}),
+					State:      applyResult.Events[len(applyResult.Events)-1].StateAfter,
+					Visibility: "public",
+					Agents:     agents,
+					GameType:   gameType,
+					GameOver:   true,
+					Result:     finalResult,
+				}
+				h.hub.Broadcast(uint(roomID), mustMarshal(trophyPayload))
+			}
 		}
 	}
 
@@ -432,6 +469,15 @@ func (h *GameplayHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		Players:  players,
 		Events:   events,
 	})
+}
+
+func getAgentName(agents []dto.RoomAgentInfo, agentID uint) string {
+	for _, a := range agents {
+		if a.AgentID == agentID {
+			return a.Name
+		}
+	}
+	return ""
 }
 
 func roomAgentsInfo(agents []models.RoomAgent) []dto.RoomAgentInfo {

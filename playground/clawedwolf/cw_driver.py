@@ -47,6 +47,11 @@ SPEECH_TEMPLATES = {
         "Let's think logically about who the wolves might be.",
         "I'm a villager and I trust the seer if they speak up.",
     ],
+    "wolf_discuss": [
+        "I think we should target someone less suspicious. Let's coordinate.",
+        "Let's agree on the same target this time. How about we focus on the vocal ones?",
+        "We need to be strategic. Let's pick someone the village won't defend.",
+    ],
 }
 
 
@@ -306,6 +311,15 @@ def play_game(cfg, verbose=False, slow=False):
                         action = {"action": {"type": "kill_vote", "target_seat": target}}
                         log(f"  Wolf: {name} votes to kill seat {target}", always=True)
 
+                    elif phase == "night_wolf_discuss":
+                        idx = shared["speech_idx"].get(f"wolf_{aid}", 0)
+                        templates = SPEECH_TEMPLATES.get("wolf_discuss", SPEECH_TEMPLATES["clawedwolf"])
+                        msg = templates[idx % len(templates)]
+                        shared["speech_idx"][f"wolf_{aid}"] = idx + 1
+                        action = {"action": {"type": "wolf_speak", "message": msg}}
+                        short = msg[:60] + "..." if len(msg) > 60 else msg
+                        log(f"  Wolf discuss: {name} says: \"{short}\"", always=True)
+
                     elif phase == "night_seer":
                         targets = [s for s in valid if s not in shared["seer_investigated"]]
                         if not targets:
@@ -432,12 +446,11 @@ def ready_all(cfg, verbose=False):
         log(f"{agent['name']} ready", always=True)
 
 
-def do_register(cfg, verbose=False, suffix=None):
-    """Register agents and update cfg in place. Resets seat/role for fresh game."""
+def do_register(cfg, verbose=False, creds_path=None):
+    """Register agents with bare names and save credentials."""
     auth = cfg["auth_base_url"]
-    ts = suffix or str(int(time.time()))
     for agent in cfg["agents"]:
-        name = f"{agent['name']}-{ts}"
+        name = agent["name"]
         agent_id, token = register_agent(auth, name, verbose)
         agent["agent_id"] = agent_id
         agent["token"] = token
@@ -445,6 +458,8 @@ def do_register(cfg, verbose=False, suffix=None):
         agent["role"] = ""
         agent["alive"] = True
         log(f"Registered {name} -> {agent_id}", always=True)
+    if creds_path:
+        save_credentials(cfg["agents"], creds_path)
 
 
 def load_config(path):
@@ -457,6 +472,34 @@ def save_config(cfg, path):
         json.dump(cfg, f, indent=2)
 
 
+def save_credentials(agents, path):
+    creds = {}
+    for agent in agents:
+        creds[agent["name"]] = {
+            "agent_id": agent["agent_id"],
+            "token": agent["token"],
+        }
+    with open(path, "w") as f:
+        json.dump(creds, f, indent=2)
+    log(f"Credentials saved to {path}", always=True)
+
+
+def load_credentials(agents, path):
+    try:
+        with open(path) as f:
+            creds = json.load(f)
+    except FileNotFoundError:
+        return False
+    loaded = 0
+    for agent in agents:
+        if agent["name"] in creds:
+            agent["agent_id"] = creds[agent["name"]]["agent_id"]
+            agent["token"] = creds[agent["name"]]["token"]
+            loaded += 1
+    log(f"Loaded credentials for {loaded}/{len(agents)} agents from {path}", always=True)
+    return loaded == len(agents)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="ClawedWolf automated driver for ClawArena (SSE mode)",
@@ -467,7 +510,7 @@ examples:
       Register fresh agents, play one game, exit.
 
   python cw_driver.py --once
-      Use tokens already in config.json, play one game, exit.
+      Use tokens from credentials.json, play one game, exit.
 
   python cw_driver.py --loop
       Play games forever (re-registers each game). Ctrl+C to stop.
@@ -486,6 +529,7 @@ examples:
         """,
     )
     parser.add_argument("--config", default="./config.json", help="Path to config.json (default: ./config.json)")
+    parser.add_argument("--credentials", default="./credentials.json", help="Path to credentials.json (default: ./credentials.json)")
     parser.add_argument("--once", action="store_true", help="Play one game then exit (default if neither flag set)")
     parser.add_argument("--loop", action="store_true", help="Play games forever until Ctrl+C")
     parser.add_argument("--verbose", action="store_true", help="Print full API responses")
@@ -502,8 +546,7 @@ examples:
             while True:
                 game_num += 1
                 log(f"\n=== Game {game_num} ===", always=True)
-                do_register(cfg, args.verbose)
-                save_config(cfg, args.config)
+                do_register(cfg, args.verbose, creds_path=args.credentials)
                 setup_room(cfg, args.verbose)
                 play_game(cfg, args.verbose, slow=args.slow)
                 time.sleep(2)
@@ -511,11 +554,11 @@ examples:
             log("\nStopped.", always=True)
     else:
         if args.register:
-            do_register(cfg, args.verbose)
-            save_config(cfg, args.config)
-        if not cfg["agents"][0].get("token"):
-            print("Error: no tokens in config. Run with --register first.", file=sys.stderr)
-            sys.exit(1)
+            do_register(cfg, args.verbose, creds_path=args.credentials)
+        elif not load_credentials(cfg["agents"], args.credentials):
+            if not cfg["agents"][0].get("token"):
+                print("Error: no tokens found. Run with --register first, or provide credentials.json.", file=sys.stderr)
+                sys.exit(1)
         # Reset alive/seat/role for fresh game
         for agent in cfg["agents"]:
             agent.setdefault("alive", True)
@@ -528,7 +571,7 @@ examples:
                 agent["seat"] = None
                 agent["role"] = ""
                 agent["alive"] = True
-            time.sleep(2)  # Allow room state to settle
+            time.sleep(2)
             ready_all(cfg, args.verbose)
             play_game(cfg, args.verbose, slow=args.slow)
 
