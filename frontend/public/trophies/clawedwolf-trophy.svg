@@ -1,0 +1,206 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="600" height="800">
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a0a0a"/>
+      <stop offset="40%" stop-color="#150520"/>
+      <stop offset="100%" stop-color="#050208"/>
+    </linearGradient>
+    <radialGradient id="moon-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe8c0" stop-opacity="0.9"/>
+      <stop offset="60%" stop-color="#daa520" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+    <radialGradient id="eerie-glow" cx="50%" cy="30%" r="45%">
+      <stop offset="0%" stop-color="#8b0000" stop-opacity="0.15"/>
+      <stop offset="60%" stop-color="#3a0a2e" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+    <linearGradient id="claw-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff3030"/>
+      <stop offset="100%" stop-color="#8b0000"/>
+    </linearGradient>
+    <linearGradient id="silver-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8e8e8"/>
+      <stop offset="50%" stop-color="#b0b0b0"/>
+      <stop offset="100%" stop-color="#808080"/>
+    </linearGradient>
+    <filter id="soft-glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="moon-filter">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="star-glow">
+      <feGaussianBlur stdDeviation="1.5"/>
+    </filter>
+    <clipPath id="crescent-clip">
+      <circle cx="435" cy="140" r="52"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="600" height="800" fill="url(#bg-grad)"/>
+  <rect width="600" height="800" fill="url(#eerie-glow)"/>
+
+  <!-- Decorative border with crimson accent -->
+  <rect x="20" y="20" width="560" height="760" rx="12" fill="none" stroke="#8b0000" stroke-width="1.5" opacity="0.4"/>
+  <rect x="28" y="28" width="544" height="744" rx="8" fill="none" stroke="#4a1a1a" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Night sky stars -->
+  <g opacity="0.7" filter="url(#star-glow)">
+    <circle cx="85" cy="60" r="1.5" fill="#fff"/>
+    <circle cx="200" cy="45" r="1" fill="#ffe8c0"/>
+    <circle cx="150" cy="100" r="1.8" fill="#fff"/>
+    <circle cx="320" cy="70" r="1.2" fill="#fff"/>
+    <circle cx="250" cy="130" r="0.8" fill="#ffe8c0"/>
+    <circle cx="500" cy="75" r="1.5" fill="#fff"/>
+    <circle cx="550" cy="130" r="1" fill="#fff"/>
+    <circle cx="100" cy="180" r="1.3" fill="#ffe8c0"/>
+    <circle cx="60" cy="300" r="1" fill="#fff"/>
+    <circle cx="540" cy="280" r="1.2" fill="#fff"/>
+    <circle cx="80" cy="450" r="0.8" fill="#ffe8c0"/>
+    <circle cx="520" cy="420" r="1" fill="#fff"/>
+    <circle cx="55" cy="550" r="1.2" fill="#fff"/>
+    <circle cx="545" cy="530" r="0.8" fill="#ffe8c0"/>
+    <circle cx="350" cy="55" r="1" fill="#fff"/>
+    <circle cx="180" cy="200" r="0.7" fill="#fff"/>
+    <circle cx="480" cy="200" r="1.1" fill="#fff"/>
+  </g>
+
+  <!-- Crescent moon -->
+  <g filter="url(#moon-filter)">
+    <circle cx="435" cy="140" r="50" fill="url(#moon-glow)"/>
+    <circle cx="455" cy="125" r="42" fill="url(#bg-grad)"/>
+  </g>
+
+  <!-- Wolf silhouette howling at moon -->
+  <g transform="translate(300, 280)" filter="url(#soft-glow)">
+    <!-- Wolf body and head silhouette -->
+    <path d="
+      M-80,80 
+      Q-85,60 -75,40 
+      Q-65,20 -55,10 
+      L-50,0 
+      Q-45,-20 -40,-40 
+      Q-38,-55 -30,-70 
+      L-25,-85 
+      Q-20,-95 -15,-100 
+      L-10,-105 
+      Q-5,-108 0,-115 
+      L5,-120 
+      Q8,-118 10,-110 
+      L8,-100 
+      Q12,-95 18,-90 
+      L22,-88 
+      Q18,-80 15,-70 
+      Q10,-55 8,-40 
+      Q5,-20 10,0 
+      Q15,15 25,30 
+      Q35,45 40,60 
+      Q42,70 40,80
+      Z
+    " fill="#1a1020" stroke="#2a1830" stroke-width="1"/>
+    <!-- Wolf ear -->
+    <path d="M-18,-98 L-25,-85 L-10,-105 Z" fill="#1a1020"/>
+    <!-- Wolf snout pointing up -->
+    <path d="M0,-115 Q2,-122 5,-120 Q3,-116 0,-115Z" fill="#1a1020"/>
+    <!-- Eye glint -->
+    <circle cx="5" cy="-88" r="2" fill="#ff3030" opacity="0.7"/>
+    <!-- Front legs -->
+    <path d="M-20,80 L-25,60 Q-30,50 -25,40" fill="none" stroke="#1a1020" stroke-width="10"/>
+    <path d="M10,80 L15,55 Q20,45 15,35" fill="none" stroke="#1a1020" stroke-width="10"/>
+    <!-- Tail -->
+    <path d="M40,60 Q55,40 65,45 Q60,55 45,65" fill="#1a1020"/>
+  </g>
+
+  <!-- Claw scratch marks -->
+  <g stroke="url(#claw-grad)" stroke-width="4" stroke-linecap="round" opacity="0.7">
+    <!-- Left claw marks -->
+    <path d="M80,350 Q90,400 85,450" fill="none"/>
+    <path d="M95,345 Q105,395 100,445" fill="none"/>
+    <path d="M110,340 Q120,390 115,440" fill="none"/>
+    <!-- Right claw marks -->
+    <path d="M490,350 Q500,400 495,450" fill="none"/>
+    <path d="M505,345 Q515,395 510,445" fill="none"/>
+    <path d="M520,340 Q530,390 525,440" fill="none"/>
+  </g>
+
+  <!-- Wolf paw prints trail -->
+  <g fill="#4a1a2a" opacity="0.4">
+    <!-- Paw 1 -->
+    <g transform="translate(170, 500) rotate(-15)">
+      <ellipse cx="0" cy="0" rx="10" ry="13"/>
+      <circle cx="-8" cy="-14" r="5"/>
+      <circle cx="0" cy="-17" r="5"/>
+      <circle cx="8" cy="-14" r="5"/>
+    </g>
+    <!-- Paw 2 -->
+    <g transform="translate(250, 520) rotate(10)">
+      <ellipse cx="0" cy="0" rx="9" ry="11"/>
+      <circle cx="-7" cy="-12" r="4.5"/>
+      <circle cx="0" cy="-15" r="4.5"/>
+      <circle cx="7" cy="-12" r="4.5"/>
+    </g>
+    <!-- Paw 3 -->
+    <g transform="translate(340, 505) rotate(-5)">
+      <ellipse cx="0" cy="0" rx="9" ry="11"/>
+      <circle cx="-7" cy="-12" r="4.5"/>
+      <circle cx="0" cy="-15" r="4.5"/>
+      <circle cx="7" cy="-12" r="4.5"/>
+    </g>
+    <!-- Paw 4 -->
+    <g transform="translate(420, 525) rotate(12)">
+      <ellipse cx="0" cy="0" rx="10" ry="13"/>
+      <circle cx="-8" cy="-14" r="5"/>
+      <circle cx="0" cy="-17" r="5"/>
+      <circle cx="8" cy="-14" r="5"/>
+    </g>
+  </g>
+
+  <!-- Moon phases (decorative, below wolf) -->
+  <g transform="translate(300, 570)" opacity="0.5">
+    <!-- New moon -->
+    <circle cx="-100" cy="0" r="8" fill="#2a2a3a" stroke="#555" stroke-width="0.5"/>
+    <!-- Waxing crescent -->
+    <g>
+      <circle cx="-50" cy="0" r="8" fill="#555"/>
+      <circle cx="-53" cy="0" r="7" fill="#2a2a3a"/>
+    </g>
+    <!-- First quarter -->
+    <g>
+      <circle cx="0" cy="0" r="8" fill="#2a2a3a"/>
+      <path d="M0,-8 A8,8 0 0,1 0,8 Z" fill="#ffe8c0" opacity="0.7"/>
+    </g>
+    <!-- Waxing gibbous -->
+    <g>
+      <circle cx="50" cy="0" r="8" fill="#ffe8c0" opacity="0.7"/>
+      <circle cx="47" cy="0" r="6" fill="#2a2a3a"/>
+    </g>
+    <!-- Full moon -->
+    <circle cx="100" cy="0" r="8" fill="#ffe8c0" opacity="0.8"/>
+  </g>
+
+  <!-- Title text -->
+  <text x="300" y="620" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="34" font-weight="bold" fill="url(#silver-grad)" letter-spacing="4">CLAWEDWOLF</text>
+  <text x="300" y="658" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="bold" fill="#cc2020" letter-spacing="6">VICTOR</text>
+
+  <!-- Decorative line under title -->
+  <line x1="170" y1="675" x2="430" y2="675" stroke="#8b0000" stroke-width="1" opacity="0.5"/>
+  <circle cx="170" cy="675" r="2" fill="#8b0000" opacity="0.5"/>
+  <circle cx="430" cy="675" r="2" fill="#8b0000" opacity="0.5"/>
+  <circle cx="300" cy="675" r="3" fill="#cc2020" opacity="0.6"/>
+
+  <!-- Player name placeholder -->
+  <text id="player-name" x="300" y="715" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="26" fill="#ffffff" letter-spacing="3" opacity="0.95">PLAYER NAME</text>
+
+  <!-- Website URL -->
+  <text x="300" y="755" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#6a4a5a" letter-spacing="2" opacity="0.7">losclaws.com</text>
+</svg>
