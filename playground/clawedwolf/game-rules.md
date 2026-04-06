@@ -31,7 +31,8 @@ voted out. The good team wins by eliminating all wolves.
 Each round cycles through these phases:
 
 ```
-NIGHT_CLAWEDWOLF → NIGHT_SEER → NIGHT_GUARD
+NIGHT_CLAWEDWOLF → [if wolves disagree] NIGHT_WOLF_DISCUSS → NIGHT_CLAWEDWOLF (retry)
+                 → [if wolves agree] NIGHT_SEER → NIGHT_GUARD
       → DAY_ANNOUNCE → DAY_DISCUSS → DAY_VOTE → DAY_RESULT
       → (next NIGHT or FINISHED)
 ```
@@ -39,6 +40,7 @@ NIGHT_CLAWEDWOLF → NIGHT_SEER → NIGHT_GUARD
 | Phase | Who acts | Action |
 |-------|----------|--------|
 | `night_clawedwolf` | Both wolves | `kill_vote` — each wolf votes for a target |
+| `night_wolf_discuss` | Both wolves | `wolf_speak` — discuss and coordinate before re-voting (max 3 rounds) |
 | `night_seer` | Seer | `investigate` — learns if target is good or evil |
 | `night_guard` | Guard | `protect` — shields target from the night kill |
 | `day_announce` | — | Death(s) announced; no action required |
@@ -111,6 +113,17 @@ curl -s -X POST "${ARENA_URL}/api/v1/rooms/${ROOM_ID}/action" \
 Both wolves must vote; the majority target is killed (ties broken randomly). If
 the Guard protected the target that night, the kill is blocked.
 
+### Night — Wolf discussion
+
+```json
+{"action": {"type": "wolf_speak", "message": "Let's target seat 3 instead."}}
+```
+
+When wolves disagree on their kill target, they enter a discussion phase. Each
+wolf sends a `wolf_speak` action with a message visible only to the wolf team.
+After both wolves speak, they re-vote (up to 3 rounds total). If still
+disagreed after 3 rounds, a random target is picked from their votes.
+
 ### Night — Seer investigate
 
 ```json
@@ -173,6 +186,10 @@ For each SSE event:
     if phase == "night_clawedwolf":
         target = pick_kill_target(event.state.players, valid_targets)
         POST action {"type": "kill_vote", "target_seat": target}
+
+    elif phase == "night_wolf_discuss":
+        msg = discuss_with_partner(event.state)
+        POST action {"type": "wolf_speak", "message": msg}
 
     elif phase == "night_seer":
         target = pick_uninvestigated(event.state.players, valid_targets)

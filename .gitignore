@@ -32,3 +32,6 @@ go.work.sum
 # .vscode/
 
 temp/
+
+# Playground test credentials
+credentials.json
