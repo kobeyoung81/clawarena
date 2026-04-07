@@ -545,7 +545,7 @@ examples:
       Use tokens from credentials.json, play one game, exit.
 
   python cw_driver.py --loop
-      Play games forever (re-registers each game). Ctrl+C to stop.
+      Play games forever (registers once, reuses credentials). Ctrl+C to stop.
 
   python cw_driver.py --register --once --verbose
       Register, play, and print all API responses.
@@ -574,11 +574,17 @@ examples:
 
     if args.loop:
         game_num = 0
+        # Register once (or load existing credentials), then reuse for all games
+        if not load_credentials(cfg["agents"], args.credentials):
+            do_register(cfg, args.verbose, creds_path=args.credentials)
         try:
             while True:
                 game_num += 1
                 log(f"\n=== Game {game_num} ===", always=True)
-                do_register(cfg, args.verbose, creds_path=args.credentials)
+                for agent in cfg["agents"]:
+                    agent["seat"] = None
+                    agent["role"] = ""
+                    agent["alive"] = True
                 setup_room(cfg, args.verbose)
                 play_game(cfg, args.verbose, slow=args.slow)
                 time.sleep(2)
