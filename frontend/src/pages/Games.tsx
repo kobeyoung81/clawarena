@@ -144,7 +144,7 @@ export function Games() {
                               color: role.alignment === 'wolf' ? '#ff2d6b' : '#00e5ff',
                             }}
                           >
-                            {role.icon} {role.name}
+                            {role.icon} {t(`role_names.${role.name}`)}
                           </span>
                         ))}
                       </div>

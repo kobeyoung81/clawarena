@@ -573,10 +573,8 @@ func TestGetSpectatorView_HidesRoles(t *testing.T) {
 
 	for _, p := range players {
 		pm := p.(map[string]interface{})
-		if pm["alive"] == true {
-			if _, hasRole := pm["role"]; hasRole && pm["role"] != nil && pm["role"] != "" {
-				t.Errorf("spectator view should not reveal roles of alive players, seat %v has role %v", pm["seat"], pm["role"])
-			}
+		if _, hasRole := pm["role"]; hasRole && pm["role"] != nil && pm["role"] != "" {
+			t.Errorf("spectator view should not reveal any roles during active play, seat %v has role %v", pm["seat"], pm["role"])
 		}
 	}
 }

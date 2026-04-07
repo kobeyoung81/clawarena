@@ -246,8 +246,23 @@ def play_game(cfg, verbose=False, slow=False):
                                 log(f"Result: {wname} ({marks.get(wid, '?')}) wins!", always=True)
                             else:
                                 log("Game finished", always=True)
+                            # Download trophy if URL provided
+                            trophy_url = (result.get("trophy_url") or "")
+                            if trophy_url and winner_id == aid:
+                                download_trophy(trophy_url, agent["name"], "tictactoe")
                             game_done.set()
                         return
+
+                    # Handle trophy event
+                    if event_type == "trophy_awarded":
+                        details = data.get("details", {})
+                        trophy_url = details.get("trophy_url")
+                        target = data.get("target", {})
+                        target_id = target.get("agent_id")
+                        if trophy_url and target_id == aid:
+                            winner_name = details.get("winner_name", agent["name"])
+                            download_trophy(trophy_url, winner_name, "tictactoe")
+                        continue
 
                     # Check if it's my turn via pending_action
                     pa = data.get("pending_action")
@@ -358,6 +373,23 @@ def load_credentials(agents, path):
             loaded += 1
     log(f"Loaded credentials for {loaded}/{len(agents)} agents from {path}", always=True)
     return loaded == len(agents)
+
+
+def download_trophy(url, agent_name, game_type, output_dir="./trophies"):
+    """Download the winner's trophy image."""
+    try:
+        import os
+        os.makedirs(output_dir, exist_ok=True)
+        resp = requests.get(url, timeout=15)
+        resp.raise_for_status()
+        ext = url.rsplit(".", 1)[-1] if "." in url else "svg"
+        filename = f"{game_type}_{agent_name}.{ext}"
+        filepath = os.path.join(output_dir, filename)
+        with open(filepath, "wb") as f:
+            f.write(resp.content)
+        log(f"Trophy saved to {filepath}", always=True)
+    except Exception as e:
+        log(f"Failed to download trophy: {e}", always=True)
 
 
 def main():

@@ -224,11 +224,10 @@ func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMess
 	pubPlayers := make([]publicPlayer, len(s.Players))
 	for i, p := range s.Players {
 		pp := publicPlayer{ID: p.ID, Seat: p.Seat, Name: p.Name, Alive: p.Alive}
-		if !p.Alive {
-			pp.Role = p.Role // dead players' roles are public
-		}
-		if myPlayer != nil && myPlayer.Role == RoleClawedWolf && p.Role == RoleClawedWolf {
-			pp.Role = p.Role // wolves see each other
+		if s.Phase == PhaseFinished {
+			pp.Role = p.Role // all roles revealed at game end
+		} else if myPlayer != nil && myPlayer.Role == RoleClawedWolf && p.Role == RoleClawedWolf {
+			pp.Role = p.Role // wolves see each other during game
 		}
 		pubPlayers[i] = pp
 	}
@@ -278,8 +277,8 @@ func (e *Engine) GetSpectatorView(raw json.RawMessage) (json.RawMessage, error) 
 	pubPlayers := make([]publicPlayer, len(s.Players))
 	for i, p := range s.Players {
 		pp := publicPlayer{ID: p.ID, Seat: p.Seat, Name: p.Name, Alive: p.Alive}
-		if !p.Alive {
-			pp.Role = p.Role
+		if s.Phase == PhaseFinished {
+			pp.Role = p.Role // all roles revealed at game end
 		}
 		pubPlayers[i] = pp
 	}
@@ -1041,7 +1040,7 @@ func resolveNight(s *State) []game.GameEvent {
 					AgentID: uintPtr(p.ID),
 					Seat:    intPtr(target),
 				},
-				Details:    mustJSON(map[string]any{"cause": "night_kill", "role_reveal": p.Role}),
+				Details:    mustJSON(map[string]any{"cause": "night_kill"}),
 				StateAfter: stateSnapshot(s),
 				Visibility: "public",
 			})
@@ -1128,7 +1127,7 @@ func resolveVote(s *State) []game.GameEvent {
 				AgentID: uintPtr(p.ID),
 				Seat:    intPtr(eliminated),
 			},
-			Details:    mustJSON(map[string]any{"cause": "vote_elimination", "role_reveal": p.Role}),
+			Details:    mustJSON(map[string]any{"cause": "vote_elimination"}),
 			StateAfter: stateSnapshot(s),
 			Visibility: "public",
 		})

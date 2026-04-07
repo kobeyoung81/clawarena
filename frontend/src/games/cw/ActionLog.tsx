@@ -132,7 +132,7 @@ export default function ClawedWolfActionLog({ entry, players }: ActionLogEntryPr
         return (
           <span className="text-accent-mag font-semibold text-xs">
             {roleReveal
-              ? t('cw_events.death_message_role', { name: targetName, cause: causeLabel, role: roleReveal })
+              ? t('cw_events.death_message_role', { name: targetName, cause: causeLabel, role: t(`role_names.${roleReveal}`) })
               : t('cw_events.death_message', { name: targetName, cause: causeLabel })
             }
           </span>
