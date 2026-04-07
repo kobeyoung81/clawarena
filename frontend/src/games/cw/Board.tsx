@@ -12,6 +12,7 @@ export interface BoardProps {
   state: Record<string, unknown>;
   players?: ClawedWolfPlayer[];
   isReplay?: boolean;
+  gameOver?: boolean;
 }
 
 interface ClawedWolfState {
@@ -69,7 +70,7 @@ function SpeechSlot({ speech, speakerName, isActive }: { speech?: string; speake
   );
 }
 
-export default function ClawedWolfBoard({ state, players: propPlayers, isReplay = false }: BoardProps) {
+export default function ClawedWolfBoard({ state, players: propPlayers, isReplay = false, gameOver = false }: BoardProps) {
   const { t } = useI18n();
   const s = state as ClawedWolfState;
   const phase = s?.phase ?? 'night';
@@ -148,6 +149,7 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
                 voteCount={votes[String(player.seat)]}
                 isNight={isNight}
                 isReplay={isReplay}
+                gameOver={gameOver}
                 phase={phase}
                 className="relative"
               />
@@ -189,6 +191,7 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
                 voteCount={votes[String(player.seat)]}
                 isNight={isNight}
                 isReplay={isReplay}
+                gameOver={gameOver}
                 phase={phase}
                 className="relative"
               />

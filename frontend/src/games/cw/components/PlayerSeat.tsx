@@ -7,6 +7,7 @@ interface PlayerSeatProps {
   voteCount?: number;
   isNight: boolean;
   isReplay: boolean;
+  gameOver?: boolean;
   phase: string;
   style?: React.CSSProperties;
   className?: string;
@@ -36,10 +37,10 @@ function avatarLabel(player: ClawedWolfPlayer): string {
   return `P${player.seat}`;
 }
 
-export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isReplay, phase, style, className }: PlayerSeatProps) {
+export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isReplay, gameOver = false, phase, style, className }: PlayerSeatProps) {
   const { t } = useI18n();
   const isAlive = player.alive;
-  const role = isReplay ? player.role : undefined;
+  const role = (isReplay || gameOver) ? player.role : undefined;
   const roleColor = role ? (ROLE_COLORS[role] ?? '#00e5ff') : '#00e5ff';
 
   const ringStyle = (() => {
@@ -82,7 +83,7 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
           ${!isAlive ? 'grayscale' : ''}
         `}
         style={isCurrentSpeaker ? { boxShadow: `0 0 16px rgba(0,229,255,0.4)` } : undefined}
-        title={isReplay && role ? role : undefined}
+        title={(isReplay || gameOver) && role ? role : undefined}
       >
         {!isAlive ? (
           <span className="text-gray-500 text-lg">☠</span>
@@ -117,7 +118,7 @@ export function PlayerSeat({ player, isCurrentSpeaker, voteCount, isNight, isRep
         >
           {player.name ?? `P${player.seat}`}
         </div>
-        {isReplay && role && (
+        {(isReplay || gameOver) && role && (
           <div className="text-[9px] font-mono" style={{ color: roleColor }}>
             {(() => {
               const key = `role_names.${role}`;

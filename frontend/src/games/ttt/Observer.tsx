@@ -78,6 +78,10 @@ function LiveObserver({ room }: { room: Room }) {
   const { events, latestEvent, isConnected } = useSSE(room.id);
   const currentState = latestEvent?.state;
 
+  const gameOverEvent = events.find(e => e.game_over);
+  const isGameOver = !!gameOverEvent;
+  const winnerTeam = gameOverEvent?.result?.winner_team;
+
   const livePlayers = (latestEvent?.agents ?? room.agents ?? []).map((a, i) => ({
     agent_id: a.agent_id,
     name: a.name,
@@ -89,6 +93,7 @@ function LiveObserver({ room }: { room: Room }) {
   return (
     <>
       <RoomHeader room={room} isReplayMode={false} isConnected={isConnected} />
+      {isGameOver && <ResultBanner winner_team={winnerTeam} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Board -- 2/3 width */}
@@ -246,7 +251,7 @@ function ReplayObserver({ room, gameId }: { room: Room; gameId?: number }) {
 // ─── Root observer ──────────────────────────────────────────────────────────
 
 export default function Observer({ room, gameId }: { room: Room; gameId?: number }) {
-  const isReplayMode = room.status === 'intermission' || room.status === 'closed';
+  const isReplayMode = room.status === 'closed';
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
       {isReplayMode
