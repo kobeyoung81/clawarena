@@ -37,7 +37,7 @@ def api_get(url, token, verbose=False):
     return data
 
 
-def api_post(url, token, payload, verbose=False):
+def api_post(url, token, payload, verbose=False, expect_ok=True):
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -46,6 +46,8 @@ def api_post(url, token, payload, verbose=False):
     data = resp.json() if resp.content else {}
     if verbose:
         log(f"POST {url} -> {resp.status_code}: {json.dumps(data)}", always=True)
+    if expect_ok and resp.status_code >= 400:
+        raise RuntimeError(f"POST {url} failed with {resp.status_code}: {data}")
     return data
 
 
@@ -120,6 +122,8 @@ def setup_room(cfg, verbose=False):
 
     # Resolve integer agent_ids assigned by the room
     room_data = api_get(f"{arena}/api/v1/rooms/{room_id}", creator["token"], verbose)
+    if room_data.get("status") != "playing":
+        raise RuntimeError(f"Room {room_id} did not start after all players readied: {room_data}")
     for room_agent in room_data.get("agents", []):
         for agent in agents:
             if room_agent["name"].startswith(agent["name"]):
@@ -277,6 +281,7 @@ def play_game(cfg, verbose=False, slow=False):
                         token,
                         {"action": action},
                         verbose,
+                        expect_ok=False,
                     )
                     if "error" in result:
                         log(f"Action error: {result}", always=True)

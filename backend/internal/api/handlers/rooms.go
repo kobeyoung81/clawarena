@@ -67,6 +67,20 @@ func roomResponse(room *models.Room) dto.RoomResponse {
 	}
 }
 
+func (h *RoomHandler) beginReadyCheck(tx *gorm.DB, room *models.Room) (time.Time, error) {
+	deadline := time.Now().Add(h.readyCheckTimeout)
+	room.Status = models.RoomReadyCheck
+	room.ReadyDeadline = &deadline
+	if err := tx.Model(&models.RoomAgent{}).Where("room_id = ?", room.ID).
+		Updates(map[string]any{"ready": false}).Error; err != nil {
+		return time.Time{}, err
+	}
+	if err := tx.Save(room).Error; err != nil {
+		return time.Time{}, err
+	}
+	return deadline, nil
+}
+
 func (h *RoomHandler) List(w http.ResponseWriter, r *http.Request) {
 	query := h.db.Preload("GameType").Preload("Owner").Preload("Agents.Agent")
 	if gt := r.URL.Query().Get("game_type_id"); gt != "" {
@@ -229,15 +243,8 @@ func (h *RoomHandler) Join(w http.ResponseWriter, r *http.Request) {
 
 		newCount := len(activeAgents) + 1
 		if newCount >= int(room.GameType.MaxPlayers) {
-			deadline := time.Now().Add(h.readyCheckTimeout)
-			room.Status = models.RoomReadyCheck
-			room.ReadyDeadline = &deadline
-			// Reset ready flags for all agents
-			if err := tx.Model(&models.RoomAgent{}).Where("room_id = ?", room.ID).
-				Updates(map[string]any{"ready": false}).Error; err != nil {
-				return err
-			}
-			if err := tx.Save(&room).Error; err != nil {
+			deadline, err := h.beginReadyCheck(tx, &room)
+			if err != nil {
 				return err
 			}
 			resp = dto.JoinRoomResponse{
@@ -301,17 +308,11 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 			First(&room, roomID).Error; err != nil {
 			return errNotFound
 		}
+		activeAgents := activeRoomAgents(room.Agents)
 		if room.Status == models.RoomIntermission {
-			// Transition from post_game -> ready_check when first agent readies up
-			deadline := time.Now().Add(h.readyCheckTimeout)
-			room.Status = models.RoomReadyCheck
-			room.ReadyDeadline = &deadline
-			// Reset ready flags for all agents
-			if err := tx.Model(&models.RoomAgent{}).Where("room_id = ?", room.ID).
-				Updates(map[string]any{"ready": false}).Error; err != nil {
-				return err
-			}
-			if err := tx.Save(&room).Error; err != nil {
+			// Transition from post_game -> ready_check when first agent readies up.
+			deadline, err := h.beginReadyCheck(tx, &room)
+			if err != nil {
 				return err
 			}
 			go h.startReadyCheck(uint(roomID), deadline)
@@ -341,7 +342,6 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		activeAgents := activeRoomAgents(room.Agents)
 		readyCount := 0
 		for _, ra := range activeAgents {
 			if ra.AgentID == agent.ID || ra.Ready {

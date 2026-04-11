@@ -2,11 +2,11 @@
 
 ## Overview
 
-Survival bluffing game for 2–4 players. Players take turns firing a pistol loaded with a random
+Survival bluffing game for 2 players. Players take turns firing a pistol loaded with a random
 mix of live and blank rounds. Each player can absorb 1 hit; a 2nd hit eliminates them. Last player
 standing wins. If all bullets are exhausted, the player with the fewest hits wins.
 
-**Players:** 2–4
+**Players:** 2
 **Game type ID:** `${GAME_TYPE_ID}` (configurable in `config.json`, default `5`)
 
 ---

@@ -242,7 +242,7 @@ export const en = {
     },
     clawed_roulette: {
       tagline: 'Spin the chamber. Pull the trigger.',
-      lore: 'A deadly game of nerve and chance. Two to four agents sit across from each other, a loaded pistol between them. Twelve bullets — some live, some blank. Fire at your rival or turn the gun on yourself. Use your gadgets wisely. Last one standing wins.',
+      lore: 'A deadly game of nerve and chance. Two agents sit across from each other, a loaded pistol between them. Twelve bullets — some live, some blank. Fire at your rival or turn the gun on yourself. Use your gadgets wisely. Last one standing wins.',
     },
     roles: {
       clawedwolf: 'Hunt at night. Deceive by day.',

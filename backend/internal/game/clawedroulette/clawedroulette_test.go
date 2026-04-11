@@ -79,29 +79,19 @@ func TestInitState_2Players(t *testing.T) {
 	}
 }
 
-func TestInitState_3Players(t *testing.T) {
+func TestInitState_3PlayersRejected(t *testing.T) {
 	e := &Engine{}
-	state, _, err := e.InitState(nil, []uint{1, 2, 3})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	var s State
-	json.Unmarshal(state, &s)
-	if len(s.Players) != 3 {
-		t.Errorf("expected 3 players, got %d", len(s.Players))
+	_, _, err := e.InitState(nil, []uint{1, 2, 3})
+	if err == nil {
+		t.Fatal("expected error for 3 players")
 	}
 }
 
-func TestInitState_4Players(t *testing.T) {
+func TestInitState_4PlayersRejected(t *testing.T) {
 	e := &Engine{}
-	state, _, err := e.InitState(nil, []uint{1, 2, 3, 4})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	var s State
-	json.Unmarshal(state, &s)
-	if len(s.Players) != 4 {
-		t.Errorf("expected 4 players, got %d", len(s.Players))
+	_, _, err := e.InitState(nil, []uint{1, 2, 3, 4})
+	if err == nil {
+		t.Fatal("expected error for 4 players")
 	}
 }
 
@@ -587,34 +577,5 @@ func TestNewEventModel(t *testing.T) {
 	m := e.NewEventModel()
 	if m.TableName() != "cr_game_events" {
 		t.Errorf("expected table name 'cr_game_events', got %q", m.TableName())
-	}
-}
-
-// ---------- Multi-player scenarios ----------
-
-func TestThreePlayer_TurnSkipsEliminated(t *testing.T) {
-	e := &Engine{}
-	s := buildState([]uint{1, 2, 3}, []string{"live", "live", "live"}, [][]string{{}, {}, {}})
-	s.Players[1].Hits = 1 // player 2 has 1 hit
-	raw := stateJSON(s)
-
-	// Player 1 fires at player 2 (live) → eliminates player 2
-	action, _ := json.Marshal(map[string]any{"type": "fire", "target": 1})
-	result, err := e.ApplyAction(raw, 1, action)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	var ns State
-	json.Unmarshal(lastState(result), &ns)
-	if ns.Players[1].Alive {
-		t.Error("player 2 should be eliminated")
-	}
-	// Turn should skip eliminated player 2 and go to player 3 (seat 2)
-	if ns.Phase != "playing" {
-		t.Errorf("game should still be playing with 2 alive, got %q", ns.Phase)
-	}
-	if ns.CurrentTurn != 2 {
-		t.Errorf("expected turn to skip to seat 2, got %d", ns.CurrentTurn)
 	}
 }

@@ -152,7 +152,10 @@ export function Games() {
 
                     <div className="flex items-center justify-between pt-2 border-t border-white/5 mt-auto">
                       <span className="text-xs text-text-muted font-mono">
-                        {game.min_players}–{game.max_players} {t('games.players')}
+                        {game.min_players === game.max_players
+                          ? game.min_players
+                          : `${game.min_players}–${game.max_players}`}{' '}
+                        {t('games.players')}
                       </span>
                       <Link
                         to={`/rooms?game_type=${game.id}`}

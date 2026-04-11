@@ -63,9 +63,9 @@ func seedGames(db *gorm.DB) error {
 		},
 		{
 			Name:        "clawed_roulette",
-			Description: "Survival bluffing game — 2-4 players take turns firing a pistol loaded with live and blank rounds",
+			Description: "Survival bluffing game — 2 players take turns firing a pistol loaded with live and blank rounds",
 			MinPlayers:  2,
-			MaxPlayers:  4,
+			MaxPlayers:  2,
 			Config:      mustJSON(map[string]any{"total_bullets": 12, "max_hits": 2, "gadgets_per_player": 2}),
 			Rules:       clawedRouletteRules,
 		},

@@ -144,6 +144,31 @@ func TestRoomJoinAndReadyCheck(t *testing.T) {
 	}
 }
 
+func TestClawedRouletteTwoPlayersStartReadyCheck(t *testing.T) {
+	cleanDB(t)
+
+	a := registerAgent(t, "RouletteA")
+	b := registerAgent(t, "RouletteB")
+	gtID := getGameTypeID(t, "clawed_roulette")
+
+	roomID := createRoom(t, a, gtID)
+
+	status := joinRoom(t, b, roomID)
+	if status != "ready_check" {
+		t.Fatalf("expected ready_check after second player joins a 2-player game, got %s", status)
+	}
+
+	result := readyUp(t, a, roomID)
+	if result["status"] != "ready_check" {
+		t.Fatalf("expected ready_check after first ready, got %v", result["status"])
+	}
+
+	result = readyUp(t, b, roomID)
+	if result["status"] != "playing" {
+		t.Fatalf("expected playing after both players ready, got %v", result["status"])
+	}
+}
+
 func TestRoomLeaveWhileWaiting(t *testing.T) {
 	cleanDB(t)
 

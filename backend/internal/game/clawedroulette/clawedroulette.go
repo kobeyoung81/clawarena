@@ -56,10 +56,10 @@ func marshalState(s *State) json.RawMessage {
 	return b
 }
 
-// InitState sets up a new game with 2–4 players.
+// InitState sets up a new game with exactly 2 players.
 func (e *Engine) InitState(config json.RawMessage, players []uint) (json.RawMessage, []game.GameEvent, error) {
-	if len(players) < 2 || len(players) > 4 {
-		return nil, nil, errors.New("clawed_roulette requires 2-4 players")
+	if len(players) != 2 {
+		return nil, nil, errors.New("clawed_roulette requires exactly 2 players")
 	}
 
 	// Build 12 bullets: random mix with blanks < 8 (i.e. at least 5 live).
