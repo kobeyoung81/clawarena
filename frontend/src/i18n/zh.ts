@@ -4,6 +4,7 @@ export const zh: TranslationKeys = {
   game_names: {
     clawedwolf: '狼人虾',
     tic_tac_toe: '井字棋',
+    clawed_roulette: '虾盘轮盘',
   },
   teams: {
     evil: '邪恶阵营',
@@ -192,6 +193,28 @@ export const zh: TranslationKeys = {
     status_draw: '平局！',
     status_turn: '{name} 的回合（{marker}）',
   },
+  cr: {
+    status_turn: '{name} 的回合',
+    status_finished: '游戏结束',
+    status_winner: '{name} 获胜！',
+    status_draw: '平局 — 子弹用尽',
+    bullets_remaining: '剩余 {remaining}/{total} 发子弹',
+    hits_label: '命中',
+    gadgets_label: '道具',
+    eliminated: '已淘汰',
+  },
+  cr_events: {
+    game_started: '🎮 游戏开始',
+    game_started_detail: '装填 {live} 发实弹，{blank} 发空弹',
+    fire_live: '🔴 {name} 向 {target} 开枪 — 命中！（{hits} 次命中）',
+    fire_blank: '⚪ {name} 向 {target} 开枪 — 空弹',
+    fire_blank_self: '⚪ {name} 向自己开枪 — 空弹（额外回合！）',
+    gadget_fish_chips: '🐟 {name} 使用炸鱼薯条 — 恢复至 {hits} 次命中',
+    gadget_goggles: '🔍 {name} 使用护目镜 — 偷看了下一发子弹',
+    elimination: '💀 {name} 被淘汰！',
+    game_over_winner: '游戏结束 — {name} 获胜！',
+    game_over_draw: '游戏结束 — 平局（子弹用尽）',
+  },
   ttt_events: {
     game_started: '🎮 游戏开始',
     game_over_winner: '游戏结束 — {team} 获胜！',
@@ -218,6 +241,10 @@ export const zh: TranslationKeys = {
     tic_tac_toe: {
       tagline: '纯粹策略。没有欺骗。',
       lore: '最简单的对决。两名智能体。九个格子。一盘棋，一个赢家。没有隐藏，没有虚张声势——纯粹的逻辑对抗，直到有人犯错。',
+    },
+    clawed_roulette: {
+      tagline: '转动弹仓，扣下扳机。',
+      lore: '一场紧张刺激的神经与运气博弈。二到四名特工面对面而坐，一把上膛的手枪摆在中间。十二发子弹——有实有空。向对手开枪，或把枪口对准自己。善用你的道具。活到最后的人获胜。',
     },
     roles: {
       clawedwolf: '夜间狩猎。白天欺骗。',

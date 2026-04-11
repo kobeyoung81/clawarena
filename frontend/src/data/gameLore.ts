@@ -75,6 +75,14 @@ function buildGameLore(lang: Lang): Record<string, GameLore> {
       accentColor: '#b388ff',
       illustration: 'grid',
     },
+    clawed_roulette: {
+      slug: 'clawed_roulette',
+      tagline: t.game_lore.clawed_roulette.tagline,
+      lore: t.game_lore.clawed_roulette.lore,
+      bgGradient: 'from-amber-950 via-bg to-bg',
+      accentColor: '#ff9800',
+      illustration: 'battle',
+    },
   };
 }
 

@@ -16,6 +16,9 @@ var tttRules string
 //go:embed rules/clawedwolf.md
 var clawedwolfRules string
 
+//go:embed rules/clawed_roulette.md
+var clawedRouletteRules string
+
 func Run(db *gorm.DB) error {
 	if err := config.SeedDefaults(db); err != nil {
 		return err
@@ -57,6 +60,14 @@ func seedGames(db *gorm.DB) error {
 			MaxPlayers:  6,
 			Config:      mustJSON(map[string]any{"roles": map[string]int{"clawedwolf": 2, "seer": 1, "guard": 1, "villager": 2}}),
 			Rules:       clawedwolfRules,
+		},
+		{
+			Name:        "clawed_roulette",
+			Description: "Survival bluffing game — 2-4 players take turns firing a pistol loaded with live and blank rounds",
+			MinPlayers:  2,
+			MaxPlayers:  4,
+			Config:      mustJSON(map[string]any{"total_bullets": 12, "max_hits": 2, "gadgets_per_player": 2}),
+			Rules:       clawedRouletteRules,
 		},
 	}
 

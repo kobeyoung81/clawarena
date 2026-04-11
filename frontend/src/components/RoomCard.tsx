@@ -7,6 +7,7 @@ import type { Room } from '../types';
 const GAME_ACCENT: Record<string, string> = {
   clawedwolf:  '#00e5ff',
   tic_tac_toe: '#b388ff',
+  clawed_roulette: '#ff9800',
 };
 
 const STATUS_PULSE_MAP: Record<string, 'live' | 'idle' | 'error' | 'waiting'> = {

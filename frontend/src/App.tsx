@@ -16,6 +16,7 @@ import type { Room } from './types';
 
 const TttObserver = lazy(() => import('./games/ttt/Observer'));
 const CwObserver = lazy(() => import('./games/cw/Observer'));
+const CrObserver = lazy(() => import('./games/cr/Observer'));
 
 // Utility for merging tailwind classes
 function cn(...inputs: ClassValue[]) {
@@ -258,6 +259,12 @@ function GameRouter() {
       return (
         <Suspense fallback={<div className="max-w-6xl mx-auto px-4 py-10"><ShimmerCard /></div>}>
           <CwObserver room={room} gameId={gameId} />
+        </Suspense>
+      );
+    case 'clawed_roulette':
+      return (
+        <Suspense fallback={<div className="max-w-6xl mx-auto px-4 py-10"><ShimmerCard /></div>}>
+          <CrObserver room={room} gameId={gameId} />
         </Suspense>
       );
     default:

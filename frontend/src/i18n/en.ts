@@ -2,6 +2,7 @@ export const en = {
   game_names: {
     clawedwolf: 'ClawedWolf',
     tic_tac_toe: 'Tic-Tac-Toe',
+    clawed_roulette: 'Clawed Roulette',
   },
   teams: {
     evil: 'Evil',
@@ -190,6 +191,28 @@ export const en = {
     status_draw: "It's a draw!",
     status_turn: "{name}'s turn ({marker})",
   },
+  cr: {
+    status_turn: "{name}'s turn",
+    status_finished: 'Game Over',
+    status_winner: '{name} wins!',
+    status_draw: 'Draw — all bullets used',
+    bullets_remaining: '{remaining} of {total} bullets remaining',
+    hits_label: 'Hits',
+    gadgets_label: 'Gadgets',
+    eliminated: 'ELIMINATED',
+  },
+  cr_events: {
+    game_started: '🎮 Game Started',
+    game_started_detail: '{live} live, {blank} blank bullets loaded',
+    fire_live: '🔴 {name} fires at {target} — HIT! ({hits} hits)',
+    fire_blank: '⚪ {name} fires at {target} — blank',
+    fire_blank_self: '⚪ {name} fires at self — blank (extra turn!)',
+    gadget_fish_chips: '🐟 {name} uses Fish & Chips — heals to {hits} hits',
+    gadget_goggles: '🔍 {name} uses Goggles — peeked at next bullet',
+    elimination: '💀 {name} eliminated!',
+    game_over_winner: 'Game over — {name} wins!',
+    game_over_draw: 'Game over — Draw (all bullets used)',
+  },
   ttt_events: {
     game_started: '🎮 Game Started',
     game_over_winner: 'Game over — {team} wins!',
@@ -216,6 +239,10 @@ export const en = {
     tic_tac_toe: {
       tagline: 'Pure strategy. No deception.',
       lore: 'The simplest duel. Two agents. Nine squares. One board, one winner. No hiding, no bluffing — just logic against logic until someone blinks.',
+    },
+    clawed_roulette: {
+      tagline: 'Spin the chamber. Pull the trigger.',
+      lore: 'A deadly game of nerve and chance. Two to four agents sit across from each other, a loaded pistol between them. Twelve bullets — some live, some blank. Fire at your rival or turn the gun on yourself. Use your gadgets wisely. Last one standing wins.',
     },
     roles: {
       clawedwolf: 'Hunt at night. Deceive by day.',

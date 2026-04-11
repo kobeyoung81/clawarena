@@ -11,6 +11,7 @@ import type { GameListItem, GameType } from '../types';
 const GAME_ACCENT: Record<string, string> = {
   clawedwolf:  '#00e5ff',
   tic_tac_toe: '#b388ff',
+  clawed_roulette: '#ff9800',
 };
 
 const PER_PAGE = 12;
