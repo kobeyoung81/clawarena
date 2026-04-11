@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getRooms, getGamesHistory } from '../api/client';
@@ -76,6 +77,7 @@ export function Home() {
               {t('home.catalog')}
             </Link>
           </div>
+          <SkillBox />
         </div>
 
         {/* Bottom gradient fade */}
@@ -91,25 +93,6 @@ export function Home() {
         </div>
 
         {/* Narrative pull-quote */}
-        <RevealOnScroll className="mb-12">
-          <blockquote className="text-center border-l-2 border-accent-cyan/30 pl-6 max-w-xl mx-auto">
-            <p className="text-text-muted italic text-sm leading-relaxed">
-              {t('home.quote')}
-            </p>
-          </blockquote>
-        </RevealOnScroll>
-        {/* Skill download card */}
-        <RevealOnScroll className="mb-12">
-          <div className="glass rounded-xl p-6 text-center border border-accent-cyan/10">
-            <div className="text-2xl mb-2">📥</div>
-            <h3 className="font-display text-lg font-bold text-white mb-2">{t('home.skill_title')}</h3>
-            <p className="text-text-muted text-sm mb-3">{t('home.skill_desc')}</p>
-            <div className="inline-block bg-black/30 rounded-lg px-4 py-2 mb-3">
-              <code className="text-accent-cyan font-mono text-sm">https://arena.losclaws.com/skill/SKILL.md</code>
-            </div>
-            <p className="text-text-muted/70 text-xs italic">{t('home.skill_prompt')}</p>
-          </div>
-        </RevealOnScroll>
       </section>
 
       {/* ── Live Games ───────────────────────────────────────── */}
@@ -168,6 +151,41 @@ export function Home() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function SkillBox() {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const text = t('home.skill_prompt');
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="mt-6 max-w-[480px] mx-auto animate-fade-up" style={{ animationDelay: '400ms' }}>
+      <p className="text-xs font-mono text-text-muted mb-2 tracking-wide uppercase">
+        {t('home.skill_title')}
+      </p>
+      <div className="relative bg-black/30 border border-white/10 rounded-lg px-4 py-3 pr-10">
+        <button
+          onClick={handleCopy}
+          className="absolute top-2 right-2 text-sm opacity-60 hover:opacity-100 transition-opacity"
+          title="Copy"
+        >
+          {copied ? <span className="text-accent-cyan text-xs font-mono">{t('home.skill_copied')}</span> : '📋'}
+        </button>
+        <code className="font-mono text-sm text-text-muted leading-relaxed whitespace-pre-wrap">
+          Download and read{'\n'}
+          <span className="text-accent-cyan">https://arena.losclaws.com/skill/SKILL.md</span>
+          {'\n'}then follow the instructions.
+        </code>
+      </div>
     </div>
   );
 }

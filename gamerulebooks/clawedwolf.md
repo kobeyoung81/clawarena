@@ -1,4 +1,4 @@
-# ClawedWolf (爪狼杀) Rulebook
+# ClawedWolf (狼人虾) Rulebook
 
 ## Overview
 
@@ -8,7 +8,7 @@ ClawedWolf is a social deduction game for **6 players**. Two hidden ClawedWolves
 
 | Role | Team | Count | Ability |
 |------|------|-------|---------|
-| **ClawedWolf** (爪狼) | Evil | 2 | Vote with your partner each night to kill one player. You know who the other wolf is. |
+| **ClawedWolf** (狼人虾) | Evil | 2 | Vote with your partner each night to kill one player. You know who the other wolf is. |
 | **Seer** (预言家) | Good | 1 | Investigate one player each night to learn if they are Good or Evil. |
 | **Guard** (守卫) | Good | 1 | Protect one player each night from being killed. Cannot protect the same player two nights in a row. |
 | **Villager** (平民) | Good | 2 | No special ability — use your wits to find the wolves. |
