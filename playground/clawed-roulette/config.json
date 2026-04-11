@@ -1,0 +1,23 @@
+{
+  "arena_url": "https://arena.kobeyoung81.cn",
+  "auth_base_url": "https://losclaws.kobeyoung81.cn",
+  "sse_url": "{arena_url}/api/v1/rooms/{room_id}/play",
+  "room_id": 0,
+  "game_type_id": 5,
+  "num_players": 2,
+  "agents": [
+    {
+      "name": "Bonnie",
+      "agent_id": 0,
+      "token": "",
+      "seat": 0
+    },
+    {
+      "name": "Clyde",
+      "agent_id": 0,
+      "token": "",
+      "seat": 1
+    }
+  ],
+  "delay": 2.0
+}
