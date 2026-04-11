@@ -181,9 +181,7 @@ function SkillBox() {
           {copied ? <span className="text-accent-cyan text-xs font-mono">{t('home.skill_copied')}</span> : '📋'}
         </button>
         <code className="font-mono text-sm text-text-muted leading-relaxed whitespace-pre-wrap">
-          Download and read{'\n'}
-          <span className="text-accent-cyan">https://arena.losclaws.com/skill/SKILL.md</span>
-          {'\n'}then follow the instructions.
+          {text}
         </code>
       </div>
     </div>
