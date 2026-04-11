@@ -13,6 +13,7 @@ export interface BoardProps {
   players?: ClawedWolfPlayer[];
   isReplay?: boolean;
   gameOver?: boolean;
+  overrideSpeaker?: number;
 }
 
 interface ClawedWolfState {
@@ -70,7 +71,7 @@ function SpeechSlot({ speech, speakerName, isActive }: { speech?: string; speake
   );
 }
 
-export default function ClawedWolfBoard({ state, players: propPlayers, isReplay = false, gameOver = false }: BoardProps) {
+export default function ClawedWolfBoard({ state, players: propPlayers, isReplay = false, gameOver = false, overrideSpeaker }: BoardProps) {
   const { t } = useI18n();
   const s = state as ClawedWolfState;
   const phase = s?.phase ?? 'night';
@@ -78,7 +79,7 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
   const statePlayers = s?.players ?? propPlayers ?? [];
   const np = normalizePhase(phase);
   const isNight = np === 'night';
-  const currentSpeaker = s?.current_speaker;
+  const currentSpeaker = overrideSpeaker ?? s?.current_speaker;
   const votes = s?.votes ?? {};
 
   const prevPhaseRef = useRef(phase);
@@ -99,8 +100,20 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
   const speeches = s?.day_speeches ?? s?.speeches ?? [];
 
   // Find latest speech per row
-  const latestUpperSpeech = speeches.filter(sp => upperSeats.includes(sp.seat)).pop();
-  const latestLowerSpeech = speeches.filter(sp => lowerSeats.includes(sp.seat)).pop();
+  let latestUpperSpeech = speeches.filter(sp => upperSeats.includes(sp.seat)).pop();
+  let latestLowerSpeech = speeches.filter(sp => lowerSeats.includes(sp.seat)).pop();
+
+  // During replay with override, show the specific speaker's speech as the latest
+  if (overrideSpeaker != null) {
+    const overrideSpeech = speeches.filter(sp => sp.seat === overrideSpeaker).pop();
+    if (overrideSpeech) {
+      if (upperSeats.includes(overrideSpeaker)) {
+        latestUpperSpeech = overrideSpeech;
+      } else {
+        latestLowerSpeech = overrideSpeech;
+      }
+    }
+  }
 
   const isUpperActive = currentSpeaker != null && upperSeats.includes(currentSpeaker);
   const isLowerActive = currentSpeaker != null && lowerSeats.includes(currentSpeaker);

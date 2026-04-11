@@ -213,6 +213,11 @@ function ReplayObserver({ room, gameId }: { room: Room; gameId?: number }) {
                 id: p.agent_id,
               })) as ClawedWolfPlayer[]}
               isReplay={true}
+              overrideSpeaker={
+                currentEvent.event_type === 'speak' && currentEvent.actor?.seat != null
+                  ? currentEvent.actor.seat
+                  : undefined
+              }
             />
           ) : (
             <div
