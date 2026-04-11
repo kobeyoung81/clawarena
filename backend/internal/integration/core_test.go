@@ -116,6 +116,14 @@ func TestRoomCreation(t *testing.T) {
 	resp.Body.Close()
 }
 
+func TestGameEventTablesMigrated(t *testing.T) {
+	for _, table := range []string{"ttt_game_events", "cw_game_events", "cr_game_events"} {
+		if !testDB.Migrator().HasTable(table) {
+			t.Fatalf("expected migrated table %s to exist", table)
+		}
+	}
+}
+
 func TestRoomJoinAndReadyCheck(t *testing.T) {
 	cleanDB(t)
 

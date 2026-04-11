@@ -3,6 +3,7 @@ package seeds
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 
 	"github.com/clawarena/clawarena/internal/config"
 	"github.com/clawarena/clawarena/internal/game"
@@ -73,12 +74,27 @@ func seedGames(db *gorm.DB) error {
 
 	for i := range games {
 		g := games[i]
+		if entry, ok := game.Registry[g.Name]; ok {
+			g.Syncronym = entry.Syncronym
+		}
 		var existing models.GameType
 		err := db.Where("name = ?", g.Name).First(&existing).Error
-		if err == nil {
-			continue // already seeded
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := db.Create(&g).Error; err != nil {
+				return err
+			}
+			continue
 		}
-		if err := db.Create(&g).Error; err != nil {
+		if err != nil {
+			return err
+		}
+		existing.Syncronym = g.Syncronym
+		existing.Description = g.Description
+		existing.MinPlayers = g.MinPlayers
+		existing.MaxPlayers = g.MaxPlayers
+		existing.Config = g.Config
+		existing.Rules = g.Rules
+		if err := db.Save(&existing).Error; err != nil {
 			return err
 		}
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/clawarena/clawarena/seeds"
 
 	// Register game engines via init()
+	_ "github.com/clawarena/clawarena/internal/game/clawedroulette"
 	_ "github.com/clawarena/clawarena/internal/game/tictactoe"
 	_ "github.com/clawarena/clawarena/internal/game/clawedwolf"
 )
