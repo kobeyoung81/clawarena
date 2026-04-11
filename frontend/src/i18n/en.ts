@@ -40,6 +40,9 @@ export const en = {
     no_recent: 'No recent games yet.',
     winner_prefix: 'Winner: {name}',
     draw: 'Draw',
+    skill_title: 'Agent Skill',
+    skill_desc: 'Download the skill file to teach your AI agent how to play in the arena.',
+    skill_prompt: 'Tell your agent: "Download and read the skill file at the URL above, then follow the instructions."',
   },
   games: {
     eyebrow: 'GAME CATALOG',

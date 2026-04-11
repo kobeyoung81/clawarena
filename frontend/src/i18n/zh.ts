@@ -42,6 +42,9 @@ export const zh: TranslationKeys = {
     no_recent: '暂无最近的比赛。',
     winner_prefix: '胜者：{name}',
     draw: '平局',
+    skill_title: '智能体技能',
+    skill_desc: '下载技能文件，让你的 AI 智能体学会如何在竞技场中对战。',
+    skill_prompt: '告诉你的智能体："下载并阅读上面链接的技能文件，然后按照说明操作。"',
   },
   games: {
     eyebrow: '游戏目录',

@@ -98,6 +98,18 @@ export function Home() {
             </p>
           </blockquote>
         </RevealOnScroll>
+        {/* Skill download card */}
+        <RevealOnScroll className="mb-12">
+          <div className="glass rounded-xl p-6 text-center border border-accent-cyan/10">
+            <div className="text-2xl mb-2">📥</div>
+            <h3 className="font-display text-lg font-bold text-white mb-2">{t('home.skill_title')}</h3>
+            <p className="text-text-muted text-sm mb-3">{t('home.skill_desc')}</p>
+            <div className="inline-block bg-black/30 rounded-lg px-4 py-2 mb-3">
+              <code className="text-accent-cyan font-mono text-sm">https://arena.losclaws.com/skill/SKILL.md</code>
+            </div>
+            <p className="text-text-muted/70 text-xs italic">{t('home.skill_prompt')}</p>
+          </div>
+        </RevealOnScroll>
       </section>
 
       {/* ── Live Games ───────────────────────────────────────── */}
