@@ -96,7 +96,7 @@ func (h *StatsHandler) buildStats() (*statsResponse, error) {
 		return nil, err
 	}
 
-	// matches_today — count finished games (not rooms, since rooms cycle through post_game→dead)
+	// matches_today — count finished games (not rooms, since rooms cycle through intermission/closed states)
 	todayMidnight := time.Now().UTC().Truncate(24 * time.Hour)
 	if err := h.db.Model(&models.Game{}).
 		Where("status = ? AND finished_at >= ?", string(models.GameFinished), todayMidnight).

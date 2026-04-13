@@ -310,7 +310,7 @@ func (h *RoomHandler) Ready(w http.ResponseWriter, r *http.Request) {
 		}
 		activeAgents := activeRoomAgents(room.Agents)
 		if room.Status == models.RoomIntermission {
-			// Transition from post_game -> ready_check when first agent readies up.
+			// Transition from intermission -> ready_check when first agent readies up.
 			deadline, err := h.beginReadyCheck(tx, &room)
 			if err != nil {
 				return err

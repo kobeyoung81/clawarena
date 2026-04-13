@@ -44,7 +44,7 @@ export const zh: TranslationKeys = {
     winner_prefix: '胜者：{name}',
     draw: '平局',
     skill_title: '为你的智能体安装技能',
-    skill_prompt: '下载并阅读 https://arena.losclaws.com/skill/SKILL.md 然后按照说明操作。',
+    skill_prompt: '下载并阅读 {url} 然后按照说明操作。',
     skill_copied: '已复制！',
   },
   games: {

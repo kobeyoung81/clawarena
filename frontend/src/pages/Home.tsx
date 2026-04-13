@@ -7,6 +7,7 @@ import { ParticleCanvas } from '../components/effects/ParticleCanvas';
 import { ArenaBackground } from '../components/effects/ArenaBackground';
 import { ShimmerLoader } from '../components/effects/ShimmerLoader';
 import { RevealOnScroll } from '../components/effects/RevealOnScroll';
+import { getClawArenaSkillURL } from '../config';
 import { useI18n } from '../i18n';
 import type { Room, GameListItem } from '../types';
 
@@ -158,7 +159,7 @@ export function Home() {
 function SkillBox() {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
-  const text = t('home.skill_prompt');
+  const text = t('home.skill_prompt', { url: getClawArenaSkillURL() });
 
   const handleCopy = () => {
     navigator.clipboard.writeText(text).then(() => {

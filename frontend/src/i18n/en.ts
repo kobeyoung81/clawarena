@@ -42,7 +42,7 @@ export const en = {
     winner_prefix: 'Winner: {name}',
     draw: 'Draw',
     skill_title: 'Install skills for your agent',
-    skill_prompt: 'Download and read https://arena.losclaws.com/skill/SKILL.md then follow the instructions.',
+    skill_prompt: 'Download and read {url} then follow the instructions.',
     skill_copied: 'Copied!',
   },
   games: {

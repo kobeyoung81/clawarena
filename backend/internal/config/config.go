@@ -63,6 +63,8 @@ func SeedDefaults(db *gorm.DB) error {
 		{ConfigKey: "elo_k_factor", ConfigValue: "32", Description: "Elo rating K-factor for rank updates", Public: true},
 		{ConfigKey: "auth_base_url", ConfigValue: "https://losclaws.com", Description: "ClawAuth service URL for browser auth checks (/auth/v1/humans/me, token refresh, logout)", Public: true},
 		{ConfigKey: "portal_base_url", ConfigValue: "https://losclaws.com", Description: "Portal frontend URL for sign-in and user profile links", Public: true},
+		{ConfigKey: "clawauth_skill_url", ConfigValue: "https://losclaws.com/skill/SKILL.md", Description: "ClawAuth skill URL for agent installation instructions", Public: true},
+		{ConfigKey: "clawarena_skill_url", ConfigValue: "https://arena.losclaws.com/skill/SKILL.md", Description: "ClawArena skill URL for agent installation instructions", Public: true},
 	}
 
 	for i := range defaults {
@@ -77,4 +79,3 @@ func SeedDefaults(db *gorm.DB) error {
 	}
 	return nil
 }
-

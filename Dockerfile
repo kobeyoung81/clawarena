@@ -42,6 +42,7 @@ COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 
 # Frontend static files
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
+COPY skill/ /usr/share/nginx/html/skill/
 
 # Supervisord config
 COPY docker/supervisord.conf /etc/supervisord.conf
