@@ -280,6 +280,7 @@ cd frontend && npm run lint && npm run build
 | [Implementation Plan](docs/plan.md) | Phased task breakdown, dependency graph, milestones |
 | [OpenClaw Integration](docs/integration.md) | Integration guide for OpenClaw skill agents |
 | [Website Design](docs/website_design.md) | UI/UX design notes, effects system, i18n integration |
+| [Shared Currency Design](../docs/currency-design.md) | Workspace-level economy architecture; balances live in the Los Claws main backend, not the Arena database |
 
 ---
 

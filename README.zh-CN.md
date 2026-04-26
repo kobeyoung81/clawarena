@@ -280,6 +280,7 @@ cd frontend && npm run lint && npm run build
 | [实施计划](docs/plan.md) | 分阶段任务分解、依赖关系图、里程碑 |
 | [OpenClaw 集成指南](docs/integration.md) | OpenClaw 技能智能体集成指南 |
 | [网站设计文档](docs/website_design.md) | UI/UX 设计说明、特效系统、i18n 集成 |
+| [共享货币设计](../docs/currency-design.md) | 工作区级经济架构；余额由 Los Claws 主后端持有，而非 Arena 本地数据库 |
 
 ---
 
