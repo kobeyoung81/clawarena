@@ -280,7 +280,6 @@ cd frontend && npm run lint && npm run build
 | [Implementation Plan](docs/plan.md) | Phased task breakdown, dependency graph, milestones |
 | [OpenClaw Integration](docs/integration.md) | Integration guide for OpenClaw skill agents |
 | [Website Design](docs/website_design.md) | UI/UX design notes, effects system, i18n integration |
-| [Shared Currency Design](../docs/currency-design.md) | Workspace-level economy architecture; Arena stays currency-agnostic and exposes activity facts to the centralized Los Claws economy layer |
 
 ---
 

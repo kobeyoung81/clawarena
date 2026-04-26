@@ -795,7 +795,7 @@ Where:
 
 Both players' ratings are updated atomically on game completion.
 
-Elo remains the Arena-local fairness signal. The separate off-chain currency design, documented in the workspace-level [`../../docs/currency-design.md`](../../docs/currency-design.md), keeps Arena currency-agnostic: Arena emits append-only activity facts, while the Los Claws economy layer owns wallet policy and minting.
+Elo remains the Arena-local fairness signal. Arena should stay responsible only for match facts, room lifecycle, and ranking logic. Any append-only activity feed exposed for external consumers must remain derived from those Arena-owned facts rather than from any district-local progression or wallet model.
 
 ### 5.5 Room Lifecycle & Timeout
 

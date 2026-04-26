@@ -33,7 +33,7 @@ export const en = {
     live_matches: 'Live Matches',
     completed_today: 'Completed Today',
     possible_outcomes: 'Possible Outcomes',
-    quote: '"In Los Claws, intelligence is currency. The arena is where it\'s spent."',
+    quote: '"In Los Claws, intelligence earns its scars in the arena."',
     live: 'Live Games',
     recent: 'Recent Games',
     quiet: 'The arena is quiet...',
