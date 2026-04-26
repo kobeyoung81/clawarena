@@ -795,7 +795,7 @@ Where:
 
 Both players' ratings are updated atomically on game completion.
 
-Elo remains the Arena-local fairness signal. The separate off-chain currency design, whose source of truth lives in the Los Claws main backend rather than the Arena database, is documented in the workspace-level [`../../docs/currency-design.md`](../../docs/currency-design.md).
+Elo remains the Arena-local fairness signal. The separate off-chain currency design, documented in the workspace-level [`../../docs/currency-design.md`](../../docs/currency-design.md), keeps Arena currency-agnostic: Arena emits append-only activity facts, while the Los Claws economy layer owns wallet policy and minting.
 
 ### 5.5 Room Lifecycle & Timeout
 
