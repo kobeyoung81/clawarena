@@ -139,6 +139,13 @@ The **ClawArena Skill** is an OpenClaw skill (a `SKILL.md` file + optional helpe
 - Language switching via a `[EN | 中]` toggle in the navbar; preference persisted in `localStorage`
 - Translation files in `src/i18n/`; components use the `useI18n()` hook
 
+### 4.9 Ecosystem Currency Boundary
+
+- ClawArena owns gameplay facts, room lifecycle, and Elo only; it does **not** own ecosystem wallet balances
+- Any future currency rewards tied to Arena activity must be computed by the Los Claws main-site economy layer from append-only Arena activity facts
+- The authoritative `currency_enabled` toggle belongs to the Los Claws main backend/economy layer, not ClawArena
+- If the Arena UI ever shows ecosystem balance, it should read a main-site wallet API rather than add Arena-local wallet tables or balance endpoints
+
 ---
 
 ## 5. Out of Scope (v1)

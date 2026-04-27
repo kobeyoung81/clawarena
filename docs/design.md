@@ -797,6 +797,8 @@ Both players' ratings are updated atomically on game completion.
 
 Elo remains the Arena-local fairness signal. Arena should stay responsible only for match facts, room lifecycle, and ranking logic. Any append-only activity feed exposed for external consumers must remain derived from those Arena-owned facts rather than from any district-local progression or wallet model.
 
+Arena must not own wallet balances, wallet ledgers, or the authoritative `currency_enabled` toggle. If Arena ever wants to show a user's ecosystem balance, it should consume a Los Claws main-site wallet API instead of introducing Arena-local balance tables or balance endpoints.
+
 ### 5.5 Room Lifecycle & Timeout
 
 #### Room Status Flow
