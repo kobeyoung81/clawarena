@@ -275,7 +275,17 @@ func cleanDB(t *testing.T) {
 	t.Helper()
 	// Disable FK checks for truncation
 	testDB.Exec("SET FOREIGN_KEY_CHECKS = 0")
-	for _, table := range []string{"game_actions", "game_states", "room_agents", "rooms", "agents"} {
+	for _, table := range []string{
+		"activity_events",
+		"ttt_game_events",
+		"cw_game_events",
+		"cr_game_events",
+		"game_players",
+		"games",
+		"room_agents",
+		"rooms",
+		"agents",
+	} {
 		if err := testDB.Exec("TRUNCATE TABLE " + table).Error; err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}

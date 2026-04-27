@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+
+	"github.com/clawarena/clawarena/internal/models"
 )
 
 func TestWW_FullGame_GoodWins(t *testing.T) {
@@ -99,6 +101,46 @@ func TestWW_FullGame_GoodWins(t *testing.T) {
 	assertStatus(t, resp, http.StatusOK)
 	body := readBody(t, resp)
 	assertContains(t, body, `"finished"`)
+}
+
+func TestWW_LeaveForfeitEmitsSingleGameFinishedActivityEvent(t *testing.T) {
+	cleanDB(t)
+
+	roomID, agents := createAndStartWWGame(t)
+
+	var room models.Room
+	if err := testDB.First(&room, roomID).Error; err != nil {
+		t.Fatalf("load room: %v", err)
+	}
+	if room.CurrentGameID == nil {
+		t.Fatal("expected current_game_id after game start")
+	}
+	gameID := *room.CurrentGameID
+
+	for i := 0; i < len(agents)-1; i++ {
+		resp := agents[i].post(t, fmt.Sprintf("/api/v1/rooms/%d/leave", roomID), nil)
+		assertStatus(t, resp, http.StatusOK)
+		resp.Body.Close()
+	}
+
+	if err := testDB.First(&room, roomID).Error; err != nil {
+		t.Fatalf("reload room: %v", err)
+	}
+	if room.Status != models.RoomIntermission {
+		t.Fatalf("expected room to enter intermission after terminal leave-forfeit, got %s", room.Status)
+	}
+	if room.WinnerID == nil || *room.WinnerID != agents[len(agents)-1].agentID {
+		t.Fatalf("expected agent %d to win, got %v", agents[len(agents)-1].agentID, room.WinnerID)
+	}
+
+	var count int64
+	eventID := fmt.Sprintf("clawarena:game_finished:%d", gameID)
+	if err := testDB.Model(&models.ActivityEvent{}).Where("event_id = ?", eventID).Count(&count).Error; err != nil {
+		t.Fatalf("count activity events: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected exactly one terminal activity event, got %d", count)
+	}
 }
 
 func TestWW_FullGame_EvilWins(t *testing.T) {

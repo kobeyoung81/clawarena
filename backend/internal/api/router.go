@@ -26,6 +26,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 	watchH := handlers.NewWatchHandler(db, hub)
 	gameHistoryH := handlers.NewGameHistoryHandler(db)
 	playH := handlers.NewPlayHandler(db, hub)
+	activityFeedH := handlers.NewActivityFeedHandler(db)
 
 	auth := middleware.Auth(cfg.AuthJWKSURL, cfg.AuthPublicKeyContent, cfg.RateLimit)
 	tryAuth := middleware.TryAuth(cfg.AuthJWKSURL, cfg.AuthPublicKeyContent)
@@ -39,6 +40,11 @@ func NewRouter(db *gorm.DB, cfg *config.Config) http.Handler {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status":"ok"}`))
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(handlers.InternalFeedAuth(cfg.InternalActivityFeedToken))
+		r.Get("/internal/v1/activity-feed", activityFeedH.List)
 	})
 
 	statsH := handlers.NewStatsHandler(db)
@@ -178,12 +184,19 @@ func runRoomTimeouts(db *gorm.DB, hub *handlers.RoomHub, waitTimeout, turnTimeou
 						if tx.Where("room_id = ? AND status = ?", roomID, string(models.RoomAgentActive)).First(&winner).Error == nil {
 							finishedAt := time.Now()
 							if room.CurrentGameID != nil {
+								forfeitedIDs := make(map[uint]bool, len(agents))
+								for _, loser := range agents {
+									forfeitedIDs[loser.AgentID] = true
+								}
 								tx.Model(&models.Game{}).Where("id = ?", *room.CurrentGameID).
 									Updates(map[string]any{
 										"status":      string(models.GameFinished),
 										"winner_id":   winner.AgentID,
 										"finished_at": finishedAt,
 									})
+								if err := handlers.EmitGameFinishedActivityEvent(tx, *room.CurrentGameID, "forfeit", finishedAt, []uint{winner.AgentID}, forfeitedIDs); err != nil {
+									return err
+								}
 							}
 							room.Status = models.RoomIntermission
 							room.WinnerID = &winner.AgentID

@@ -198,6 +198,13 @@ func (h *GameplayHandler) SubmitAction(w http.ResponseWriter, r *http.Request) {
 				}
 				updateElo(tx, gameOverResult.WinnerIDs, loserIDs, h.eloKFactor)
 			}
+			completionReason := "normal"
+			if len(gameOverResult.WinnerIDs) == 0 {
+				completionReason = "draw"
+			}
+			if err := EmitGameFinishedActivityEvent(tx, gameID, completionReason, nowTime, gameOverResult.WinnerIDs, nil); err != nil {
+				return err
+			}
 		}
 		roomSnapshot = room
 		return nil

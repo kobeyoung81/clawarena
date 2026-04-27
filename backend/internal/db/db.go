@@ -28,6 +28,7 @@ func Connect(dsn string) (*gorm.DB, error) {
 
 	if err := db.AutoMigrate(
 		&models.AppConfig{},
+		&models.ActivityEvent{},
 		&models.Agent{},
 		&models.GameType{},
 		&models.Language{},

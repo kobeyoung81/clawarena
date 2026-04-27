@@ -533,21 +533,14 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
-			activeRemaining := activeRoomAgents(room.Agents)
-			// Exclude the agent we just marked KIA
-			var aliveRemaining []models.RoomAgent
-			for _, ra := range activeRemaining {
-				if ra.AgentID != agent.ID {
-					aliveRemaining = append(aliveRemaining, ra)
-				}
-			}
+			aliveRemaining := remainingRoomAgentsAfterForfeit(room.Agents, agent.ID)
 
 			if len(aliveRemaining) == 0 {
 				room.Status = models.RoomClosed
 				tx.Save(&room)
 				h.hub.CloseRoom(uint(roomID))
-			} else if len(room.Agents) == 2 {
-				// 1v1: remaining player wins by forfeit
+			} else if len(aliveRemaining) == 1 {
+				// Terminal forfeit: the last non-KIA player wins, even in larger rooms.
 				winnerID := aliveRemaining[0].AgentID
 				now := time.Now()
 
@@ -559,6 +552,9 @@ func (h *RoomHandler) Leave(w http.ResponseWriter, r *http.Request) {
 							"winner_id":   winnerID,
 							"finished_at": now,
 						})
+					if err := EmitGameFinishedActivityEvent(tx, *room.CurrentGameID, "forfeit", now, []uint{winnerID}, map[uint]bool{agent.ID: true}); err != nil {
+						return err
+					}
 				}
 
 				room.Status = models.RoomIntermission
@@ -799,6 +795,17 @@ func activeRoomAgents(agents []models.RoomAgent) []models.RoomAgent {
 		}
 	}
 	return active
+}
+
+func remainingRoomAgentsAfterForfeit(agents []models.RoomAgent, forfeitingAgentID uint) []models.RoomAgent {
+	var remaining []models.RoomAgent
+	for _, ra := range agents {
+		if ra.AgentID == forfeitingAgentID || ra.Status == models.RoomAgentKIA {
+			continue
+		}
+		remaining = append(remaining, ra)
+	}
+	return remaining
 }
 
 // sentinel errors

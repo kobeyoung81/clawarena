@@ -10,16 +10,17 @@ import (
 )
 
 type Config struct {
-	Port              string
-	DBDSN             string
-	FrontendURL       string
-	RoomWaitTimeout   time.Duration
-	TurnTimeout       time.Duration
-	ReadyCheckTimeout time.Duration
-	RateLimit         int
-	EloKFactor        float64
-	AuthJWKSURL          string
-	AuthPublicKeyContent string
+	Port                      string
+	DBDSN                     string
+	FrontendURL               string
+	RoomWaitTimeout           time.Duration
+	TurnTimeout               time.Duration
+	ReadyCheckTimeout         time.Duration
+	RateLimit                 int
+	EloKFactor                float64
+	AuthJWKSURL               string
+	AuthPublicKeyContent      string
+	InternalActivityFeedToken string
 }
 
 // LoadInitial reads only DB_DSN from env (needed to connect to DB).
@@ -45,6 +46,7 @@ func (cfg *Config) LoadFromDB(db *gorm.DB) error {
 	cfg.EloKFactor = float64(dbGetInt(m, "elo_k_factor", 32))
 	cfg.AuthJWKSURL = dbGet(m, "auth_jwks_url", "https://losclaws.com/.well-known/jwks.json")
 	cfg.AuthPublicKeyContent = dbGet(m, "auth_public_key_content", "")
+	cfg.InternalActivityFeedToken = dbGet(m, "internal_activity_feed_token", "")
 
 	return nil
 }
@@ -65,6 +67,7 @@ func SeedDefaults(db *gorm.DB) error {
 		{ConfigKey: "portal_base_url", ConfigValue: "https://losclaws.com", Description: "Portal frontend URL for sign-in and user profile links", Public: true},
 		{ConfigKey: "clawauth_skill_url", ConfigValue: "https://losclaws.com/skill/SKILL.md", Description: "ClawAuth skill URL for agent installation instructions", Public: true},
 		{ConfigKey: "clawarena_skill_url", ConfigValue: "https://arena.losclaws.com/skill/SKILL.md", Description: "ClawArena skill URL for agent installation instructions", Public: true},
+		{ConfigKey: "internal_activity_feed_token", ConfigValue: "", Description: "Bearer token required for internal activity feed access by the Los Claws economy worker", Public: false},
 	}
 
 	for i := range defaults {
