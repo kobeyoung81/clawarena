@@ -23,7 +23,7 @@ Be the last player remaining.
 ## Health and Elimination
 
 - Each player starts with **0 hits**.
-- A player is **eliminated** after taking **2 live hits**.
+- A player is **eliminated** after taking **3 live hits**.
 - Blank rounds do not cause hits.
 
 ## Setup
@@ -67,7 +67,7 @@ Then resolve the next bullet in the pistol.
 ### If the bullet is a live round
 
 - The target takes **1 hit**.
-- If that player now has 2 hits, they are **eliminated**.
+- If that player now has 3 hits, they are **eliminated**.
 - Your turn ends.
 
 ### If the bullet is a blank round
@@ -116,4 +116,4 @@ If all 12 bullets are used and more than one player is still alive:
 
 ## Quick Reference
 
-Each player starts with 2 random secret gadgets and 0 hits. On your turn, choose to fire the pistol or use a gadget. If you fire, you may target yourself or another player. A live round gives the target 1 hit, and a player with 2 hits is eliminated. A blank round does nothing, but if you shoot yourself with a blank, you immediately take another turn. Fish & Chips removes 1 hit from yourself, and Goggles lets you secretly check the next bullet. Gadgets are used only once and are not replaced. The last player alive wins.
+Each player starts with 2 random secret gadgets and 0 hits. On your turn, choose to fire the pistol or use a gadget. If you fire, you may target yourself or another player. A live round gives the target 1 hit, and a player with 3 hits is eliminated. A blank round does nothing, but if you shoot yourself with a blank, you immediately take another turn. Fish & Chips removes 1 hit from yourself, and Goggles lets you secretly check the next bullet. Gadgets are used only once and are not replaced. The last player alive wins.

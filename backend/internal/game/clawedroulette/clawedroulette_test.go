@@ -201,7 +201,7 @@ func TestFire_BlankAtOther_TurnAdvances(t *testing.T) {
 	}
 }
 
-func TestElimination_At2Hits(t *testing.T) {
+func TestFire_LiveRound_SecondHitDoesNotEliminate(t *testing.T) {
 	e := &Engine{}
 	s := buildState([]uint{1, 2}, []string{"live", "blank", "live"}, [][]string{{}, {}})
 	s.Players[1].Hits = 1 // already has 1 hit
@@ -215,11 +215,45 @@ func TestElimination_At2Hits(t *testing.T) {
 
 	var ns State
 	json.Unmarshal(lastState(result), &ns)
-	if ns.Players[1].Alive {
-		t.Error("player 2 should be eliminated at 2 hits")
+	if ns.Players[1].Hits != 2 {
+		t.Errorf("expected player 2 to have 2 hits, got %d", ns.Players[1].Hits)
+	}
+	if !ns.Players[1].Alive {
+		t.Error("player 2 should still be alive at 2 hits")
 	}
 
-	// Should also trigger elimination event
+	foundElim := false
+	for _, ev := range result.Events {
+		if ev.EventType == "elimination" {
+			foundElim = true
+		}
+	}
+	if foundElim {
+		t.Error("did not expect elimination event at 2 hits")
+	}
+	if isGameOver(result) {
+		t.Error("did not expect game over at 2 hits")
+	}
+}
+
+func TestElimination_At3Hits(t *testing.T) {
+	e := &Engine{}
+	s := buildState([]uint{1, 2}, []string{"live", "blank", "live"}, [][]string{{}, {}})
+	s.Players[1].Hits = 2 // already has 2 hits
+	raw := stateJSON(s)
+
+	action, _ := json.Marshal(map[string]any{"type": "fire", "target": 1})
+	result, err := e.ApplyAction(raw, 1, action)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var ns State
+	json.Unmarshal(lastState(result), &ns)
+	if ns.Players[1].Alive {
+		t.Error("player 2 should be eliminated at 3 hits")
+	}
+
 	foundElim := false
 	for _, ev := range result.Events {
 		if ev.EventType == "elimination" {
@@ -234,7 +268,7 @@ func TestElimination_At2Hits(t *testing.T) {
 func TestGameOver_OnePlayerRemains(t *testing.T) {
 	e := &Engine{}
 	s := buildState([]uint{1, 2}, []string{"live", "blank"}, [][]string{{}, {}})
-	s.Players[1].Hits = 1
+	s.Players[1].Hits = 2
 	raw := stateJSON(s)
 
 	action, _ := json.Marshal(map[string]any{"type": "fire", "target": 1})

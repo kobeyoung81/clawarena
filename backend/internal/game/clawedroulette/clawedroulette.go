@@ -13,6 +13,8 @@ func init() {
 	game.Register("clawed_roulette", &Engine{})
 }
 
+const eliminationHits = 3
+
 // Player represents a participant in the roulette game.
 type Player struct {
 	ID      uint     `json:"id"`
@@ -25,11 +27,11 @@ type Player struct {
 // State is the internal Clawed Roulette game state.
 type State struct {
 	Players      []Player `json:"players"`
-	Bullets      []string `json:"bullets"`                  // "live" or "blank" — remaining bullets
-	BulletIndex  int      `json:"bullet_index"`             // next bullet to fire
+	Bullets      []string `json:"bullets"`      // "live" or "blank" — remaining bullets
+	BulletIndex  int      `json:"bullet_index"` // next bullet to fire
 	TotalBullets int      `json:"total_bullets"`
-	CurrentTurn  int      `json:"current_turn"`             // seat index of current player
-	Phase        string   `json:"phase"`                    // "playing" or "finished"
+	CurrentTurn  int      `json:"current_turn"` // seat index of current player
+	Phase        string   `json:"phase"`        // "playing" or "finished"
 	Winner       *uint    `json:"winner,omitempty"`
 	IsDraw       bool     `json:"is_draw"`
 	LastPeek     *string  `json:"last_peek,omitempty"`      // result of goggles (private)
@@ -39,8 +41,8 @@ type State struct {
 // Engine implements game.GameEngine for Clawed Roulette.
 type Engine struct{}
 
-func (e *Engine) Syncronym() string                                  { return "cr" }
-func (e *Engine) NewEventModel() game.GameEventRecord                { return &CrGameEvent{} }
+func (e *Engine) Syncronym() string                                    { return "cr" }
+func (e *Engine) NewEventModel() game.GameEventRecord                  { return &CrGameEvent{} }
 func (e *Engine) GetPhaseTimeout(_ json.RawMessage) *game.PhaseTimeout { return nil }
 
 func parseState(raw json.RawMessage) (*State, error) {
@@ -137,23 +139,23 @@ func (e *Engine) InitState(config json.RawMessage, players []uint) (json.RawMess
 // ---------- views ----------
 
 type playerViewPlayer struct {
-	ID           uint     `json:"id"`
-	Seat         int      `json:"seat"`
-	Hits         int      `json:"hits"`
-	Alive        bool     `json:"alive"`
-	Gadgets      []string `json:"gadgets,omitempty"`
-	GadgetCount  int      `json:"gadget_count"`
+	ID          uint     `json:"id"`
+	Seat        int      `json:"seat"`
+	Hits        int      `json:"hits"`
+	Alive       bool     `json:"alive"`
+	Gadgets     []string `json:"gadgets,omitempty"`
+	GadgetCount int      `json:"gadget_count"`
 }
 
 type playerView struct {
-	Players       []playerViewPlayer  `json:"players"`
-	BulletIndex   int                 `json:"bullet_index"`
-	TotalBullets  int                 `json:"total_bullets"`
-	CurrentTurn   int                 `json:"current_turn"`
-	Phase         string              `json:"phase"`
-	Winner        *uint               `json:"winner,omitempty"`
-	IsDraw        bool                `json:"is_draw"`
-	LastPeek      *string             `json:"last_peek,omitempty"`
+	Players      []playerViewPlayer `json:"players"`
+	BulletIndex  int                `json:"bullet_index"`
+	TotalBullets int                `json:"total_bullets"`
+	CurrentTurn  int                `json:"current_turn"`
+	Phase        string             `json:"phase"`
+	Winner       *uint              `json:"winner,omitempty"`
+	IsDraw       bool               `json:"is_draw"`
+	LastPeek     *string            `json:"last_peek,omitempty"`
 }
 
 func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMessage, error) {
@@ -332,7 +334,7 @@ func (e *Engine) handleFire(s *State, shooter *Player, act actionPayload) ([]gam
 
 	if bullet == "live" {
 		target.Hits++
-		eliminated := target.Hits >= 2
+		eliminated := target.Hits >= eliminationHits
 
 		if eliminated {
 			target.Alive = false
@@ -340,16 +342,16 @@ func (e *Engine) handleFire(s *State, shooter *Player, act actionPayload) ([]gam
 
 		stateJSON := marshalState(s)
 		fireDetails, _ := json.Marshal(map[string]any{
-			"bullet":     "live",
-			"target":     targetSeat,
-			"self_shot":  selfShot,
+			"bullet":      "live",
+			"target":      targetSeat,
+			"self_shot":   selfShot,
 			"target_hits": target.Hits,
 		})
 		events = append(events, game.GameEvent{
 			Source:     "agent",
 			EventType:  "fire",
-			Actor:     &game.EventEntity{AgentID: &shooter.ID, Seat: intPtr(shooter.Seat)},
-			Target:    &game.EventEntity{AgentID: &target.ID, Seat: intPtr(target.Seat)},
+			Actor:      &game.EventEntity{AgentID: &shooter.ID, Seat: intPtr(shooter.Seat)},
+			Target:     &game.EventEntity{AgentID: &target.ID, Seat: intPtr(target.Seat)},
 			Details:    fireDetails,
 			StateAfter: stateJSON,
 			Visibility: "public",
@@ -363,7 +365,7 @@ func (e *Engine) handleFire(s *State, shooter *Player, act actionPayload) ([]gam
 			events = append(events, game.GameEvent{
 				Source:     "system",
 				EventType:  "elimination",
-				Target:    &game.EventEntity{AgentID: &target.ID, Seat: intPtr(target.Seat)},
+				Target:     &game.EventEntity{AgentID: &target.ID, Seat: intPtr(target.Seat)},
 				Details:    elimDetails,
 				StateAfter: marshalState(s),
 				Visibility: "public",
@@ -419,8 +421,8 @@ func (e *Engine) handleFire(s *State, shooter *Player, act actionPayload) ([]gam
 			events = append(events, game.GameEvent{
 				Source:     "agent",
 				EventType:  "fire",
-				Actor:     &game.EventEntity{AgentID: &shooter.ID, Seat: intPtr(shooter.Seat)},
-				Target:    &game.EventEntity{AgentID: &s.Players[targetSeat].ID, Seat: intPtr(targetSeat)},
+				Actor:      &game.EventEntity{AgentID: &shooter.ID, Seat: intPtr(shooter.Seat)},
+				Target:     &game.EventEntity{AgentID: &s.Players[targetSeat].ID, Seat: intPtr(targetSeat)},
 				Details:    fireDetails,
 				StateAfter: endState,
 				Visibility: "public",
@@ -446,8 +448,8 @@ func (e *Engine) handleFire(s *State, shooter *Player, act actionPayload) ([]gam
 		events = append(events, game.GameEvent{
 			Source:     "agent",
 			EventType:  "fire",
-			Actor:     &game.EventEntity{AgentID: &shooter.ID, Seat: intPtr(shooter.Seat)},
-			Target:    &game.EventEntity{AgentID: &s.Players[targetSeat].ID, Seat: intPtr(targetSeat)},
+			Actor:      &game.EventEntity{AgentID: &shooter.ID, Seat: intPtr(shooter.Seat)},
+			Target:     &game.EventEntity{AgentID: &s.Players[targetSeat].ID, Seat: intPtr(targetSeat)},
 			Details:    fireDetails,
 			StateAfter: finalState,
 			Visibility: "public",
@@ -486,14 +488,14 @@ func (e *Engine) handleGadget(s *State, player *Player, act actionPayload) ([]ga
 		}
 		advanceTurn(s)
 		details, _ := json.Marshal(map[string]any{
-			"gadget":    "fish_chips",
-			"player_id": player.ID,
+			"gadget":     "fish_chips",
+			"player_id":  player.ID,
 			"hits_after": player.Hits,
 		})
 		events = append(events, game.GameEvent{
 			Source:     "agent",
 			EventType:  "gadget_use",
-			Actor:     &game.EventEntity{AgentID: &player.ID, Seat: intPtr(player.Seat)},
+			Actor:      &game.EventEntity{AgentID: &player.ID, Seat: intPtr(player.Seat)},
 			Details:    details,
 			StateAfter: marshalState(s),
 			Visibility: "public",
@@ -513,7 +515,7 @@ func (e *Engine) handleGadget(s *State, player *Player, act actionPayload) ([]ga
 		events = append(events, game.GameEvent{
 			Source:     "agent",
 			EventType:  "gadget_use",
-			Actor:     &game.EventEntity{AgentID: &player.ID, Seat: intPtr(player.Seat)},
+			Actor:      &game.EventEntity{AgentID: &player.ID, Seat: intPtr(player.Seat)},
 			Details:    details,
 			StateAfter: marshalState(s),
 			Visibility: "public",

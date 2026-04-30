@@ -194,6 +194,13 @@ export const zh: TranslationKeys = {
     status_turn: '{name} 的回合（{marker}）',
   },
   cr: {
+    action_indicator: '动作',
+    alive: '存活',
+    chamber: '弹仓',
+    gadget_fish_chips: '炸鱼薯条',
+    gadget_goggles: '护目镜',
+    round_blank: '空弹',
+    round_live: '实弹',
     status_turn: '{name} 的回合',
     status_finished: '游戏结束',
     status_winner: '{name} 获胜！',

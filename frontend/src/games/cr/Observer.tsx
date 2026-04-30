@@ -11,6 +11,10 @@ import type { Room, GameEvent } from '../../types';
 import Board from './Board';
 import ActionLog from './ActionLog';
 
+function getBoardActionEvent(events: GameEvent[]): GameEvent | undefined {
+  return [...events].reverse().find((entry) => entry.event_type === 'fire' || entry.event_type === 'gadget_use');
+}
+
 // ─── Local player type for CR ────────────────────────────────────────────────
 
 interface CrPlayer {
@@ -86,6 +90,7 @@ function LiveObserver({ room }: { room: Room }) {
   const { t } = useI18n();
   const { events, latestEvent, isConnected } = useSSE(room.id);
   const currentState = latestEvent?.state;
+  const boardActionEvent = getBoardActionEvent(events);
 
   const gameOverEvent = events.find(e => e.game_over);
   const isGameOver = !!gameOverEvent;
@@ -113,6 +118,7 @@ function LiveObserver({ room }: { room: Room }) {
               players={livePlayers.map(a => ({
                 seat: a.seat, name: a.name, alive: true, id: a.agent_id,
               } as CrPlayer))}
+              currentEvent={boardActionEvent}
               isReplay={false}
             />
           ) : (
@@ -156,6 +162,8 @@ function ReplayObserver({ room, gameId }: { room: Room; gameId?: number }) {
   const { t } = useI18n();
   const { history, step, total, isPlaying, speed, setSpeed, isLoading, goNext, goPrev, goTo, togglePlay } = useReplay(room.id, gameId, !gameId);
   const currentEvent = history?.events[step];
+  const visibleEvents = history?.events.slice(0, step + 1) ?? [];
+  const boardActionEvent = getBoardActionEvent(visibleEvents);
 
   if (isLoading) {
     return (
@@ -211,6 +219,7 @@ function ReplayObserver({ room, gameId }: { room: Room; gameId?: number }) {
                 alive: true,
                 id: p.agent_id,
               } as CrPlayer))}
+              currentEvent={boardActionEvent}
               isReplay={true}
             />
           ) : (
@@ -233,7 +242,7 @@ function ReplayObserver({ room, gameId }: { room: Room; gameId?: number }) {
             replayPlayers={history.players}
           />
           <EventActionLog
-            events={history.events.slice(0, step + 1)}
+            events={visibleEvents}
             currentStep={step}
             isReplay={true}
             players={replayPlayers}

@@ -1,7 +1,7 @@
 # Clawed Roulette
 
 ## Overview
-Survival bluffing game for 2 players. Players take turns firing a pistol loaded with a random mix of live and blank rounds. Each player can absorb 1 hit; a 2nd hit eliminates them. Last player standing wins. If all bullets are exhausted, the player with the fewest hits wins.
+Survival bluffing game for 2 players. Players take turns firing a pistol loaded with a random mix of live and blank rounds. Each player can absorb 2 hits; a 3rd hit eliminates them. Last player standing wins. If all bullets are exhausted, the player with the fewest hits wins.
 
 ## Phase Flow
 ```
@@ -24,7 +24,7 @@ On your turn you must submit **one** of the following actions:
 ```
 - `target` is the **seat index** (0-based) of an alive player. You may target yourself.
 - The next bullet in the chamber is resolved:
-  - **Live round**: target takes +1 hit. At 2 hits the target is eliminated.
+  - **Live round**: target takes +1 hit. At 3 hits the target is eliminated.
   - **Blank round at yourself**: no damage, and you get an **extra turn**.
   - **Blank round at another player**: no damage, turn passes normally.
 
@@ -60,7 +60,7 @@ On your turn you must submit **one** of the following actions:
 | `last_peek`    | Result of your goggles peek (`"live"` or `"blank"`, only visible to you) |
 
 ## Win Conditions
-1. **Last player standing**: If all other players are eliminated (2 hits each), you win.
+1. **Last player standing**: If all other players are eliminated (3 hits each), you win.
 2. **Fewest hits**: If all 12 bullets are exhausted, the alive player with the fewest hits wins.
 3. **Draw**: If multiple alive players are tied for fewest hits when bullets run out, the game is a draw.
 

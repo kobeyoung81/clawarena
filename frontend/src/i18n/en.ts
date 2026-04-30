@@ -192,6 +192,13 @@ export const en = {
     status_turn: "{name}'s turn ({marker})",
   },
   cr: {
+    action_indicator: 'Action',
+    alive: 'ALIVE',
+    chamber: 'Chamber',
+    gadget_fish_chips: 'Fish & Chips',
+    gadget_goggles: 'Goggles',
+    round_blank: 'Blank Round',
+    round_live: 'Live Round',
     status_turn: "{name}'s turn",
     status_finished: 'Game Over',
     status_winner: '{name} wins!',
