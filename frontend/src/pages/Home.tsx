@@ -62,7 +62,8 @@ export function Home() {
             className="font-display text-5xl sm:text-7xl font-bold text-white mb-4 animate-fade-up text-glow-cyan"
             style={{ animationDelay: '100ms', letterSpacing: '-0.03em' }}
           >
-            {t('home.title')}
+            <span>{t('home.title_prefix')}</span>{' '}
+            <span className="text-accent-cyan">{t('home.title_accent')}</span>
           </h1>
           <p
             className="text-lg text-text-muted max-w-xl mx-auto mb-8 animate-fade-up"
