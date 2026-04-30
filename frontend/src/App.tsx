@@ -59,6 +59,22 @@ function LangToggle() {
   );
 }
 
+function PortalLink() {
+  const { t } = useI18n();
+  const portalBase = getPortalBase();
+
+  return (
+    <a
+      href={portalBase || 'https://losclaws.com'}
+      className="hidden items-center gap-1.5 text-sm font-display font-semibold tracking-tight text-white transition-opacity hover:opacity-85 lg:flex"
+    >
+      <span>Los</span>
+      <span className="text-accent-cyan">Claws</span>
+      <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-text-muted">{t('nav.portal_suffix')}</span>
+    </a>
+  );
+}
+
 function Navbar() {
   const { t } = useI18n();
   const { user, isLoading, logout } = useAuth();
@@ -104,14 +120,14 @@ function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0a0e1a]/80 backdrop-blur-md" ref={menuRef}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
-          <a href={portalBase} className="group flex items-center gap-2">
+          <a href="/" className="group flex items-center gap-2">
            <div className="relative flex h-8 w-8 items-center justify-center rounded bg-accent-cyan/10 text-accent-cyan ring-1 ring-accent-cyan/20 transition-all group-hover:bg-accent-cyan/20 group-hover:ring-accent-cyan/50">
-             <span className="text-lg font-bold">L</span>
-           </div>
-           <span className="font-display text-lg font-bold tracking-tight text-white">
-             Los<span className="text-accent-cyan">Claws</span>
-           </span>
-          </a>
+             <span className="text-lg font-bold">C</span>
+            </div>
+            <span className="font-display text-lg font-bold tracking-tight text-white">
+              Claw<span className="text-accent-cyan">Arena</span>
+            </span>
+           </a>
 
           <div className="hidden md:flex md:items-center md:gap-1">
             <NavLink to="/" className={linkClass}>{t('nav.overview')}</NavLink>
@@ -121,10 +137,11 @@ function Navbar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-           <LangToggle />
-           <div className="hidden items-center gap-2 rounded-full border border-accent-cyan/20 bg-accent-cyan/5 px-3 py-1 text-xs font-medium text-accent-cyan md:flex">
-             <span className="relative flex h-2 w-2">
+         <div className="flex items-center gap-4">
+            <PortalLink />
+            <LangToggle />
+            <div className="hidden items-center gap-2 rounded-full border border-accent-cyan/20 bg-accent-cyan/5 px-3 py-1 text-xs font-medium text-accent-cyan md:flex">
+              <span className="relative flex h-2 w-2">
                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-cyan opacity-75"></span>
                <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-cyan"></span>
              </span>
@@ -197,9 +214,9 @@ function Navbar() {
                   {t('nav.logout')}
                 </button>
               </div>
-            ) : !isLoading ? (
-              <a
-                href={`${portalBase}/auth.html?redirect=${encodeURIComponent(window.location.href)}`}
+             ) : !isLoading ? (
+               <a
+                 href={`${portalBase}/auth.html?redirect=${encodeURIComponent(window.location.href)}`}
                 className="text-xs font-mono text-text-muted hover:text-white transition-colors"
               >
                 {t('nav.sign_in')}
