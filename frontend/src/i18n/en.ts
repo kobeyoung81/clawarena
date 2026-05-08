@@ -199,6 +199,7 @@ export const en = {
     chamber: 'Chamber',
     gadget_fish_chips: 'Fish & Chips',
     gadget_goggles: 'Goggles',
+    player_fallback: 'Player {id}',
     round_blank: 'Blank Round',
     round_live: 'Live Round',
     status_turn: "{name}'s turn",
@@ -209,6 +210,7 @@ export const en = {
     hits_label: 'Hits',
     gadgets_label: 'Gadgets',
     eliminated: 'ELIMINATED',
+    unknown_player: 'Unknown',
   },
   cr_events: {
     game_started: '🎮 Game Started',
@@ -218,6 +220,7 @@ export const en = {
     fire_blank_self: '⚪ {name} fires at self — blank (extra turn!)',
     gadget_fish_chips: '🐟 {name} uses Fish & Chips — heals to {hits} hits',
     gadget_goggles: '🔍 {name} uses Goggles — peeked at next bullet',
+    gadget_generic: '🎒 {name} uses {gadget}',
     elimination: '💀 {name} eliminated!',
     game_over_winner: 'Game over — {name} wins!',
     game_over_draw: 'Game over — Draw (all bullets used)',

@@ -26,16 +26,17 @@ type Player struct {
 
 // State is the internal Clawed Roulette game state.
 type State struct {
-	Players      []Player `json:"players"`
-	Bullets      []string `json:"bullets"`      // "live" or "blank" — remaining bullets
-	BulletIndex  int      `json:"bullet_index"` // next bullet to fire
-	TotalBullets int      `json:"total_bullets"`
-	CurrentTurn  int      `json:"current_turn"` // seat index of current player
-	Phase        string   `json:"phase"`        // "playing" or "finished"
-	Winner       *uint    `json:"winner,omitempty"`
-	IsDraw       bool     `json:"is_draw"`
-	LastPeek     *string  `json:"last_peek,omitempty"`      // result of goggles (private)
-	PeekPlayerID *uint    `json:"peek_player_id,omitempty"` // who peeked
+	Players        []Player `json:"players"`
+	Bullets        []string `json:"bullets"`      // "live" or "blank" — remaining bullets
+	BulletIndex    int      `json:"bullet_index"` // next bullet to fire
+	TotalBullets   int      `json:"total_bullets"`
+	CurrentTurn    int      `json:"current_turn"` // seat index of current player
+	TurnGadgetUsed bool     `json:"turn_gadget_used"`
+	Phase          string   `json:"phase"` // "playing" or "finished"
+	Winner         *uint    `json:"winner,omitempty"`
+	IsDraw         bool     `json:"is_draw"`
+	LastPeek       *string  `json:"last_peek,omitempty"`      // result of goggles (private)
+	PeekPlayerID   *uint    `json:"peek_player_id,omitempty"` // who peeked
 }
 
 // Engine implements game.GameEngine for Clawed Roulette.
@@ -148,14 +149,15 @@ type playerViewPlayer struct {
 }
 
 type playerView struct {
-	Players      []playerViewPlayer `json:"players"`
-	BulletIndex  int                `json:"bullet_index"`
-	TotalBullets int                `json:"total_bullets"`
-	CurrentTurn  int                `json:"current_turn"`
-	Phase        string             `json:"phase"`
-	Winner       *uint              `json:"winner,omitempty"`
-	IsDraw       bool               `json:"is_draw"`
-	LastPeek     *string            `json:"last_peek,omitempty"`
+	Players        []playerViewPlayer `json:"players"`
+	BulletIndex    int                `json:"bullet_index"`
+	TotalBullets   int                `json:"total_bullets"`
+	CurrentTurn    int                `json:"current_turn"`
+	TurnGadgetUsed bool               `json:"turn_gadget_used"`
+	Phase          string             `json:"phase"`
+	Winner         *uint              `json:"winner,omitempty"`
+	IsDraw         bool               `json:"is_draw"`
+	LastPeek       *string            `json:"last_peek,omitempty"`
 }
 
 func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMessage, error) {
@@ -164,12 +166,13 @@ func (e *Engine) GetPlayerView(raw json.RawMessage, playerID uint) (json.RawMess
 		return nil, err
 	}
 	pv := playerView{
-		BulletIndex:  s.BulletIndex,
-		TotalBullets: s.TotalBullets,
-		CurrentTurn:  s.CurrentTurn,
-		Phase:        s.Phase,
-		Winner:       s.Winner,
-		IsDraw:       s.IsDraw,
+		BulletIndex:    s.BulletIndex,
+		TotalBullets:   s.TotalBullets,
+		CurrentTurn:    s.CurrentTurn,
+		TurnGadgetUsed: s.TurnGadgetUsed,
+		Phase:          s.Phase,
+		Winner:         s.Winner,
+		IsDraw:         s.IsDraw,
 	}
 	for _, p := range s.Players {
 		pvp := playerViewPlayer{
@@ -198,13 +201,14 @@ type spectatorViewPlayer struct {
 }
 
 type spectatorView struct {
-	Players      []spectatorViewPlayer `json:"players"`
-	BulletIndex  int                   `json:"bullet_index"`
-	TotalBullets int                   `json:"total_bullets"`
-	CurrentTurn  int                   `json:"current_turn"`
-	Phase        string                `json:"phase"`
-	Winner       *uint                 `json:"winner,omitempty"`
-	IsDraw       bool                  `json:"is_draw"`
+	Players        []spectatorViewPlayer `json:"players"`
+	BulletIndex    int                   `json:"bullet_index"`
+	TotalBullets   int                   `json:"total_bullets"`
+	CurrentTurn    int                   `json:"current_turn"`
+	TurnGadgetUsed bool                  `json:"turn_gadget_used"`
+	Phase          string                `json:"phase"`
+	Winner         *uint                 `json:"winner,omitempty"`
+	IsDraw         bool                  `json:"is_draw"`
 }
 
 func (e *Engine) GetSpectatorView(raw json.RawMessage) (json.RawMessage, error) {
@@ -213,12 +217,13 @@ func (e *Engine) GetSpectatorView(raw json.RawMessage) (json.RawMessage, error) 
 		return nil, err
 	}
 	sv := spectatorView{
-		BulletIndex:  s.BulletIndex,
-		TotalBullets: s.TotalBullets,
-		CurrentTurn:  s.CurrentTurn,
-		Phase:        s.Phase,
-		Winner:       s.Winner,
-		IsDraw:       s.IsDraw,
+		BulletIndex:    s.BulletIndex,
+		TotalBullets:   s.TotalBullets,
+		CurrentTurn:    s.CurrentTurn,
+		TurnGadgetUsed: s.TurnGadgetUsed,
+		Phase:          s.Phase,
+		Winner:         s.Winner,
+		IsDraw:         s.IsDraw,
 	}
 	for _, p := range s.Players {
 		sv.Players = append(sv.Players, spectatorViewPlayer{
@@ -252,7 +257,7 @@ func (e *Engine) GetPendingActions(raw json.RawMessage) ([]game.PendingAction, e
 	return []game.PendingAction{{
 		PlayerID:     cp.ID,
 		ActionType:   "turn",
-		Prompt:       "Choose an action: fire at yourself, fire at another player, or use a gadget.",
+		Prompt:       pendingPrompt(s.TurnGadgetUsed),
 		ValidTargets: targets,
 	}}, nil
 }
@@ -298,6 +303,9 @@ func (e *Engine) ApplyAction(raw json.RawMessage, playerID uint, actionRaw json.
 		}
 		events = append(events, evts...)
 	case "gadget":
+		if s.TurnGadgetUsed {
+			return nil, errors.New("you already used a gadget this turn and must fire")
+		}
 		evts, err := e.handleGadget(s, cp, act)
 		if err != nil {
 			return nil, err
@@ -395,7 +403,7 @@ func (e *Engine) handleFire(s *State, shooter *Player, act actionPayload) ([]gam
 			return events, nil
 		}
 
-		advanceTurn(s)
+		endTurn(s, false)
 		// Update the last event's state to reflect the turn change
 		events[len(events)-1].StateAfter = marshalState(s)
 
@@ -408,11 +416,7 @@ func (e *Engine) handleFire(s *State, shooter *Player, act actionPayload) ([]gam
 			"self_shot": selfShot,
 		})
 
-		if selfShot {
-			// Extra turn: don't advance
-		} else {
-			advanceTurn(s)
-		}
+		endTurn(s, selfShot)
 
 		// Check if all bullets used
 		if ended, result := checkGameEnd(s); ended {
@@ -478,6 +482,7 @@ func (e *Engine) handleGadget(s *State, player *Player, act actionPayload) ([]ga
 
 	// Remove gadget from hand
 	player.Gadgets = append(player.Gadgets[:idx], player.Gadgets[idx+1:]...)
+	s.TurnGadgetUsed = true
 
 	var events []game.GameEvent
 
@@ -486,7 +491,6 @@ func (e *Engine) handleGadget(s *State, player *Player, act actionPayload) ([]ga
 		if player.Hits > 0 {
 			player.Hits--
 		}
-		advanceTurn(s)
 		details, _ := json.Marshal(map[string]any{
 			"gadget":     "fish_chips",
 			"player_id":  player.ID,
@@ -507,7 +511,6 @@ func (e *Engine) handleGadget(s *State, player *Player, act actionPayload) ([]ga
 			s.LastPeek = &peek
 			s.PeekPlayerID = uintPtr(player.ID)
 		}
-		advanceTurn(s)
 		details, _ := json.Marshal(map[string]any{
 			"gadget":    "goggles",
 			"player_id": player.ID,
@@ -526,6 +529,21 @@ func (e *Engine) handleGadget(s *State, player *Player, act actionPayload) ([]ga
 }
 
 // ---------- helpers ----------
+
+func pendingPrompt(turnGadgetUsed bool) string {
+	if turnGadgetUsed {
+		return "Choose a target to fire. You already used one gadget this turn."
+	}
+	return "Choose an action: fire at yourself, fire at another player, or use one gadget before your mandatory shot."
+}
+
+func endTurn(s *State, keepCurrent bool) {
+	s.TurnGadgetUsed = false
+	if keepCurrent {
+		return
+	}
+	advanceTurn(s)
+}
 
 func advanceTurn(s *State) {
 	n := len(s.Players)

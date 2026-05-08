@@ -1,18 +1,19 @@
 import type { GameEvent } from '../../types';
+import { useI18n } from '../../i18n';
 
 export interface ActionLogEntryProps {
   entry: GameEvent;
   players?: Array<{ agent_id: number; name: string }>;
 }
 
-// i18n TODO: replace hardcoded strings with t('cr_events.*') keys
-
 export default function ClawedRouletteActionLog({ entry, players }: ActionLogEntryProps) {
+  const { t } = useI18n();
   const { event_type, actor, target, details } = entry;
 
   const resolveName = (agentId?: number): string => {
-    if (agentId == null) return 'Unknown';
-    return players?.find(p => p.agent_id === agentId)?.name ?? `Agent ${agentId}`;
+    if (agentId == null) return t('cr.unknown_player');
+    return players?.find((player) => player.agent_id === agentId)?.name
+      ?? t('cr.player_fallback', { id: agentId });
   };
 
   const actorName = resolveName(actor?.agent_id);
@@ -23,54 +24,59 @@ export default function ClawedRouletteActionLog({ entry, players }: ActionLogEnt
     const blankCount = (details?.blank_count as number) ?? '?';
     return (
       <span className="text-accent-cyan font-semibold">
-        🎮 Game Started — {liveCount} live, {blankCount} blank bullets
+        {t('cr_events.game_started')} — {t('cr_events.game_started_detail', { live: liveCount, blank: blankCount })}
       </span>
     );
   }
 
   if (event_type === 'fire') {
-    const bullet = details?.bullet as string;
-    const selfShot = details?.self_shot as boolean;
+    const bullet = details?.bullet as string | undefined;
+    const selfShot = details?.self_shot as boolean | undefined;
     const targetHits = details?.target_hits as number | undefined;
 
     if (bullet === 'live') {
       return (
         <span style={{ color: '#ef4444' }}>
-          🔴 {actorName} fires at {targetName} — HIT!
-          {targetHits != null && ` (${targetHits} hits)`}
+          {t('cr_events.fire_live', {
+            name: actorName,
+            target: targetName,
+            hits: targetHits ?? '?',
+          })}
         </span>
       );
     }
 
+    if (selfShot) {
+      return <span className="text-text-muted/70">{t('cr_events.fire_blank_self', { name: actorName })}</span>;
+    }
+
     return (
-      <span className="text-text-muted/60">
-        ⚪ {actorName} fires at {targetName} — blank
-        {selfShot && <span className="text-accent-cyan ml-1">(extra turn!)</span>}
+      <span className="text-text-muted/70">
+        {t('cr_events.fire_blank', { name: actorName, target: targetName })}
       </span>
     );
   }
 
   if (event_type === 'gadget_use') {
-    const gadget = details?.gadget as string;
+    const gadget = details?.gadget as string | undefined;
     if (gadget === 'fish_chips') {
       const hitsAfter = details?.hits_after as number | undefined;
       return (
         <span className="text-green-400">
-          🐟 {actorName} uses Fish &amp; Chips
-          {hitsAfter != null && ` — heals to ${hitsAfter} hits`}
+          {t('cr_events.gadget_fish_chips', { name: actorName, hits: hitsAfter ?? 0 })}
         </span>
       );
     }
     if (gadget === 'goggles') {
       return (
         <span className="text-yellow-400">
-          🔍 {actorName} uses Goggles — peeked at next bullet
+          {t('cr_events.gadget_goggles', { name: actorName })}
         </span>
       );
     }
     return (
       <span className="text-text-muted/70">
-        🎒 {actorName} uses {gadget}
+        {t('cr_events.gadget_generic', { name: actorName, gadget: gadget ?? '?' })}
       </span>
     );
   }
@@ -78,30 +84,28 @@ export default function ClawedRouletteActionLog({ entry, players }: ActionLogEnt
   if (event_type === 'elimination') {
     return (
       <span style={{ color: '#ef4444' }} className="font-semibold">
-        💀 {targetName} eliminated!
+        {t('cr_events.elimination', { name: targetName })}
       </span>
     );
   }
 
   if (event_type === 'game_over' || entry.game_over) {
     const winnerId = details?.winner as number | undefined;
-    const isDraw = details?.is_draw as boolean;
+    const isDraw = details?.is_draw as boolean | undefined;
     const winnerTeam = entry.result?.winner_team;
 
     if (isDraw) {
-      return <span className="text-yellow-400 font-semibold">🏁 Game Over — Draw!</span>;
+      return <span className="text-yellow-400 font-semibold">{t('cr_events.game_over_draw')}</span>;
     }
     if (winnerTeam) {
-      return <span className="text-accent-cyan font-semibold">🏆 Game Over — {winnerTeam} wins!</span>;
+      return <span className="text-accent-cyan font-semibold">{t('cr_events.game_over_winner', { name: winnerTeam })}</span>;
     }
     if (winnerId != null) {
-      const winnerName = resolveName(winnerId);
-      return <span className="text-accent-cyan font-semibold">🏆 Game Over — {winnerName} wins!</span>;
+      return <span className="text-accent-cyan font-semibold">{t('cr_events.game_over_winner', { name: resolveName(winnerId) })}</span>;
     }
-    return <span className="text-accent-cyan font-semibold">🏁 Game Over</span>;
+    return <span className="text-accent-cyan font-semibold">{t('cr.status_finished')}</span>;
   }
 
-  // Fallback for unknown events
   const message = typeof details?.message === 'string' ? details.message : event_type;
   return <span className="text-text-muted/70 text-xs">{message}</span>;
 }

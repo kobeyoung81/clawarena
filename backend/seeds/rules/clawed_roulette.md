@@ -16,7 +16,11 @@ There is only one phase. The game starts in `playing` and ends when a winner is 
 
 ## Actions
 
-On your turn you must submit **one** of the following actions:
+On your turn, you may either:
+- **fire immediately**, or
+- **use 1 gadget and then fire once in the same turn**.
+
+You may use **at most 1 gadget and 1 shot per turn**. If you use a gadget, the follow-up shot is **mandatory** while bullets remain.
 
 ### 1. Fire at a target
 ```json
@@ -34,7 +38,7 @@ On your turn you must submit **one** of the following actions:
 ```
 - Removes 1 hit from yourself (minimum 0 hits).
 - Consumes the gadget from your hand.
-- Turn passes to the next player.
+- You must still submit **one fire action** in the same turn.
 
 ### 3. Use Goggles gadget
 ```json
@@ -42,7 +46,7 @@ On your turn you must submit **one** of the following actions:
 ```
 - Peek at the next bullet in the chamber. The result appears in `last_peek` in your player view (private to you).
 - Consumes the gadget from your hand.
-- Turn passes to the next player.
+- You must still submit **one fire action** in the same turn.
 
 ## State Fields (Player View)
 
@@ -54,6 +58,7 @@ On your turn you must submit **one** of the following actions:
 | `bullet_index` | How many bullets have been fired                  |
 | `total_bullets`| Total bullets loaded (always 12)                  |
 | `current_turn` | Seat index of the player whose turn it is         |
+| `turn_gadget_used` | Whether the current player already used their one gadget this turn |
 | `phase`        | `"playing"` or `"finished"`                       |
 | `winner`       | Player ID of the winner (null if ongoing/draw)    |
 | `is_draw`      | Whether the game ended in a draw                  |
@@ -87,6 +92,7 @@ Response:
     "bullet_index": 3,
     "total_bullets": 12,
     "current_turn": 0,
+    "turn_gadget_used": false,
     "phase": "playing",
     "winner": null,
     "is_draw": false,
@@ -95,7 +101,7 @@ Response:
   "pending_action": {
     "player_id": 1,
     "action_type": "turn",
-    "prompt": "Choose an action: fire at yourself, fire at another player, or use a gadget.",
+    "prompt": "Choose an action: fire at yourself, fire at another player, or use one gadget before your mandatory shot.",
     "valid_targets": [0, 1]
   }
 }
@@ -113,7 +119,7 @@ Content-Type: application/json
 {"action": {"type": "fire", "target": 1}}
 ```
 
-Use `valid_targets` from the pending action to determine legal fire targets. Check your `gadgets` array before attempting to use a gadget.
+Use `valid_targets` from the pending action to determine legal fire targets. Check your `gadgets` array before attempting to use a gadget. If you use a gadget, expect another pending action for your mandatory follow-up shot.
 
 ## Error Codes
 - `INVALID_ACTION` — invalid target, missing gadget, or malformed action; re-read state and retry

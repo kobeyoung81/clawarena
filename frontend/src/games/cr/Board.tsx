@@ -28,6 +28,7 @@ interface CrState {
   bullet_index: number;
   total_bullets: number;
   current_turn: number;
+  turn_gadget_used?: boolean;
   phase: 'playing' | 'finished';
   winner?: number;
   is_draw: boolean;
@@ -36,8 +37,6 @@ interface CrState {
 interface CrActionDetails {
   bullet?: string;
   self_shot?: boolean;
-  target_hits?: number;
-  hits_after?: number;
   gadget?: string;
 }
 
@@ -52,7 +51,66 @@ interface PlayerCardProps {
   eliminatedLabel: string;
 }
 
+type ShotDirection = 'left' | 'right';
+
 const MAX_HITS = 3;
+
+function PistolGraphic({
+  direction,
+  liveRound,
+}: {
+  direction: ShotDirection;
+  liveRound: boolean;
+}) {
+  const muzzleColor = liveRound ? '#ef4444' : '#94a3b8';
+  const bodyColor = '#f59e0b';
+  const gripColor = '#0f172a';
+
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={{
+        transform: direction === 'left' ? 'scaleX(-1)' : undefined,
+      }}
+    >
+      <div
+        className="absolute h-5 w-5 rounded-full"
+        style={{
+          right: direction === 'right' ? -8 : undefined,
+          left: direction === 'left' ? -8 : undefined,
+          background: muzzleColor,
+          boxShadow: liveRound
+            ? '0 0 24px rgba(239,68,68,0.45)'
+            : '0 0 18px rgba(148,163,184,0.25)',
+          opacity: 0.85,
+        }}
+      />
+      <svg viewBox="0 0 240 120" className="h-24 w-44 drop-shadow-[0_0_16px_rgba(245,158,11,0.18)]">
+        <rect x="28" y="44" width="98" height="22" rx="8" fill={bodyColor} />
+        <rect x="118" y="50" width="58" height="10" rx="5" fill={bodyColor} />
+        <rect x="50" y="64" width="18" height="30" rx="4" fill={gripColor} />
+        <path d="M66 66 L102 92 L84 98 L56 80 Z" fill={gripColor} />
+        <path d="M26 44 L48 26 L72 26 L58 44 Z" fill="#b45309" />
+        <circle cx="177" cy="55" r="6.5" fill={muzzleColor} />
+      </svg>
+    </div>
+  );
+}
+
+function GadgetGraphic({ icon, tone }: { icon: string; tone: string }) {
+  return (
+    <div
+      className="relative flex h-28 w-28 items-center justify-center rounded-full border"
+      style={{
+        borderColor: tone,
+        background: `radial-gradient(circle, ${tone}22 0%, rgba(9,17,31,0.85) 65%)`,
+        boxShadow: `0 0 24px ${tone}33`,
+      }}
+    >
+      <span className="text-5xl animate-breathe">{icon}</span>
+    </div>
+  );
+}
 
 function PlayerCard({
   player,
@@ -70,6 +128,7 @@ function PlayerCard({
 
   const textAlign = align === 'right' ? 'md:text-right md:items-end' : 'items-start';
   const headerAlign = align === 'right' ? 'md:flex-row-reverse' : '';
+  const remainingHp = Math.max(0, MAX_HITS - player.hits);
 
   let border = '1px solid rgba(255,255,255,0.08)';
   let glow = '0 12px 30px rgba(0,0,0,0.18)';
@@ -87,7 +146,7 @@ function PlayerCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl p-4 flex min-h-[170px] flex-col gap-3 transition-all ${textAlign}`}
+      className={`relative flex min-h-[170px] flex-col gap-3 overflow-hidden rounded-2xl p-4 transition-all ${textAlign}`}
       style={{
         background: player.alive ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
         border,
@@ -135,11 +194,11 @@ function PlayerCard({
 
       <div className={`relative z-10 flex flex-col gap-2 ${textAlign}`}>
         <div className={`flex gap-1.5 ${align === 'right' ? 'md:justify-end' : ''}`}>
-          {Array.from({ length: MAX_HITS }, (_, i) => (
+          {Array.from({ length: MAX_HITS }, (_, index) => (
             <span
-              key={i}
+              key={index}
               className="text-lg leading-none"
-              style={{ color: i < player.hits ? '#ef4444' : 'rgba(255,255,255,0.15)' }}
+              style={{ color: index < remainingHp ? '#ef4444' : 'rgba(255,255,255,0.15)' }}
             >
               ♥
             </span>
@@ -153,6 +212,50 @@ function PlayerCard({
           <span className="text-text-muted/55">🎒 {player.gadget_count ?? 0}</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CenterActionVisual({
+  event,
+  leftSeat,
+}: {
+  event?: GameEvent;
+  leftSeat?: number;
+}) {
+  const details = (event?.details ?? {}) as CrActionDetails;
+
+  if (event?.event_type === 'fire') {
+    const targetSeat = event.target?.seat;
+    const direction: ShotDirection = targetSeat === leftSeat ? 'left' : 'right';
+    return (
+      <div className="flex h-full items-center justify-center">
+        <PistolGraphic direction={direction} liveRound={details.bullet === 'live'} />
+      </div>
+    );
+  }
+
+  if (event?.event_type === 'gadget_use') {
+    const gadget = details.gadget;
+    if (gadget === 'fish_chips') {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <GadgetGraphic icon="🐟" tone="#22c55e" />
+        </div>
+      );
+    }
+    if (gadget === 'goggles') {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <GadgetGraphic icon="🔍" tone="#00e5ff" />
+        </div>
+      );
+    }
+  }
+
+  return (
+    <div className="flex h-full items-center justify-center">
+      <span className="h-3 w-3 rounded-full bg-[#ff9800] animate-pulse" />
     </div>
   );
 }
@@ -172,27 +275,18 @@ export default function ClawedRouletteBoard({ state, players, currentEvent }: Bo
     const player = bySeat
       ? players?.find((candidate) => candidate.seat === seatOrId)
       : players?.find((candidate) => candidate.id === seatOrId);
-    return player?.name ?? `Player ${seatOrId}`;
+    return player?.name ?? t('cr.player_fallback', { id: seatOrId });
   };
 
   const leftPlayer = statePlayers[0];
   const rightPlayer = statePlayers[1];
   const leftSeat = leftPlayer?.seat;
-  const rightSeat = rightPlayer?.seat;
 
   const actionEvent = currentEvent && (currentEvent.event_type === 'fire' || currentEvent.event_type === 'gadget_use')
     ? currentEvent
     : undefined;
-  const actionDetails = (actionEvent?.details ?? {}) as CrActionDetails;
   const actorSeat = actionEvent?.actor?.seat;
   const targetSeat = actionEvent?.target?.seat;
-  const actorName = actorSeat != null ? getName(actorSeat) : '';
-  const targetName = targetSeat != null ? getName(targetSeat) : '';
-
-  const isFireAction = actionEvent?.event_type === 'fire';
-  const isGadgetAction = actionEvent?.event_type === 'gadget_use';
-  const bulletType = actionDetails.bullet;
-  const gadget = actionDetails.gadget;
 
   let statusMsg = t('cr.status_finished');
   if (phase === 'finished') {
@@ -204,43 +298,6 @@ export default function ClawedRouletteBoard({ state, players, currentEvent }: Bo
   } else {
     statusMsg = t('cr.status_turn', { name: getName(currentTurn) });
   }
-
-  let actionSummary = statusMsg;
-  if (isFireAction && actorName && targetName) {
-    if (bulletType === 'live') {
-      actionSummary = t('cr_events.fire_live', {
-        name: actorName,
-        target: targetName,
-        hits: actionDetails.target_hits ?? '?',
-      });
-    } else if (actionDetails.self_shot) {
-      actionSummary = t('cr_events.fire_blank_self', { name: actorName });
-    } else {
-      actionSummary = t('cr_events.fire_blank', { name: actorName, target: targetName });
-    }
-  } else if (isGadgetAction && actorName && gadget) {
-    if (gadget === 'fish_chips') {
-      actionSummary = t('cr_events.gadget_fish_chips', {
-        name: actorName,
-        hits: actionDetails.hits_after ?? 0,
-      });
-    } else if (gadget === 'goggles') {
-      actionSummary = t('cr_events.gadget_goggles', { name: actorName });
-    }
-  }
-
-  const direction = actorSeat === leftSeat && targetSeat === rightSeat
-    ? 'right'
-    : actorSeat === rightSeat && targetSeat === leftSeat
-      ? 'left'
-      : 'self';
-
-  const gadgetIcon = gadget === 'fish_chips' ? '🐟' : gadget === 'goggles' ? '🔍' : '🎒';
-  const gadgetName = gadget === 'fish_chips'
-    ? t('cr.gadget_fish_chips')
-    : gadget === 'goggles'
-      ? t('cr.gadget_goggles')
-      : gadget ?? '';
 
   return (
     <div
@@ -306,85 +363,10 @@ export default function ClawedRouletteBoard({ state, players, currentEvent }: Bo
             </div>
 
             <div className="flex flex-1 items-center justify-center">
-              <div
-                className="w-full max-w-2xl rounded-2xl border border-white/8 bg-[#09111f]/80 px-4 py-5 shadow-[0_0_30px_rgba(0,229,255,0.08)] backdrop-blur-sm animate-slide-in"
-              >
-                <div className="mb-3 flex items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-[0.28em] text-accent-cyan/70">
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent-cyan/70" />
-                  {t('cr.action_indicator')}
+              <div className="w-full max-w-2xl rounded-2xl border border-white/8 bg-[#09111f]/80 px-4 py-5 shadow-[0_0_30px_rgba(0,229,255,0.08)] backdrop-blur-sm animate-slide-in">
+                <div className="min-h-[150px]">
+                  <CenterActionVisual event={actionEvent} leftSeat={leftSeat} />
                 </div>
-
-                {isFireAction && leftPlayer && rightPlayer ? (
-                  <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-                      <div className={`truncate text-sm font-semibold ${leftSeat === actorSeat || leftSeat === targetSeat ? 'text-white' : 'text-text-muted/50'}`}>
-                        {getName(leftSeat ?? 0)}
-                      </div>
-                      <div className="flex items-center justify-center gap-2 text-xl font-semibold text-accent-cyan">
-                        {direction === 'right' && (
-                          <>
-                            <span className="animate-breathe">🔫</span>
-                            <span>━━▶</span>
-                          </>
-                        )}
-                        {direction === 'left' && (
-                          <>
-                            <span>◀━━</span>
-                            <span className="animate-breathe">🔫</span>
-                          </>
-                        )}
-                        {direction === 'self' && (
-                          <span className="animate-breathe">🔫 ↺</span>
-                        )}
-                      </div>
-                      <div className={`truncate text-right text-sm font-semibold ${rightSeat === actorSeat || rightSeat === targetSeat ? 'text-white' : 'text-text-muted/50'}`}>
-                        {getName(rightSeat ?? 1)}
-                      </div>
-                    </div>
-                    <div className="text-center text-xs text-text-muted/80">
-                      {actionSummary}
-                    </div>
-                    <div className="flex justify-center">
-                      <span
-                        className="rounded-full px-3 py-1 text-[10px] font-mono uppercase tracking-[0.22em]"
-                        style={{
-                          color: bulletType === 'live' ? '#fecaca' : '#d1d5db',
-                          background: bulletType === 'live' ? 'rgba(239,68,68,0.14)' : 'rgba(255,255,255,0.08)',
-                          border: bulletType === 'live'
-                            ? '1px solid rgba(239,68,68,0.28)'
-                            : '1px solid rgba(255,255,255,0.08)',
-                        }}
-                      >
-                        {bulletType === 'live' ? t('cr.round_live') : t('cr.round_blank')}
-                      </span>
-                    </div>
-                  </div>
-                ) : isGadgetAction && (leftPlayer || rightPlayer) ? (
-                  <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-                      <div className={`truncate text-sm font-semibold ${leftSeat === actorSeat ? 'text-white' : 'text-text-muted/50'}`}>
-                        {leftPlayer ? getName(leftSeat ?? 0) : ''}
-                      </div>
-                      <div className="flex items-center justify-center gap-2 rounded-full border border-accent-cyan/15 bg-accent-cyan/5 px-4 py-2">
-                        <span className="text-2xl animate-breathe">{gadgetIcon}</span>
-                        <span className="text-xs font-mono uppercase tracking-[0.18em] text-accent-cyan/80">
-                          {gadgetName}
-                        </span>
-                      </div>
-                      <div className={`truncate text-right text-sm font-semibold ${rightSeat === actorSeat ? 'text-white' : 'text-text-muted/50'}`}>
-                        {rightPlayer ? getName(rightSeat ?? 1) : ''}
-                      </div>
-                    </div>
-                    <div className="text-center text-xs text-text-muted/80">
-                      {actionSummary}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-3 py-4 text-center">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#ff9800] animate-pulse" />
-                    <div className="text-lg font-semibold text-white">{statusMsg}</div>
-                  </div>
-                )}
               </div>
             </div>
 

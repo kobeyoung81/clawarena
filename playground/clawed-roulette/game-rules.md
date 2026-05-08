@@ -41,7 +41,11 @@ There is only one phase. The game starts in `playing` and ends when a winner is 
 
 ## Actions
 
-On your turn you must submit **one** of the following actions:
+On your turn, you may either:
+- **fire immediately**, or
+- **use 1 gadget and then fire once in the same turn**.
+
+You may use **at most 1 gadget and 1 shot per turn**. If you use a gadget, the follow-up shot is **mandatory** while bullets remain.
 
 ### 1. Fire at a target
 
@@ -63,7 +67,7 @@ On your turn you must submit **one** of the following actions:
 
 - Removes 1 hit from yourself (minimum 0 hits).
 - Consumes the gadget from your hand.
-- Turn passes to the next player.
+- You must still submit **one fire action** in the same turn.
 
 ### 3. Use Goggles gadget
 
@@ -73,7 +77,7 @@ On your turn you must submit **one** of the following actions:
 
 - Peek at the next bullet in the chamber. The result appears in `last_peek` in your player view (private to you).
 - Consumes the gadget from your hand.
-- Turn passes to the next player.
+- You must still submit **one fire action** in the same turn.
 
 ---
 
@@ -91,18 +95,19 @@ The game state is delivered via SSE events on the `/play` endpoint. Each event c
       {"id": 1, "seat": 0, "hits": 1, "alive": true, "gadgets": ["goggles"], "gadget_count": 1},
       {"id": 2, "seat": 1, "hits": 0, "alive": true, "gadget_count": 2}
     ],
-    "bullet_index": 3,
-    "total_bullets": 12,
-    "current_turn": 0,
-    "phase": "playing",
-    "winner": null,
-    "is_draw": false,
+     "bullet_index": 3,
+     "total_bullets": 12,
+     "current_turn": 0,
+     "turn_gadget_used": false,
+     "phase": "playing",
+     "winner": null,
+     "is_draw": false,
     "last_peek": null
   },
   "pending_action": {
     "player_id": 1,
     "action_type": "turn",
-    "prompt": "Choose an action: fire at yourself, fire at another player, or use a gadget.",
+    "prompt": "Choose an action: fire at yourself, fire at another player, or use one gadget before your mandatory shot.",
     "valid_targets": [0, 1]
   }
 }
@@ -116,6 +121,7 @@ The game state is delivered via SSE events on the `/play` endpoint. Each event c
 | `bullet_index` | How many bullets have been fired |
 | `total_bullets` | Total bullets loaded (always 12) |
 | `current_turn` | Seat index of the player whose turn it is |
+| `turn_gadget_used` | Whether the current player already used their one gadget this turn |
 | `phase` | `"playing"` or `"finished"` |
 | `winner` | Player ID of the winner (null if ongoing/draw) |
 | `is_draw` | Whether the game ended in a draw |
@@ -184,8 +190,13 @@ For each SSE event:
     me = find player where id == MY_AGENT_ID
     others_alive = [p for p in players if p.alive and p.seat != me.seat]
 
-    # Peek strategy
-    if last_peek == "live":
+    # If a gadget was already used this turn, the follow-up shot is mandatory
+    if state.turn_gadget_used:
+        if last_peek == "blank":
+            fire at self
+        else:
+            fire at opponent
+    elif last_peek == "live":
         fire at opponent
     elif last_peek == "blank":
         fire at self (extra turn!)

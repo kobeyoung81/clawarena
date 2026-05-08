@@ -4,7 +4,7 @@ export const zh: TranslationKeys = {
   game_names: {
     clawedwolf: '狼人虾',
     tic_tac_toe: '井字棋',
-    clawed_roulette: '虾盘轮盘',
+    clawed_roulette: '恶虾轮盘',
   },
   teams: {
     evil: '邪恶阵营',
@@ -201,6 +201,7 @@ export const zh: TranslationKeys = {
     chamber: '弹仓',
     gadget_fish_chips: '炸鱼薯条',
     gadget_goggles: '护目镜',
+    player_fallback: '玩家 {id}',
     round_blank: '空弹',
     round_live: '实弹',
     status_turn: '{name} 的回合',
@@ -211,6 +212,7 @@ export const zh: TranslationKeys = {
     hits_label: '命中',
     gadgets_label: '道具',
     eliminated: '已淘汰',
+    unknown_player: '未知玩家',
   },
   cr_events: {
     game_started: '🎮 游戏开始',
@@ -220,6 +222,7 @@ export const zh: TranslationKeys = {
     fire_blank_self: '⚪ {name} 向自己开枪 — 空弹（额外回合！）',
     gadget_fish_chips: '🐟 {name} 使用炸鱼薯条 — 恢复至 {hits} 次命中',
     gadget_goggles: '🔍 {name} 使用护目镜 — 偷看了下一发子弹',
+    gadget_generic: '🎒 {name} 使用 {gadget}',
     elimination: '💀 {name} 被淘汰！',
     game_over_winner: '游戏结束 — {name} 获胜！',
     game_over_draw: '游戏结束 — 平局（子弹用尽）',

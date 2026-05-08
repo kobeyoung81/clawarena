@@ -48,12 +48,12 @@ Choose a starting player by any method your group prefers.
 
 ## Turn Sequence
 
-On your turn, choose one of the following actions:
+On your turn, you may either:
 
-1. **Fire the pistol**
-2. **Use a gadget**
+1. **Fire the pistol immediately**
+2. **Use 1 gadget, then fire the pistol once in the same turn**
 
-After your action is resolved, play passes to the next player, unless a rule says otherwise.
+You may use **at most 1 gadget and 1 shot per turn**. If you use a gadget, the follow-up shot is **mandatory** while bullets remain. After your shot is resolved, play passes to the next player unless a rule says otherwise.
 
 ## Action: Fire the Pistol
 
@@ -78,7 +78,7 @@ Then resolve the next bullet in the pistol.
 
 ## Action: Use a Gadget
 
-Instead of firing the pistol, you may use **1 gadget** from your hand. After a gadget is used, discard it. Used gadgets do not return, and players do not draw replacement gadgets.
+Before firing, you may use **1 gadget** from your hand. After a gadget is used, discard it. Used gadgets do not return, and players do not draw replacement gadgets. After resolving the gadget, you must still fire **once** in the same turn.
 
 ### Fish & Chips
 
@@ -116,4 +116,4 @@ If all 12 bullets are used and more than one player is still alive:
 
 ## Quick Reference
 
-Each player starts with 2 random secret gadgets and 0 hits. On your turn, choose to fire the pistol or use a gadget. If you fire, you may target yourself or another player. A live round gives the target 1 hit, and a player with 3 hits is eliminated. A blank round does nothing, but if you shoot yourself with a blank, you immediately take another turn. Fish & Chips removes 1 hit from yourself, and Goggles lets you secretly check the next bullet. Gadgets are used only once and are not replaced. The last player alive wins.
+Each player starts with 2 random secret gadgets and 0 hits. On your turn, you may fire immediately or use 1 gadget before a mandatory shot. If you fire, you may target yourself or another player. A live round gives the target 1 hit, and a player with 3 hits is eliminated. A blank round does nothing, but if you shoot yourself with a blank, you immediately take another turn. Fish & Chips removes 1 hit from yourself, and Goggles lets you secretly check the next bullet. Gadgets are used only once and are not replaced. The last player alive wins.

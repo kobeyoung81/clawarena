@@ -34,12 +34,13 @@ func buildState(players []uint, bullets []string, gadgets [][]string) *State {
 		pls[i] = Player{ID: pid, Seat: i, Hits: 0, Alive: true, Gadgets: g}
 	}
 	return &State{
-		Players:      pls,
-		Bullets:      bullets,
-		BulletIndex:  0,
-		TotalBullets: len(bullets),
-		CurrentTurn:  0,
-		Phase:        "playing",
+		Players:        pls,
+		Bullets:        bullets,
+		BulletIndex:    0,
+		TotalBullets:   len(bullets),
+		CurrentTurn:    0,
+		TurnGadgetUsed: false,
+		Phase:          "playing",
 	}
 }
 
@@ -345,8 +346,11 @@ func TestGadget_FishChips_ReduceHit(t *testing.T) {
 	if len(ns.Players[0].Gadgets) != 0 {
 		t.Errorf("expected gadget removed, got %v", ns.Players[0].Gadgets)
 	}
-	if ns.CurrentTurn != 1 {
-		t.Errorf("expected turn to advance after gadget use, got %d", ns.CurrentTurn)
+	if ns.CurrentTurn != 0 {
+		t.Errorf("expected turn to stay on the same player after gadget use, got %d", ns.CurrentTurn)
+	}
+	if !ns.TurnGadgetUsed {
+		t.Error("expected turn_gadget_used to be true after gadget use")
 	}
 }
 
@@ -409,6 +413,9 @@ func TestGadget_Goggles_PlayerView(t *testing.T) {
 	if pv1.LastPeek == nil || *pv1.LastPeek != "live" {
 		t.Error("player 1 should see peek result")
 	}
+	if !pv1.TurnGadgetUsed {
+		t.Error("player 1 should see that the gadget has already been used this turn")
+	}
 
 	// Player 2 should NOT see the peek
 	view2, _ := e.GetPlayerView(afterState, 2)
@@ -416,6 +423,112 @@ func TestGadget_Goggles_PlayerView(t *testing.T) {
 	json.Unmarshal(view2, &pv2)
 	if pv2.LastPeek != nil {
 		t.Error("player 2 should not see peek result")
+	}
+	if !pv2.TurnGadgetUsed {
+		t.Error("spectating players should see that the turn is waiting for a shot")
+	}
+}
+
+func TestPendingActions_DefaultAllowsGadgetOrFire(t *testing.T) {
+	e := &Engine{}
+	s := buildState([]uint{1, 2}, []string{"live", "blank"}, [][]string{{"goggles"}, {}})
+
+	actions, err := e.GetPendingActions(stateJSON(s))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 pending action, got %d", len(actions))
+	}
+	if actions[0].Prompt != "Choose an action: fire at yourself, fire at another player, or use one gadget before your mandatory shot." {
+		t.Errorf("unexpected prompt: %q", actions[0].Prompt)
+	}
+}
+
+func TestPendingActions_AfterGadgetRequiresShot(t *testing.T) {
+	e := &Engine{}
+	s := buildState([]uint{1, 2}, []string{"live", "blank"}, [][]string{{"goggles"}, {}})
+	s.TurnGadgetUsed = true
+
+	actions, err := e.GetPendingActions(stateJSON(s))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 pending action, got %d", len(actions))
+	}
+	if actions[0].Prompt != "Choose a target to fire. You already used one gadget this turn." {
+		t.Errorf("unexpected prompt: %q", actions[0].Prompt)
+	}
+}
+
+func TestTurnModel_GadgetThenFireAdvancesTurn(t *testing.T) {
+	e := &Engine{}
+	s := buildState([]uint{1, 2}, []string{"live", "blank"}, [][]string{{"fish_chips"}, {}})
+	s.Players[0].Hits = 1
+
+	gadgetAction, _ := json.Marshal(map[string]any{"type": "gadget", "gadget": "fish_chips"})
+	gadgetResult, err := e.ApplyAction(stateJSON(s), 1, gadgetAction)
+	if err != nil {
+		t.Fatalf("unexpected gadget error: %v", err)
+	}
+
+	fireAction, _ := json.Marshal(map[string]any{"type": "fire", "target": 1})
+	fireResult, err := e.ApplyAction(lastState(gadgetResult), 1, fireAction)
+	if err != nil {
+		t.Fatalf("unexpected fire error: %v", err)
+	}
+
+	var ns State
+	json.Unmarshal(lastState(fireResult), &ns)
+	if ns.CurrentTurn != 1 {
+		t.Errorf("expected turn to advance after the mandatory shot, got %d", ns.CurrentTurn)
+	}
+	if ns.TurnGadgetUsed {
+		t.Error("expected turn_gadget_used to reset after the shot")
+	}
+}
+
+func TestTurnModel_GadgetThenBlankSelfResetsTurnState(t *testing.T) {
+	e := &Engine{}
+	s := buildState([]uint{1, 2}, []string{"blank", "live"}, [][]string{{"goggles"}, {}})
+
+	gadgetAction, _ := json.Marshal(map[string]any{"type": "gadget", "gadget": "goggles"})
+	gadgetResult, err := e.ApplyAction(stateJSON(s), 1, gadgetAction)
+	if err != nil {
+		t.Fatalf("unexpected gadget error: %v", err)
+	}
+
+	fireAction, _ := json.Marshal(map[string]any{"type": "fire", "target": 0})
+	fireResult, err := e.ApplyAction(lastState(gadgetResult), 1, fireAction)
+	if err != nil {
+		t.Fatalf("unexpected fire error: %v", err)
+	}
+
+	var ns State
+	json.Unmarshal(lastState(fireResult), &ns)
+	if ns.CurrentTurn != 0 {
+		t.Errorf("expected blank self-shot to keep the current player, got %d", ns.CurrentTurn)
+	}
+	if ns.TurnGadgetUsed {
+		t.Error("expected turn_gadget_used to reset for the extra turn")
+	}
+}
+
+func TestTurnModel_CannotUseSecondGadgetSameTurn(t *testing.T) {
+	e := &Engine{}
+	s := buildState([]uint{1, 2}, []string{"live", "blank"}, [][]string{{"goggles", "fish_chips"}, {}})
+
+	gadgetAction, _ := json.Marshal(map[string]any{"type": "gadget", "gadget": "goggles"})
+	gadgetResult, err := e.ApplyAction(stateJSON(s), 1, gadgetAction)
+	if err != nil {
+		t.Fatalf("unexpected gadget error: %v", err)
+	}
+
+	secondGadgetAction, _ := json.Marshal(map[string]any{"type": "gadget", "gadget": "fish_chips"})
+	_, err = e.ApplyAction(lastState(gadgetResult), 1, secondGadgetAction)
+	if err == nil {
+		t.Fatal("expected error for using a second gadget in the same turn")
 	}
 }
 

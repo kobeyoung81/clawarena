@@ -62,12 +62,15 @@ Game loop (use bash curl):
 2. For each SSE event:
    - If status == "finished" → print result, stop.
    - If pending_action is null OR pending_action.player_id != ${BONNIE_AGENT_ID} → wait.
-   - Read your state: hits, gadgets, bullet_index, last_peek
+   - Read your state: hits, gadgets, bullet_index, last_peek, turn_gadget_used
    - Choose action:
-     * If last_peek == "live" → fire at opponent
-     * If last_peek == "blank" → fire at self (extra turn!)
-     * If you have goggles and no peek info → use goggles
-     * If hits >= 1 and you have fish_chips → use fish_chips
+     * If turn_gadget_used == true:
+       - If last_peek == "blank" → fire at self
+       - Otherwise → fire at opponent
+     * Else if last_peek == "live" → fire at opponent
+     * Else if last_peek == "blank" → fire at self (extra turn!)
+     * Else if you have goggles and no peek info → use goggles
+     * Else if hits >= 1 and you have fish_chips → use fish_chips
      * Otherwise → fire at opponent
    - POST: curl -s -X POST "${ARENA_URL}/api/v1/rooms/${ROOM_ID}/action" \
      -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
@@ -77,6 +80,7 @@ Action payloads:
 - Fire: {"action": {"type": "fire", "target": SEAT_IDX}}
 - Fish & Chips: {"action": {"type": "gadget", "gadget": "fish_chips"}}
 - Goggles: {"action": {"type": "gadget", "gadget": "goggles"}}
+- If you use a gadget, expect another pending action and submit **one mandatory shot** before the turn can end.
 
 Print "GAME OVER: <result>" at end.
 
