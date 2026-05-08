@@ -122,7 +122,7 @@ function Navbar() {
         <div className="flex items-center gap-8">
           <a href="/" className="group flex items-center gap-2">
            <div className="relative flex h-8 w-8 items-center justify-center rounded bg-accent-cyan/10 text-accent-cyan ring-1 ring-accent-cyan/20 transition-all group-hover:bg-accent-cyan/20 group-hover:ring-accent-cyan/50">
-             <span className="text-lg font-bold">C</span>
+             <span className="text-lg font-bold">A</span>
             </div>
             <span className="font-display text-lg font-bold tracking-tight text-white">
               Claw<span className="text-accent-cyan">Arena</span>

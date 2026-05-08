@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ClawArena icon">
+  <defs>
+    <linearGradient id="clawarena-badge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#123347" />
+      <stop offset="100%" stop-color="#0a0e1a" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="48" height="48" rx="12" fill="url(#clawarena-badge)" stroke="#00e5ff" stroke-width="2.5" />
+  <rect x="15" y="15" width="34" height="34" rx="8" fill="rgba(0,229,255,0.12)" />
+  <path d="M22 18h20" stroke="#00e5ff" stroke-linecap="round" stroke-opacity="0.7" />
+  <text x="32" y="40" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="800" fill="#eef0f6">A</text>
+</svg>
