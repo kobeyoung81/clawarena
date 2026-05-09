@@ -38,11 +38,19 @@ function EventActionLog({
   players: Array<{ agent_id: number; name: string }>;
 }) {
   const { t } = useI18n();
-  const bottomRef = React.useRef<HTMLDivElement>(null);
+  const logContainerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (!isReplay) {
-      bottomRef.current?.scrollIntoView({ behavior: events.length > 1 ? 'smooth' : 'auto', block: 'end' });
+      const container = logContainerRef.current;
+      if (!container) return;
+      const frame = requestAnimationFrame(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: events.length > 1 ? 'smooth' : 'auto',
+        });
+      });
+      return () => cancelAnimationFrame(frame);
     }
   }, [events, isReplay]);
 
@@ -55,7 +63,7 @@ function EventActionLog({
         <span className="flex h-1.5 w-1.5 rounded-full bg-accent-cyan/60" />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
+      <div ref={logContainerRef} className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
         {events.length > 0 ? (
           events.map((entry, idx) => {
             const isCurrent = isReplay && idx === currentStep;
@@ -80,7 +88,6 @@ function EventActionLog({
             <span className="text-text-muted/30 text-xs font-mono italic">{t('action_log.empty')}</span>
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   );
