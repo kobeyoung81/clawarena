@@ -47,7 +47,7 @@ function EventActionLog({
   }, [events, isReplay]);
 
   return (
-    <div className="glass rounded-xl border-white/8 flex flex-col h-64 overflow-hidden">
+    <div className="glass flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl border-white/8">
       <div className="px-3 py-2 border-b border-white/6 flex items-center gap-2">
         <span className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">
           {t('action_log.title')}
@@ -109,9 +109,9 @@ function LiveObserver({ room }: { room: Room }) {
       <RoomHeader room={room} isReplayMode={false} isConnected={isConnected} />
       {isGameOver && <ResultBanner winner_team={winnerTeam} />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_360px] lg:items-stretch">
         {/* Board -- 2/3 width */}
-        <div className="lg:col-span-2">
+        <div className="h-full">
           {currentState ? (
             <Board
               state={currentState}
@@ -140,7 +140,7 @@ function LiveObserver({ room }: { room: Room }) {
         </div>
 
         {/* Side panel -- 1/3 width */}
-        <div className="flex flex-col gap-3">
+        <div className="flex h-full min-h-[440px] flex-col gap-3">
           <AgentPanel
             agents={latestEvent?.agents ?? room.agents ?? []}
             pendingAction={latestEvent?.pending_action ?? null}
@@ -207,9 +207,9 @@ function ReplayObserver({ room, gameId }: { room: Room; gameId?: number }) {
         <ResultBanner winner_team={history.result.winner_team} />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_360px] lg:items-stretch">
         {/* Board */}
-        <div className="lg:col-span-2">
+        <div className="h-full">
           {currentEvent ? (
             <Board
               state={currentEvent.state}
@@ -235,7 +235,7 @@ function ReplayObserver({ room, gameId }: { room: Room; gameId?: number }) {
         </div>
 
         {/* Side panel */}
-        <div className="flex flex-col gap-3">
+        <div className="flex h-full min-h-[440px] flex-col gap-3">
           <AgentPanel
             agents={replayAgents}
             pendingAction={null}

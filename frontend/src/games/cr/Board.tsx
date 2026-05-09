@@ -193,7 +193,7 @@ function CenterActionVisual({
     <img
       src={pistolRight}
       alt=""
-      className="w-full max-w-[250px] select-none drop-shadow-[0_0_24px_rgba(245,158,11,0.28)] animate-breathe"
+      className="h-auto w-full max-w-[250px] select-none object-contain drop-shadow-[0_0_24px_rgba(245,158,11,0.28)] animate-breathe"
       draggable={false}
     />
   );
@@ -208,7 +208,7 @@ function CenterActionVisual({
       <img
         src={pistolAsset}
         alt=""
-        className={`w-full max-w-[250px] select-none drop-shadow-[0_0_24px_rgba(245,158,11,0.28)] ${liveRound ? 'animate-breathe' : 'animate-slide-in'}`}
+        className={`h-auto w-full max-w-[250px] select-none object-contain drop-shadow-[0_0_24px_rgba(245,158,11,0.28)] ${liveRound ? 'animate-breathe' : 'animate-slide-in'}`}
         draggable={false}
       />
     );
@@ -222,7 +222,7 @@ function CenterActionVisual({
         <img
           src={fishAndChips}
           alt=""
-          className="w-full max-w-[170px] select-none drop-shadow-[0_0_24px_rgba(34,197,94,0.24)] animate-breathe"
+          className="h-auto w-full max-w-[170px] select-none object-contain drop-shadow-[0_0_24px_rgba(34,197,94,0.24)] animate-breathe"
           draggable={false}
         />
       );
@@ -241,8 +241,8 @@ function CenterActionVisual({
 
   return (
     <div className="flex h-full items-center justify-center">
-      <div className="flex min-h-[150px] flex-col items-center justify-center gap-3 text-center animate-slide-in">
-        <div className="flex min-h-[110px] items-center justify-center">
+      <div className="flex h-full min-h-[230px] w-full flex-col items-center justify-center gap-4 text-center animate-slide-in">
+        <div className="flex h-[170px] w-full items-center justify-center overflow-hidden">
           {image}
         </div>
         <div className="text-base font-semibold tracking-tight text-white">
@@ -294,13 +294,13 @@ export default function ClawedRouletteBoard({ state, players, currentEvent }: Bo
 
   return (
     <div
-      className="rounded-xl p-4 md:p-5"
+      className="h-full rounded-xl p-4 md:p-5"
       style={{
         background: 'rgba(255,255,255,0.03)',
         border: '1px solid rgba(255,255,255,0.06)',
       }}
     >
-      <div className="grid gap-4 md:grid-cols-[minmax(0,220px)_1fr_minmax(0,220px)] md:items-stretch">
+      <div className="grid h-full gap-4 md:grid-cols-[minmax(0,220px)_1fr_minmax(0,220px)] md:items-stretch">
         <PlayerCard
           player={leftPlayer}
           name={leftPlayer ? getName(leftPlayer.seat) : ''}
@@ -313,11 +313,10 @@ export default function ClawedRouletteBoard({ state, players, currentEvent }: Bo
         />
 
         <div
-          className="relative overflow-hidden rounded-2xl px-4 py-5 md:px-6"
+          className="relative flex h-full min-h-[440px] overflow-hidden rounded-2xl px-4 py-5 md:px-6"
           style={{
             border: '1px solid rgba(0,229,255,0.15)',
             background: 'linear-gradient(180deg, rgba(6,18,32,0.92), rgba(10,14,26,0.94))',
-            minHeight: 300,
           }}
         >
           <div
@@ -327,7 +326,7 @@ export default function ClawedRouletteBoard({ state, players, currentEvent }: Bo
             }}
           />
 
-          <div className="relative z-10 flex h-full flex-col gap-5">
+          <div className="relative z-10 flex h-full w-full flex-col gap-5">
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[10px] font-mono uppercase tracking-[0.28em] text-text-muted/45">
@@ -356,8 +355,8 @@ export default function ClawedRouletteBoard({ state, players, currentEvent }: Bo
             </div>
 
             <div className="flex flex-1 items-center justify-center">
-              <div className="w-full max-w-2xl rounded-2xl border border-white/8 bg-[#09111f]/80 px-4 py-5 shadow-[0_0_30px_rgba(0,229,255,0.08)] backdrop-blur-sm animate-slide-in">
-                <div className="min-h-[150px]">
+              <div className="w-full max-w-[340px] rounded-2xl border border-white/8 bg-[#09111f]/80 px-5 py-6 shadow-[0_0_30px_rgba(0,229,255,0.08)] backdrop-blur-sm animate-slide-in">
+                <div className="min-h-[230px]">
                   <CenterActionVisual event={actionEvent} leftSeat={leftSeat} />
                 </div>
               </div>
