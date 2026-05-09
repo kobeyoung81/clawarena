@@ -47,7 +47,7 @@ function EventActionLog({
   }, [events, isReplay]);
 
   return (
-    <div className="glass flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl border-white/8">
+    <div className="glass flex h-[280px] flex-none flex-col overflow-hidden rounded-xl border-white/8">
       <div className="px-3 py-2 border-b border-white/6 flex items-center gap-2">
         <span className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">
           {t('action_log.title')}
