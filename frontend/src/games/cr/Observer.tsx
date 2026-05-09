@@ -1,7 +1,7 @@
-import React from 'react';
 import { useSSE } from '../../hooks/useSSE';
 import { useReplay } from '../../hooks/useReplay';
 import { AgentPanel } from '../../components/AgentPanel';
+import { EventActionLogPanel } from '../../components/EventActionLogPanel';
 import { ReplayControls } from '../../components/ReplayControls';
 import { RoomHeader, ResultBanner } from '../../components/RoomHeader';
 import { ShimmerCard } from '../../components/effects/ShimmerLoader';
@@ -22,75 +22,6 @@ interface CrPlayer {
   name: string;
   alive: boolean;
   id: number;
-}
-
-// ─── Event-sourced ActionLog wrapper ────────────────────────────────────────
-
-function EventActionLog({
-  events,
-  currentStep,
-  isReplay,
-  players,
-}: {
-  events: GameEvent[];
-  currentStep?: number;
-  isReplay: boolean;
-  players: Array<{ agent_id: number; name: string }>;
-}) {
-  const { t } = useI18n();
-  const logContainerRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!isReplay) {
-      const container = logContainerRef.current;
-      if (!container) return;
-      const frame = requestAnimationFrame(() => {
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: events.length > 1 ? 'smooth' : 'auto',
-        });
-      });
-      return () => cancelAnimationFrame(frame);
-    }
-  }, [events, isReplay]);
-
-  return (
-    <div className="glass flex h-[340px] flex-none flex-col overflow-hidden rounded-xl border-white/8">
-      <div className="px-3 py-2 border-b border-white/6 flex items-center gap-2">
-        <span className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">
-          {t('action_log.title')}
-        </span>
-        <span className="flex h-1.5 w-1.5 rounded-full bg-accent-cyan/60" />
-      </div>
-
-      <div ref={logContainerRef} className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
-        {events.length > 0 ? (
-          events.map((entry, idx) => {
-            const isCurrent = isReplay && idx === currentStep;
-            const isLatestLive = !isReplay && idx === events.length - 1;
-            return (
-              <div
-                key={entry.seq}
-                className="text-sm rounded px-2 py-1.5 animate-slide-in"
-                style={{
-                  background: isCurrent || isLatestLive ? 'rgba(0,229,255,0.08)' : 'transparent',
-                  borderLeft: isCurrent || isLatestLive ? '2px solid rgba(0,229,255,0.6)' : '2px solid transparent',
-                  boxShadow: isLatestLive ? 'inset 0 0 0 1px rgba(0,229,255,0.12)' : undefined,
-                }}
-              >
-                <span className="text-text-muted/50 font-mono mr-2">#{entry.seq}</span>
-                <ActionLog entry={entry} players={players} />
-              </div>
-            );
-          })
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <span className="text-text-muted/30 text-xs font-mono italic">{t('action_log.empty')}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 }
 
 // ─── Live observer ──────────────────────────────────────────────────────────
@@ -154,10 +85,13 @@ function LiveObserver({ room }: { room: Room }) {
             agents={latestEvent?.agents ?? room.agents ?? []}
             pendingAction={latestEvent?.pending_action ?? null}
           />
-          <EventActionLog
+          <EventActionLogPanel
             events={events}
             isReplay={false}
-            players={livePlayers}
+            className="glass flex h-[340px] flex-none flex-col overflow-hidden rounded-xl border-white/8"
+            listClassName="flex flex-1 flex-col gap-1 overflow-y-auto p-2"
+            highlightLatestLive={true}
+            renderEntry={(entry) => <ActionLog entry={entry} players={livePlayers} />}
           />
         </div>
       </div>
@@ -250,11 +184,14 @@ function ReplayObserver({ room, gameId }: { room: Room; gameId?: number }) {
             pendingAction={null}
             replayPlayers={history.players}
           />
-          <EventActionLog
+          <EventActionLogPanel
             events={visibleEvents}
             currentStep={step}
             isReplay={true}
-            players={replayPlayers}
+            className="glass flex h-[340px] flex-none flex-col overflow-hidden rounded-xl border-white/8"
+            listClassName="flex flex-1 flex-col gap-1 overflow-y-auto p-2"
+            highlightLatestLive={true}
+            renderEntry={(entry) => <ActionLog entry={entry} players={replayPlayers} />}
           />
         </div>
       </div>

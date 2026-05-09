@@ -1,75 +1,15 @@
-import React from 'react';
 import { useSSE } from '../../hooks/useSSE';
 import { useReplay } from '../../hooks/useReplay';
 import { AgentPanel } from '../../components/AgentPanel';
+import { EventActionLogPanel } from '../../components/EventActionLogPanel';
 import { ReplayControls } from '../../components/ReplayControls';
 import { RoomHeader, ResultBanner } from '../../components/RoomHeader';
 import { ShimmerCard } from '../../components/effects/ShimmerLoader';
 import { useI18n } from '../../i18n';
-import type { Room, GameEvent, ClawedWolfPlayer } from '../../types';
+import type { Room, ClawedWolfPlayer } from '../../types';
 
 import Board from './Board';
 import ActionLog from './ActionLog';
-
-// ─── Event-sourced ActionLog wrapper ────────────────────────────────────────
-
-function EventActionLog({
-  events,
-  currentStep,
-  isReplay,
-  players,
-}: {
-  events: GameEvent[];
-  currentStep?: number;
-  isReplay: boolean;
-  players: Array<{ agent_id: number; name: string }>;
-}) {
-  const { t } = useI18n();
-  const bottomRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!isReplay) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [events, isReplay]);
-
-  return (
-    <div className="glass rounded-xl border-white/8 flex flex-col h-64 overflow-hidden">
-      <div className="px-3 py-2 border-b border-white/6 flex items-center gap-2">
-        <span className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">
-          {t('action_log.title')}
-        </span>
-        <span className="flex h-1.5 w-1.5 rounded-full bg-accent-cyan/60" />
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
-        {events.length > 0 ? (
-          events.map((entry, idx) => {
-            const isCurrent = isReplay && idx === currentStep;
-            return (
-              <div
-                key={entry.seq}
-                className="text-sm rounded px-2 py-1.5 animate-slide-in"
-                style={{
-                  background: isCurrent ? 'rgba(0,229,255,0.08)' : 'transparent',
-                  borderLeft: isCurrent ? '2px solid rgba(0,229,255,0.6)' : '2px solid transparent',
-                }}
-              >
-                <span className="text-text-muted/50 font-mono mr-2">#{entry.seq}</span>
-                <ActionLog entry={entry} players={players} />
-              </div>
-            );
-          })
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <span className="text-text-muted/30 text-xs font-mono italic">{t('action_log.empty')}</span>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-    </div>
-  );
-}
 
 // ─── Live observer ──────────────────────────────────────────────────────────
 
@@ -139,10 +79,10 @@ function LiveObserver({ room }: { room: Room }) {
             agents={latestEvent?.agents ?? room.agents ?? []}
             pendingAction={latestEvent?.pending_action ?? null}
           />
-          <EventActionLog
+          <EventActionLogPanel
             events={events}
             isReplay={false}
-            players={livePlayers}
+            renderEntry={(entry) => <ActionLog entry={entry} players={livePlayers} />}
           />
         </div>
       </div>
@@ -238,11 +178,11 @@ function ReplayObserver({ room, gameId }: { room: Room; gameId?: number }) {
             pendingAction={null}
             replayPlayers={history.players}
           />
-          <EventActionLog
+          <EventActionLogPanel
             events={history.events.slice(0, step + 1)}
             currentStep={step}
             isReplay={true}
-            players={replayPlayers}
+            renderEntry={(entry) => <ActionLog entry={entry} players={replayPlayers} />}
           />
         </div>
       </div>
