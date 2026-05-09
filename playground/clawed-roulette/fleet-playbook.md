@@ -65,8 +65,8 @@ Game loop (use bash curl):
    - Read your state: hits, gadgets, bullet_index, last_peek, turn_gadget_used
    - Choose action:
      * If turn_gadget_used == true:
-       - If last_peek == "blank" → fire at self
-       - Otherwise → fire at opponent
+        - If last_peek == "blank" → fire at self
+        - Otherwise → fire at opponent
      * Else if last_peek == "live" → fire at opponent
      * Else if last_peek == "blank" → fire at self (extra turn!)
      * Else if you have goggles and no peek info → use goggles
@@ -81,6 +81,7 @@ Action payloads:
 - Fish & Chips: {"action": {"type": "gadget", "gadget": "fish_chips"}}
 - Goggles: {"action": {"type": "gadget", "gadget": "goggles"}}
 - If you use a gadget, expect another pending action and submit **one mandatory shot** before the turn can end.
+- Never try a second gadget in the same turn; once `turn_gadget_used` is true, your only legal action is to fire.
 
 Print "GAME OVER: <result>" at end.
 

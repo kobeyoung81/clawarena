@@ -79,28 +79,28 @@ function Navbar() {
   const { t } = useI18n();
   const { user, isLoading, logout } = useAuth();
   const portalBase = getPortalBase();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openMenuPath, setOpenMenuPath] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-
-  // Close menu on navigation
-  useEffect(() => {
-    setMobileOpen(false);
+  const isMobileOpen = openMenuPath === location.pathname;
+  const closeMobileMenu = useCallback(() => setOpenMenuPath(null), []);
+  const toggleMobileMenu = useCallback(() => {
+    setOpenMenuPath(prev => (prev === location.pathname ? null : location.pathname));
   }, [location.pathname]);
 
   // Close menu on outside click
   const handleClickOutside = useCallback((e: MouseEvent) => {
     if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-      setMobileOpen(false);
+      closeMobileMenu();
     }
-  }, []);
+  }, [closeMobileMenu]);
 
   useEffect(() => {
-    if (mobileOpen) {
+    if (isMobileOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [mobileOpen, handleClickOutside]);
+  }, [handleClickOutside, isMobileOpen]);
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cn(
@@ -130,10 +130,10 @@ function Navbar() {
            </a>
 
           <div className="hidden md:flex md:items-center md:gap-1">
-            <NavLink to="/" className={linkClass}>{t('nav.overview')}</NavLink>
-            <NavLink to="/games" className={linkClass}>{t('nav.games')}</NavLink>
-            <NavLink to="/rooms" className={linkClass}>{t('nav.arena')}</NavLink>
-            <NavLink to="/replays" className={linkClass}>{t('nav.replays')}</NavLink>
+             <NavLink to="/" className={linkClass} onClick={closeMobileMenu}>{t('nav.overview')}</NavLink>
+             <NavLink to="/games" className={linkClass} onClick={closeMobileMenu}>{t('nav.games')}</NavLink>
+             <NavLink to="/rooms" className={linkClass} onClick={closeMobileMenu}>{t('nav.arena')}</NavLink>
+             <NavLink to="/replays" className={linkClass} onClick={closeMobileMenu}>{t('nav.replays')}</NavLink>
           </div>
         </div>
 
@@ -174,13 +174,13 @@ function Navbar() {
              )}
            <button
              className="md:hidden text-text-muted hover:text-white transition-colors"
-             onClick={() => setMobileOpen(prev => !prev)}
-             aria-label="Toggle menu"
-           >
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-               {mobileOpen ? (
-                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-               ) : (
+              onClick={toggleMobileMenu}
+              aria-label="Toggle menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                {isMobileOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                ) : (
                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                )}
              </svg>
@@ -189,13 +189,13 @@ function Navbar() {
       </div>
 
       {/* Mobile dropdown menu */}
-      {mobileOpen && (
+      {isMobileOpen && (
         <div className="md:hidden border-t border-white/10 bg-[#0a0e1a]/95 backdrop-blur-md animate-slide-in">
           <div className="flex flex-col">
-            <NavLink to="/" className={mobileLinkClass}>{t('nav.overview')}</NavLink>
-            <NavLink to="/games" className={mobileLinkClass}>{t('nav.games')}</NavLink>
-            <NavLink to="/rooms" className={mobileLinkClass}>{t('nav.arena')}</NavLink>
-            <NavLink to="/replays" className={mobileLinkClass}>{t('nav.replays')}</NavLink>
+            <NavLink to="/" className={mobileLinkClass} onClick={closeMobileMenu}>{t('nav.overview')}</NavLink>
+            <NavLink to="/games" className={mobileLinkClass} onClick={closeMobileMenu}>{t('nav.games')}</NavLink>
+            <NavLink to="/rooms" className={mobileLinkClass} onClick={closeMobileMenu}>{t('nav.arena')}</NavLink>
+            <NavLink to="/replays" className={mobileLinkClass} onClick={closeMobileMenu}>{t('nav.replays')}</NavLink>
           </div>
           <div className="px-4 py-3 border-t border-white/5 flex items-center justify-between">
             <LangToggle />

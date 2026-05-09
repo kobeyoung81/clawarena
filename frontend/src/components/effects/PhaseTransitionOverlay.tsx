@@ -38,10 +38,9 @@ export function PhaseTransitionOverlay({ phase, round }: PhaseTransitionOverlayP
   const label = t(`phase.${np}`) !== `phase.${np}` ? t(`phase.${np}`) : np;
 
   useEffect(() => {
-    setShow(true);
     const timer = setTimeout(() => setShow(false), 2000);
     return () => clearTimeout(timer);
-  }, [phase, round]);
+  }, []);
 
   if (!show) return null;
 

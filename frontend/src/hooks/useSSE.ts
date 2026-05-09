@@ -8,49 +8,66 @@ interface SSEState {
   error: string | null;
 }
 
+interface RoomSSEState extends SSEState {
+  roomId: number | null;
+}
+
+const EMPTY_STATE: SSEState = {
+  events: [],
+  latestEvent: null,
+  isConnected: false,
+  error: null,
+};
+
+function createRoomState(roomId: number | null): RoomSSEState {
+  return { roomId, ...EMPTY_STATE };
+}
+
 export function useSSE(roomId: number | null) {
-  const [state, setState] = useState<SSEState>({
-    events: [],
-    latestEvent: null,
-    isConnected: false,
-    error: null,
-  });
+  const [state, setState] = useState<RoomSSEState>(() => createRoomState(roomId));
   const esRef = useRef<EventSource | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seenSeqs = useRef<Set<number>>(new Set());
 
-  const appendEvent = useCallback((evt: GameEvent) => {
+  const currentState = state.roomId === roomId ? state : createRoomState(roomId);
+
+  const appendEvent = useCallback((evt: GameEvent, currentRoomId: number) => {
     if (seenSeqs.current.has(evt.seq)) return;
     seenSeqs.current.add(evt.seq);
-    setState(s => ({
-      ...s,
-      events: [...s.events, evt],
-      latestEvent: evt,
-      isConnected: true,
-    }));
+    setState(prev => {
+      const base = prev.roomId === currentRoomId ? prev : createRoomState(currentRoomId);
+      return {
+        ...base,
+        events: [...base.events, evt],
+        latestEvent: evt,
+        isConnected: true,
+      };
+    });
   }, []);
 
   useEffect(() => {
     if (roomId == null) return;
 
-    // Reset on roomId change
-    setState({ events: [], latestEvent: null, isConnected: false, error: null });
     seenSeqs.current.clear();
 
     const baseURL = '';
     const url = `${baseURL}/api/v1/rooms/${roomId}/watch`;
+    const currentRoomId = roomId;
 
     function connect() {
       const es = new EventSource(url);
       esRef.current = es;
 
-      es.onopen = () => setState(s => ({ ...s, isConnected: true, error: null }));
+      es.onopen = () => setState(prev => {
+        const base = prev.roomId === currentRoomId ? prev : createRoomState(currentRoomId);
+        return { ...base, isConnected: true, error: null };
+      });
 
       // Named event listeners for the new event-sourced backend
       es.addEventListener('game_event', (e: MessageEvent) => {
         try {
           const data = JSON.parse(e.data) as GameEvent;
-          appendEvent(data);
+          appendEvent(data, currentRoomId);
         } catch {
           // ignore parse errors
         }
@@ -59,7 +76,7 @@ export function useSSE(roomId: number | null) {
       es.addEventListener('room_event', (e: MessageEvent) => {
         try {
           const data = JSON.parse(e.data) as GameEvent;
-          appendEvent(data);
+          appendEvent(data, currentRoomId);
         } catch {
           // ignore parse errors
         }
@@ -71,7 +88,7 @@ export function useSSE(roomId: number | null) {
           const data = JSON.parse(e.data);
           // If it looks like a GameEvent (has seq), treat it as one
           if (typeof data.seq === 'number') {
-            appendEvent(data as GameEvent);
+            appendEvent(data as GameEvent, currentRoomId);
           } else {
             // Legacy format: wrap as a pseudo-event
             const pseudo: GameEvent = {
@@ -84,7 +101,7 @@ export function useSSE(roomId: number | null) {
               agents: data.agents ?? undefined,
               current_agent_id: data.current_agent_id ?? undefined,
             };
-            appendEvent(pseudo);
+            appendEvent(pseudo, currentRoomId);
           }
         } catch {
           // ignore parse errors
@@ -94,7 +111,10 @@ export function useSSE(roomId: number | null) {
       es.onerror = () => {
         es.close();
         esRef.current = null;
-        setState(s => ({ ...s, isConnected: false, error: 'Connection lost' }));
+        setState(prev => {
+          const base = prev.roomId === currentRoomId ? prev : createRoomState(currentRoomId);
+          return { ...base, isConnected: false, error: 'Connection lost' };
+        });
         reconnectTimer.current = setTimeout(connect, 3000);
       };
     }
@@ -108,5 +128,5 @@ export function useSSE(roomId: number | null) {
     };
   }, [roomId, appendEvent]);
 
-  return state;
+  return currentState;
 }

@@ -1,8 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { en, type TranslationKeys } from './en';
 import { zh } from './zh';
-
-type Lang = 'en' | 'zh';
+import { I18nContext, type Lang } from './i18n-context';
 
 const translations: Record<Lang, TranslationKeys> = { en, zh };
 
@@ -23,14 +22,6 @@ function resolve(obj: unknown, path: string): string {
   }
   return typeof cur === 'string' ? cur : path;
 }
-
-interface I18nContextValue {
-  lang: Lang;
-  setLang: (lang: Lang) => void;
-  t: (key: string, vars?: Record<string, string | number>) => string;
-}
-
-const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(detectLang);
@@ -67,10 +58,4 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       {children}
     </I18nContext.Provider>
   );
-}
-
-export function useI18n() {
-  const ctx = useContext(I18nContext);
-  if (!ctx) throw new Error('useI18n must be used within I18nProvider');
-  return ctx;
 }

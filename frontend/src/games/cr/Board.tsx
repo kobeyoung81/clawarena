@@ -1,5 +1,7 @@
 import { useI18n } from '../../i18n';
 import type { GameEvent } from '../../types';
+import pistolLeft from '../../assets/cr-pistol-left.svg';
+import pistolRight from '../../assets/cr-pistol-right.svg';
 
 export interface CrPlayer {
   seat: number;
@@ -51,51 +53,7 @@ interface PlayerCardProps {
   eliminatedLabel: string;
 }
 
-type ShotDirection = 'left' | 'right';
-
 const MAX_HITS = 3;
-
-function PistolGraphic({
-  direction,
-  liveRound,
-}: {
-  direction: ShotDirection;
-  liveRound: boolean;
-}) {
-  const muzzleColor = liveRound ? '#ef4444' : '#94a3b8';
-  const bodyColor = '#f59e0b';
-  const gripColor = '#0f172a';
-
-  return (
-    <div
-      className="relative flex items-center justify-center"
-      style={{
-        transform: direction === 'left' ? 'scaleX(-1)' : undefined,
-      }}
-    >
-      <div
-        className="absolute h-5 w-5 rounded-full"
-        style={{
-          right: direction === 'right' ? -8 : undefined,
-          left: direction === 'left' ? -8 : undefined,
-          background: muzzleColor,
-          boxShadow: liveRound
-            ? '0 0 24px rgba(239,68,68,0.45)'
-            : '0 0 18px rgba(148,163,184,0.25)',
-          opacity: 0.85,
-        }}
-      />
-      <svg viewBox="0 0 240 120" className="h-24 w-44 drop-shadow-[0_0_16px_rgba(245,158,11,0.18)]">
-        <rect x="28" y="44" width="98" height="22" rx="8" fill={bodyColor} />
-        <rect x="118" y="50" width="58" height="10" rx="5" fill={bodyColor} />
-        <rect x="50" y="64" width="18" height="30" rx="4" fill={gripColor} />
-        <path d="M66 66 L102 92 L84 98 L56 80 Z" fill={gripColor} />
-        <path d="M26 44 L48 26 L72 26 L58 44 Z" fill="#b45309" />
-        <circle cx="177" cy="55" r="6.5" fill={muzzleColor} />
-      </svg>
-    </div>
-  );
-}
 
 function GadgetGraphic({ icon, tone }: { icon: string; tone: string }) {
   return (
@@ -227,10 +185,31 @@ function CenterActionVisual({
 
   if (event?.event_type === 'fire') {
     const targetSeat = event.target?.seat;
-    const direction: ShotDirection = targetSeat === leftSeat ? 'left' : 'right';
+    const direction = targetSeat === leftSeat ? 'left' : 'right';
+    const pistolAsset = direction === 'left' ? pistolLeft : pistolRight;
+    const liveRound = details.bullet === 'live';
+    const muzzleStyle = direction === 'left'
+      ? { left: '14%', background: liveRound ? '#ef4444' : '#94a3b8' }
+      : { right: '14%', background: liveRound ? '#ef4444' : '#94a3b8' };
+
     return (
-      <div className="flex h-full items-center justify-center">
-        <PistolGraphic direction={direction} liveRound={details.bullet === 'live'} />
+      <div className="relative flex h-full items-center justify-center">
+        <div
+          className={`absolute top-1/2 h-14 w-14 -translate-y-1/2 rounded-full ${liveRound ? 'animate-pulse' : 'animate-breathe'}`}
+          style={{
+            ...muzzleStyle,
+            boxShadow: liveRound
+              ? '0 0 40px rgba(239,68,68,0.42)'
+              : '0 0 26px rgba(148,163,184,0.24)',
+            opacity: liveRound ? 0.9 : 0.55,
+          }}
+        />
+        <img
+          src={pistolAsset}
+          alt=""
+          className={`relative z-10 w-full max-w-[250px] select-none drop-shadow-[0_0_24px_rgba(245,158,11,0.28)] ${liveRound ? 'animate-breathe' : ''}`}
+          draggable={false}
+        />
       </div>
     );
   }

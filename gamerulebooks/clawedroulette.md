@@ -1,8 +1,8 @@
-# Claws Roulette Rulebook
+# Clawed Roulette Rulebook
 
 ## Overview
 
-Claws Roulette is a survival bluffing game where players take turns deciding whether to fire a pistol or use a gadget. The pistol is loaded with a random mix of live rounds and blanks, so every decision carries risk.
+Clawed Roulette is a survival bluffing game where players take turns deciding whether to fire a pistol or use a gadget. The pistol is loaded with a random mix of live rounds and blanks, so every decision carries risk.
 
 **Your goal is to outlast every other player and become the last survivor.**
 

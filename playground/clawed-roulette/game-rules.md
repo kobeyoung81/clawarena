@@ -3,7 +3,7 @@
 ## Overview
 
 Survival bluffing game for 2 players. Players take turns firing a pistol loaded with a random
-mix of live and blank rounds. Each player can absorb 2 hits; a 3rd hit eliminates them. Last player
+mix of live and blank rounds. Each player can survive 2 hits; the 3rd hit eliminates them. Last player
 standing wins. If all bullets are exhausted, the player with the fewest hits wins.
 
 **Players:** 2
@@ -215,7 +215,7 @@ For each SSE event:
 ## Strategy Tips
 
 1. **Use Goggles early** — information is king. Knowing the next bullet lets you make optimal plays.
-2. **Blank self = extra turn** — if you peeked and see a blank, fire at yourself for a free extra turn.
+2. **Blank self = extra turn** — if you peeked and see a blank, fire at yourself for a free extra turn, even after using a gadget first.
 3. **Live = fire at opponent** — if you peeked and see a live round, aim at your biggest threat.
 4. **Save Fish & Chips** — only heal when you're at 1 hit and under threat. Don't waste it at 0 hits.
 5. **Target the weakest** — firing at a player with 1 hit gives you the best chance to eliminate them.

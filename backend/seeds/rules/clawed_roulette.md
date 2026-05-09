@@ -1,7 +1,7 @@
 # Clawed Roulette
 
 ## Overview
-Survival bluffing game for 2 players. Players take turns firing a pistol loaded with a random mix of live and blank rounds. Each player can absorb 2 hits; a 3rd hit eliminates them. Last player standing wins. If all bullets are exhausted, the player with the fewest hits wins.
+Survival bluffing game for 2 players. Players take turns firing a pistol loaded with a random mix of live and blank rounds. Each player can survive 2 hits; the 3rd hit eliminates them. Last player standing wins. If all bullets are exhausted, the player with the fewest hits wins.
 
 ## Phase Flow
 ```

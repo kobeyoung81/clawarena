@@ -3,11 +3,21 @@ import { useQuery } from '@tanstack/react-query';
 import { getRoomHistory, getGameHistory } from '../api/client';
 import type { EventHistoryResponse } from '../types';
 
+interface ReplayState {
+  key: string;
+  step: number | null;
+  isPlaying: boolean;
+  speed: number;
+}
+
 export function useReplay(roomId: number, gameId?: number, startAtEnd = false) {
-  const [step, setStep] = useState(0);
-  const initializedStepRef = useRef(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  const replayKey = `${roomId}:${gameId ?? 'latest'}`;
+  const [replayState, setReplayState] = useState<ReplayState>({
+    key: replayKey,
+    step: null,
+    isPlaying: false,
+    speed: 1,
+  });
   const playTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: history, isLoading, error } = useQuery<EventHistoryResponse>({
@@ -16,44 +26,68 @@ export function useReplay(roomId: number, gameId?: number, startAtEnd = false) {
   });
 
   const total = history?.events?.length ?? 0;
+  const currentReplayState = replayState.key === replayKey
+    ? replayState
+    : { key: replayKey, step: null, isPlaying: false, speed: replayState.speed };
+  const defaultStep = startAtEnd ? Math.max(0, total - 1) : 0;
+  const step = currentReplayState.step ?? defaultStep;
+  const isPlaying = currentReplayState.isPlaying;
+  const speed = currentReplayState.speed;
 
-  useEffect(() => {
-    initializedStepRef.current = false;
-    setStep(0);
-  }, [roomId, gameId]);
-
-  useEffect(() => {
-    if (!history || initializedStepRef.current) return;
-    initializedStepRef.current = true;
-    if (startAtEnd) {
-      setStep(Math.max(0, (history.events?.length ?? 1) - 1));
-    } else {
-      setStep(0);
-    }
-  }, [history, startAtEnd]);
+  const updateReplayState = useCallback((updater: (state: ReplayState) => ReplayState) => {
+    setReplayState(prev => {
+      const current = prev.key === replayKey
+        ? prev
+        : { key: replayKey, step: null, isPlaying: false, speed: prev.speed };
+      return updater(current);
+    });
+  }, [replayKey]);
 
   const goNext = useCallback(() => {
-    setStep(s => Math.min(s + 1, total - 1));
-  }, [total]);
+    updateReplayState(current => ({
+      ...current,
+      step: Math.min((current.step ?? defaultStep) + 1, total - 1),
+    }));
+  }, [defaultStep, total, updateReplayState]);
 
   const goPrev = useCallback(() => {
-    setStep(s => Math.max(s - 1, 0));
-  }, []);
+    updateReplayState(current => ({
+      ...current,
+      step: Math.max((current.step ?? defaultStep) - 1, 0),
+      isPlaying: false,
+    }));
+  }, [defaultStep, updateReplayState]);
 
   const goTo = useCallback((s: number) => {
-    setStep(Math.max(0, Math.min(s, total - 1)));
-  }, [total]);
+    updateReplayState(current => ({
+      ...current,
+      step: Math.max(0, Math.min(s, total - 1)),
+      isPlaying: false,
+    }));
+  }, [total, updateReplayState]);
 
   const togglePlay = useCallback(() => {
-    setIsPlaying(p => !p);
-  }, []);
+    updateReplayState(current => {
+      const currentStep = current.step ?? defaultStep;
+      if (currentStep >= total - 1) {
+        return { ...current, isPlaying: false };
+      }
+      return { ...current, isPlaying: !current.isPlaying };
+    });
+  }, [defaultStep, total, updateReplayState]);
+
+  const setSpeed = useCallback((nextSpeed: number) => {
+    updateReplayState(current => ({
+      ...current,
+      speed: nextSpeed,
+    }));
+  }, [updateReplayState]);
 
   useEffect(() => {
     if (!isPlaying || !history) return;
 
     const events = history.events;
     if (step >= total - 1) {
-      setIsPlaying(false);
       return;
     }
 
@@ -72,13 +106,21 @@ export function useReplay(roomId: number, gameId?: number, startAtEnd = false) {
     delayMs = Math.max(50, delayMs);
 
     playTimer.current = setTimeout(() => {
-      setStep(s => s + 1);
+      updateReplayState(current => {
+        const currentStep = current.step ?? defaultStep;
+        const nextStep = Math.min(currentStep + 1, total - 1);
+        return {
+          ...current,
+          step: nextStep,
+          isPlaying: nextStep < total - 1,
+        };
+      });
     }, delayMs);
 
     return () => {
       if (playTimer.current) clearTimeout(playTimer.current);
     };
-  }, [isPlaying, step, speed, total, history]);
+  }, [defaultStep, history, isPlaying, speed, step, total, updateReplayState]);
 
   return { history, step, total, isPlaying, speed, setSpeed, isLoading, error, goNext, goPrev, goTo, togglePlay };
 }

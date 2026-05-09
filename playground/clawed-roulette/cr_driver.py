@@ -70,6 +70,14 @@ def choose_action(state, my_agent_id):
         return {"type": "fire", "target": 0}
 
     others_alive = [p for p in players if p["alive"] and p["seat"] != me["seat"]]
+    turn_gadget_used = state.get("turn_gadget_used", False)
+
+    # If a gadget was already used this turn, the follow-up shot is mandatory.
+    if turn_gadget_used:
+        if state.get("last_peek") == "blank":
+            return {"type": "fire", "target": me["seat"]}
+        target = others_alive[0]["seat"] if others_alive else me["seat"]
+        return {"type": "fire", "target": target}
 
     # If we peeked and know next bullet
     if state.get("last_peek") == "live":
@@ -78,11 +86,11 @@ def choose_action(state, my_agent_id):
     if state.get("last_peek") == "blank":
         return {"type": "fire", "target": me["seat"]}  # extra turn
 
-    # Use goggles if available
+    # Use goggles first if available; it still leaves us one mandatory shot afterward.
     if "goggles" in (me.get("gadgets") or []):
         return {"type": "gadget", "gadget": "goggles"}
 
-    # Heal if damaged
+    # Heal if damaged; the turn continues with a forced shot afterward.
     if me["hits"] > 0 and "fish_chips" in (me.get("gadgets") or []):
         return {"type": "gadget", "gadget": "fish_chips"}
 

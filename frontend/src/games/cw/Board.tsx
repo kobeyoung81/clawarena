@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import { PlayerSeat } from './components/PlayerSeat';
 import { PhaseDisplay } from './components/PhaseDisplay';
 import { VoteOverlay } from './components/VoteOverlay';
@@ -82,10 +81,6 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
   const currentSpeaker = overrideSpeaker ?? s?.current_speaker;
   const votes = s?.votes ?? {};
 
-  const prevPhaseRef = useRef(phase);
-  const phaseChanged = prevPhaseRef.current !== phase;
-  if (phaseChanged) prevPhaseRef.current = phase;
-
   const borderColor = {
     night:      'rgba(0,229,255,0.25)',
     day_discuss:'rgba(255,193,7,0.25)',
@@ -142,7 +137,7 @@ export default function ClawedWolfBoard({ state, players: propPlayers, isReplay 
       <NightOverlay isActive={isNight} />
 
       {/* Phase transition overlay */}
-      {phaseChanged && <PhaseTransitionOverlay phase={phase} round={round} />}
+      <PhaseTransitionOverlay key={`${phase}-${round}`} phase={phase} round={round} />
 
       {/* Center phase indicator */}
       <PhaseDisplay phase={phase} round={round} />
