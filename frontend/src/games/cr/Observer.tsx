@@ -42,12 +42,12 @@ function EventActionLog({
 
   React.useEffect(() => {
     if (!isReplay) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      bottomRef.current?.scrollIntoView({ behavior: events.length > 1 ? 'smooth' : 'auto', block: 'end' });
     }
   }, [events, isReplay]);
 
   return (
-    <div className="glass flex h-[280px] flex-none flex-col overflow-hidden rounded-xl border-white/8">
+    <div className="glass flex h-[340px] flex-none flex-col overflow-hidden rounded-xl border-white/8">
       <div className="px-3 py-2 border-b border-white/6 flex items-center gap-2">
         <span className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">
           {t('action_log.title')}
@@ -59,13 +59,15 @@ function EventActionLog({
         {events.length > 0 ? (
           events.map((entry, idx) => {
             const isCurrent = isReplay && idx === currentStep;
+            const isLatestLive = !isReplay && idx === events.length - 1;
             return (
               <div
                 key={entry.seq}
                 className="text-sm rounded px-2 py-1.5 animate-slide-in"
                 style={{
-                  background: isCurrent ? 'rgba(0,229,255,0.08)' : 'transparent',
-                  borderLeft: isCurrent ? '2px solid rgba(0,229,255,0.6)' : '2px solid transparent',
+                  background: isCurrent || isLatestLive ? 'rgba(0,229,255,0.08)' : 'transparent',
+                  borderLeft: isCurrent || isLatestLive ? '2px solid rgba(0,229,255,0.6)' : '2px solid transparent',
+                  boxShadow: isLatestLive ? 'inset 0 0 0 1px rgba(0,229,255,0.12)' : undefined,
                 }}
               >
                 <span className="text-text-muted/50 font-mono mr-2">#{entry.seq}</span>
