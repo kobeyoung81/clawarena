@@ -1,5 +1,6 @@
 import { useI18n } from '../../i18n';
 import type { GameEvent } from '../../types';
+import fishAndChips from '../../assets/cr-fish-and-chips.svg';
 import pistolLeft from '../../assets/cr-pistol-left.svg';
 import pistolRight from '../../assets/cr-pistol-right.svg';
 
@@ -40,6 +41,7 @@ interface CrActionDetails {
   bullet?: string;
   self_shot?: boolean;
   gadget?: string;
+  peek_result?: string;
 }
 
 interface PlayerCardProps {
@@ -55,18 +57,21 @@ interface PlayerCardProps {
 
 const MAX_HITS = 3;
 
-function GadgetGraphic({ icon, tone }: { icon: string; tone: string }) {
+function GogglesGraphic() {
   return (
-    <div
-      className="relative flex h-28 w-28 items-center justify-center rounded-full border"
-      style={{
-        borderColor: tone,
-        background: `radial-gradient(circle, ${tone}22 0%, rgba(9,17,31,0.85) 65%)`,
-        boxShadow: `0 0 24px ${tone}33`,
-      }}
+    <svg
+      viewBox="0 0 160 90"
+      className="w-full max-w-[170px] select-none drop-shadow-[0_0_24px_rgba(0,229,255,0.22)] animate-breathe"
+      aria-hidden="true"
     >
-      <span className="text-5xl animate-breathe">{icon}</span>
-    </div>
+      <rect x="12" y="26" width="50" height="34" rx="14" fill="#09111f" stroke="#00e5ff" strokeWidth="7" />
+      <rect x="98" y="26" width="50" height="34" rx="14" fill="#09111f" stroke="#00e5ff" strokeWidth="7" />
+      <rect x="62" y="38" width="36" height="10" rx="5" fill="#00e5ff" />
+      <path d="M12 43H2" stroke="#00e5ff" strokeWidth="7" strokeLinecap="round" />
+      <path d="M158 43h-10" stroke="#00e5ff" strokeWidth="7" strokeLinecap="round" />
+      <circle cx="37" cy="43" r="10" fill="#7dd3fc" fillOpacity="0.35" />
+      <circle cx="123" cy="43" r="10" fill="#7dd3fc" fillOpacity="0.35" />
+    </svg>
   );
 }
 
@@ -181,60 +186,69 @@ function CenterActionVisual({
   event?: GameEvent;
   leftSeat?: number;
 }) {
+  const { t } = useI18n();
   const details = (event?.details ?? {}) as CrActionDetails;
+
+  let image = (
+    <img
+      src={pistolRight}
+      alt=""
+      className="w-full max-w-[250px] select-none drop-shadow-[0_0_24px_rgba(245,158,11,0.28)] animate-breathe"
+      draggable={false}
+    />
+  );
+  let caption = t('cr.action_waiting');
 
   if (event?.event_type === 'fire') {
     const targetSeat = event.target?.seat;
     const direction = targetSeat === leftSeat ? 'left' : 'right';
     const pistolAsset = direction === 'left' ? pistolLeft : pistolRight;
     const liveRound = details.bullet === 'live';
-    const muzzleStyle = direction === 'left'
-      ? { left: '14%', background: liveRound ? '#ef4444' : '#94a3b8' }
-      : { right: '14%', background: liveRound ? '#ef4444' : '#94a3b8' };
-
-    return (
-      <div className="relative flex h-full items-center justify-center">
-        <div
-          className={`absolute top-1/2 h-14 w-14 -translate-y-1/2 rounded-full ${liveRound ? 'animate-pulse' : 'animate-breathe'}`}
-          style={{
-            ...muzzleStyle,
-            boxShadow: liveRound
-              ? '0 0 40px rgba(239,68,68,0.42)'
-              : '0 0 26px rgba(148,163,184,0.24)',
-            opacity: liveRound ? 0.9 : 0.55,
-          }}
-        />
-        <img
-          src={pistolAsset}
-          alt=""
-          className={`relative z-10 w-full max-w-[250px] select-none drop-shadow-[0_0_24px_rgba(245,158,11,0.28)] ${liveRound ? 'animate-breathe' : ''}`}
-          draggable={false}
-        />
-      </div>
+    image = (
+      <img
+        src={pistolAsset}
+        alt=""
+        className={`w-full max-w-[250px] select-none drop-shadow-[0_0_24px_rgba(245,158,11,0.28)] ${liveRound ? 'animate-breathe' : 'animate-slide-in'}`}
+        draggable={false}
+      />
     );
+    caption = liveRound ? t('cr.action_fire_hit') : t('cr.action_fire_blank');
   }
 
   if (event?.event_type === 'gadget_use') {
     const gadget = details.gadget;
     if (gadget === 'fish_chips') {
-      return (
-        <div className="flex h-full items-center justify-center">
-          <GadgetGraphic icon="🐟" tone="#22c55e" />
-        </div>
+      image = (
+        <img
+          src={fishAndChips}
+          alt=""
+          className="w-full max-w-[170px] select-none drop-shadow-[0_0_24px_rgba(34,197,94,0.24)] animate-breathe"
+          draggable={false}
+        />
       );
+      caption = t('cr.action_fish_and_chips');
     }
     if (gadget === 'goggles') {
-      return (
-        <div className="flex h-full items-center justify-center">
-          <GadgetGraphic icon="🔍" tone="#00e5ff" />
-        </div>
-      );
+      const peekResult = details.peek_result ?? (typeof event.state?.last_peek === 'string' ? event.state.last_peek : undefined);
+      image = <GogglesGraphic />;
+      caption = peekResult === 'live'
+        ? t('cr.action_next_live')
+        : peekResult === 'blank'
+          ? t('cr.action_next_blank')
+          : t('cr.action_next_unknown');
     }
   }
 
   return (
     <div className="flex h-full items-center justify-center">
-      <span className="h-3 w-3 rounded-full bg-[#ff9800] animate-pulse" />
+      <div className="flex min-h-[150px] flex-col items-center justify-center gap-3 text-center animate-slide-in">
+        <div className="flex min-h-[110px] items-center justify-center">
+          {image}
+        </div>
+        <div className="text-base font-semibold tracking-tight text-white">
+          {caption}
+        </div>
+      </div>
     </div>
   );
 }

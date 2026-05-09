@@ -197,6 +197,13 @@ export const zh: TranslationKeys = {
   },
   cr: {
     action_indicator: '动作',
+    action_fire_blank: '开火！空弹！',
+    action_fire_hit: '开火！命中！',
+    action_fish_and_chips: '炸鱼薯条：真香',
+    action_next_blank: '下一发：空弹！',
+    action_next_live: '下一发：实弹！',
+    action_next_unknown: '护目镜已启用',
+    action_waiting: '准备中...',
     alive: '存活',
     chamber: '弹仓',
     gadget_fish_chips: '炸鱼薯条',

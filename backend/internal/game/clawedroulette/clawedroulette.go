@@ -512,8 +512,9 @@ func (e *Engine) handleGadget(s *State, player *Player, act actionPayload) ([]ga
 			s.PeekPlayerID = uintPtr(player.ID)
 		}
 		details, _ := json.Marshal(map[string]any{
-			"gadget":    "goggles",
-			"player_id": player.ID,
+			"gadget":      "goggles",
+			"player_id":   player.ID,
+			"peek_result": s.LastPeek,
 		})
 		events = append(events, game.GameEvent{
 			Source:     "agent",

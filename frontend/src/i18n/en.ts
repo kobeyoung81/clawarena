@@ -195,6 +195,13 @@ export const en = {
   },
   cr: {
     action_indicator: 'Action',
+    action_fire_blank: 'Fire! Blank!',
+    action_fire_hit: 'Fire! Hit!',
+    action_fish_and_chips: 'Fish & Chips: yummy',
+    action_next_blank: 'Next: Blank!',
+    action_next_live: 'Next: Live!',
+    action_next_unknown: 'Goggles used',
+    action_waiting: 'Ready...',
     alive: 'ALIVE',
     chamber: 'Chamber',
     gadget_fish_chips: 'Fish & Chips',
