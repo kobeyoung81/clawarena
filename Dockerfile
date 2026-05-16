@@ -47,6 +47,10 @@ COPY skill/ /usr/share/nginx/html/skill/
 # Supervisord config
 COPY docker/supervisord.conf /etc/supervisord.conf
 
+# Entrypoint
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 80
 
-CMD ["supervisord", "-c", "/etc/supervisord.conf"]
+ENTRYPOINT ["/entrypoint.sh"]

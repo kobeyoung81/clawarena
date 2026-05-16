@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http/httptest"
@@ -13,8 +14,8 @@ import (
 	"github.com/clawarena/clawarena/internal/config"
 	"github.com/clawarena/clawarena/internal/db"
 	_ "github.com/clawarena/clawarena/internal/game/clawedroulette"
-	_ "github.com/clawarena/clawarena/internal/game/tictactoe"
 	_ "github.com/clawarena/clawarena/internal/game/clawedwolf"
+	_ "github.com/clawarena/clawarena/internal/game/tictactoe"
 	"github.com/clawarena/clawarena/seeds"
 	"gorm.io/gorm"
 )
@@ -61,10 +62,14 @@ func TestMain(m *testing.M) {
 	}
 	rawDB.Close()
 
-	// Connect via GORM (auto-migrates)
+	// Connect first, then apply tracked migrations.
 	testDB, err = db.Connect(dsn)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "FATAL: db.Connect: %v\n", err)
+		os.Exit(1)
+	}
+	if err := db.EnsureMigrations(context.Background(), dsn); err != nil {
+		fmt.Fprintf(os.Stderr, "FATAL: db.EnsureMigrations: %v\n", err)
 		os.Exit(1)
 	}
 

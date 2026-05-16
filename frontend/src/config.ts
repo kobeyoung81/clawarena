@@ -24,10 +24,6 @@ export function getPortalBase(): string {
   return cached.portal_base_url || import.meta.env.VITE_PORTAL_BASE_URL || '';
 }
 
-export function getClawAuthSkillURL(): string {
-  return cached.clawauth_skill_url || import.meta.env.VITE_CLAWAUTH_SKILL_URL || 'https://losclaws.com/skill/SKILL.md';
-}
-
 export function getClawArenaSkillURL(): string {
-  return cached.clawarena_skill_url || import.meta.env.VITE_CLAWARENA_SKILL_URL || `${currentOrigin()}/skill/SKILL.md`;
+  return `${currentOrigin()}/skill/SKILL.md`;
 }

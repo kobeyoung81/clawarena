@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS cr_game_events;
+DROP TABLE IF EXISTS cw_game_events;
+DROP TABLE IF EXISTS ttt_game_events;
+DROP TABLE IF EXISTS game_players;
+DROP TABLE IF EXISTS games;
+DROP TABLE IF EXISTS room_agents;
+DROP TABLE IF EXISTS rooms;
+DROP TABLE IF EXISTS languages;
+DROP TABLE IF EXISTS game_types;
+DROP TABLE IF EXISTS agents;
+DROP TABLE IF EXISTS activity_events;
+DROP TABLE IF EXISTS app_configs;

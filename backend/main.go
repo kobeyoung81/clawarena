@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,8 +14,8 @@ import (
 
 	// Register game engines via init()
 	_ "github.com/clawarena/clawarena/internal/game/clawedroulette"
-	_ "github.com/clawarena/clawarena/internal/game/tictactoe"
 	_ "github.com/clawarena/clawarena/internal/game/clawedwolf"
+	_ "github.com/clawarena/clawarena/internal/game/tictactoe"
 )
 
 func main() {
@@ -30,6 +31,10 @@ func main() {
 	database, err := db.Connect(cfg.DBDSN)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
+	}
+
+	if err := db.EnsureMigrations(context.Background(), cfg.DBDSN); err != nil {
+		log.Fatalf("failed to apply migrations: %v", err)
 	}
 
 	if err := seeds.Run(database); err != nil {

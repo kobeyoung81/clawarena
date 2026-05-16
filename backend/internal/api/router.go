@@ -106,6 +106,10 @@ func makeConfigHandler(db *gorm.DB) http.HandlerFunc {
 		}
 		result := make(map[string]string, len(rows))
 		for _, row := range rows {
+			switch row.ConfigKey {
+			case "losclaws_skill_url", "clawarena_skill_url", "clawauth_skill_url":
+				continue
+			}
 			result[row.ConfigKey] = row.ConfigValue
 		}
 		w.Header().Set("Content-Type", "application/json")
